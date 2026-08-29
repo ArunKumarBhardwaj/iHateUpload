@@ -1,0 +1,34 @@
+export type FileItem = {
+  id: string;
+  name: string;
+  size: number;
+  file: File;
+};
+
+export type ResultItem = {
+  id: string;
+  name: string;
+  size: number;
+  blob: Blob;
+  originalSize: number;
+};
+
+export type JobState =
+  | { status: "idle" }
+  | { status: "ready"; files: FileItem[] }
+  | { status: "processing"; files: FileItem[]; progress: number }
+  | { status: "done"; files: FileItem[]; results: ResultItem[] }
+  | { status: "error"; message: string; files: FileItem[] };
+
+export function createFileItems(fileList: FileList | File[]): FileItem[] {
+  return Array.from(fileList).map((file) => ({
+    id: crypto.randomUUID(),
+    name: file.name,
+    size: file.size,
+    file,
+  }));
+}
+
+export function idleJob(): JobState {
+  return { status: "idle" };
+}
