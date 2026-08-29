@@ -24,11 +24,15 @@ import {
   processCompressImage,
   processCompressPdf,
   processHeicToJpg,
+  processHeicToPdf,
   processImageToPdf,
+  processJpgToPng,
   processMergePdf,
   processOrganizePdf,
   processPdfToJpg,
+  processPngToJpg,
   processProtectPdf,
+  processResizeImage,
   processRotatePdf,
   processSplitPdf,
   processUnlockPdf,
@@ -45,10 +49,18 @@ async function runTool(
   switch (id) {
     case "heic-to-jpg":
       return processHeicToJpg(files, onProgress);
+    case "heic-to-pdf":
+      return processHeicToPdf(files, onProgress);
     case "compress-image":
       return processCompressImage(files, onProgress);
+    case "resize-image":
+      return processResizeImage(files, onProgress, options);
     case "webp-to-jpg":
       return processWebpToJpg(files, onProgress);
+    case "png-to-jpg":
+      return processPngToJpg(files, onProgress);
+    case "jpg-to-png":
+      return processJpgToPng(files, onProgress);
     case "image-to-pdf":
       return processImageToPdf(files, onProgress);
     case "merge-pdf":
@@ -81,6 +93,8 @@ async function downloadAllResults(results: ResultItem[]) {
 
 type RotateDegrees = 90 | 180 | 270;
 
+const RESIZE_PRESETS = [1920, 1280, 800, 640] as const;
+
 export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -90,6 +104,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [rotateDegrees, setRotateDegrees] = useState<RotateDegrees>(90);
   const [pageOrder, setPageOrder] = useState<number[]>([]);
+  const [maxEdge, setMaxEdge] = useState(1280);
   const FileIcon = tool.kind === "pdf" ? FileText : FileImage;
 
   const files =
@@ -109,7 +124,8 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       (password.trim().length > 0 &&
         confirmPassword === password &&
         !passwordConfirmMismatch)) &&
-    (tool.ui !== "organize" || pageOrder.length >= 1);
+    (tool.ui !== "organize" || pageOrder.length >= 1) &&
+    (tool.ui !== "resize" || (maxEdge >= 16 && maxEdge <= 10000));
 
   const setFiles = useCallback((next: FileItem[]) => {
     if (next.length === 0) {
@@ -124,6 +140,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     setConfirmPassword("");
     setRotateDegrees(90);
     setPageOrder([]);
+    setMaxEdge(1280);
   }, [tool.id]);
 
   useEffect(() => {
@@ -177,10 +194,12 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
         return { kind: "rotate", degrees: rotateDegrees };
       case "organize":
         return { kind: "organize", pageOrder };
+      case "resize":
+        return { kind: "resize", maxEdge };
       case "none":
         return { kind: "none" };
     }
-  }, [tool.ui, password, rotateDegrees, pageOrder]);
+  }, [tool.ui, password, rotateDegrees, pageOrder, maxEdge]);
 
   const process = useCallback(async () => {
     if (job.status !== "ready") return;
@@ -219,6 +238,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     setConfirmPassword("");
     setRotateDegrees(90);
     setPageOrder([]);
+    setMaxEdge(1280);
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -414,6 +434,48 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                     {value}°
                   </Button>
                 ))}
+              </div>
+            </div>
+          )}
+
+        {(job.status === "ready" || job.status === "error") &&
+          tool.ui === "resize" && (
+            <div className="mt-5 space-y-3">
+              <p className="text-sm font-medium text-ink">
+                Max edge (longest side)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {RESIZE_PRESETS.map((value) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    variant={maxEdge === value ? "default" : "outline"}
+                    onClick={() => setMaxEdge(value)}
+                  >
+                    {value}px
+                  </Button>
+                ))}
+              </div>
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium text-ink"
+                  htmlFor="resize-max-edge"
+                >
+                  Custom pixels
+                </label>
+                <Input
+                  id="resize-max-edge"
+                  type="number"
+                  min={16}
+                  max={10000}
+                  step={1}
+                  value={maxEdge}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    if (Number.isFinite(next)) setMaxEdge(Math.round(next));
+                  }}
+                />
               </div>
             </div>
           )}

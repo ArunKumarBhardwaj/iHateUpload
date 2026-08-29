@@ -9,8 +9,12 @@ export type ToolId =
   | "rotate-pdf"
   | "organize-pdf"
   | "heic-to-jpg"
+  | "heic-to-pdf"
   | "compress-image"
-  | "webp-to-jpg";
+  | "resize-image"
+  | "webp-to-jpg"
+  | "png-to-jpg"
+  | "jpg-to-png";
 
 export type ToolDefinition = {
   id: ToolId;
@@ -25,7 +29,7 @@ export type ToolDefinition = {
   seoDescription: string;
   showInNav: boolean;
   kind: "image" | "pdf";
-  ui: "none" | "password" | "password-confirm" | "rotate" | "organize";
+  ui: "none" | "password" | "password-confirm" | "rotate" | "organize" | "resize";
 };
 
 export const TOOLS: ToolDefinition[] = [
@@ -200,6 +204,23 @@ export const TOOLS: ToolDefinition[] = [
     ui: "none",
   },
   {
+    id: "heic-to-pdf",
+    slug: "heic-to-pdf",
+    title: "HEIC to PDF",
+    shortTitle: "HEIC → PDF",
+    description:
+      "Turn iPhone HEIC photos into a PDF for forms and email. Stays on this device.",
+    accept: ".heic,.heif,image/heic,image/heif",
+    multiple: true,
+    actionLabel: "Create PDF",
+    seoTitle: "HEIC to PDF Converter — Free, No Upload",
+    seoDescription:
+      "Convert HEIC to PDF in your browser. No upload, no account, no watermark.",
+    showInNav: true,
+    kind: "image",
+    ui: "none",
+  },
+  {
     id: "compress-image",
     slug: "compress-image",
     title: "Compress Image",
@@ -217,6 +238,23 @@ export const TOOLS: ToolDefinition[] = [
     ui: "none",
   },
   {
+    id: "resize-image",
+    slug: "resize-image",
+    title: "Resize Image",
+    shortTitle: "Resize",
+    description:
+      "Scale JPG, PNG, or WebP to a max edge for forms, email, or web. Private.",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
+    multiple: true,
+    actionLabel: "Resize images",
+    seoTitle: "Resize Image Online — Free, No Upload",
+    seoDescription:
+      "Resize images in your browser. No upload, no daily limits, no watermark.",
+    showInNav: true,
+    kind: "image",
+    ui: "resize",
+  },
+  {
     id: "webp-to-jpg",
     slug: "webp-to-jpg",
     title: "WebP to JPG",
@@ -230,6 +268,40 @@ export const TOOLS: ToolDefinition[] = [
     seoDescription:
       "Convert WebP to JPG in your browser. No upload, no watermark.",
     showInNav: false,
+    kind: "image",
+    ui: "none",
+  },
+  {
+    id: "png-to-jpg",
+    slug: "png-to-jpg",
+    title: "PNG to JPG",
+    shortTitle: "PNG → JPG",
+    description:
+      "Convert PNG images to JPG for smaller files and wider app support.",
+    accept: "image/png,.png",
+    multiple: true,
+    actionLabel: "Convert to JPG",
+    seoTitle: "PNG to JPG Converter — Free, No Upload",
+    seoDescription:
+      "Convert PNG to JPG in your browser. No upload, no watermark.",
+    showInNav: true,
+    kind: "image",
+    ui: "none",
+  },
+  {
+    id: "jpg-to-png",
+    slug: "jpg-to-png",
+    title: "JPG to PNG",
+    shortTitle: "JPG → PNG",
+    description:
+      "Convert JPG images to PNG when you need lossless pixels or transparency later.",
+    accept: "image/jpeg,.jpg,.jpeg",
+    multiple: true,
+    actionLabel: "Convert to PNG",
+    seoTitle: "JPG to PNG Converter — Free, No Upload",
+    seoDescription:
+      "Convert JPG to PNG in your browser. No upload, no watermark.",
+    showInNav: true,
     kind: "image",
     ui: "none",
   },

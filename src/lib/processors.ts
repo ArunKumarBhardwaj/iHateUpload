@@ -35,21 +35,66 @@ async function canvasToJpegBlob(
   return blob;
 }
 
-async function imageFileToJpegBlob(file: File, quality = 0.92): Promise<Blob> {
+async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, "image/png");
+  });
+  if (!blob) throw new Error("Could not encode PNG.");
+  return blob;
+}
+
+async function drawFileToCanvas(
+  file: File,
+  options?: { maxEdge?: number; fillWhite?: boolean },
+): Promise<HTMLCanvasElement> {
   const bitmap = await createImageBitmap(file);
+  let width = bitmap.width;
+  let height = bitmap.height;
+  const maxEdge = options?.maxEdge;
+  if (maxEdge && maxEdge > 0) {
+    const longest = Math.max(width, height);
+    if (longest > maxEdge) {
+      const scale = maxEdge / longest;
+      width = Math.max(1, Math.round(width * scale));
+      height = Math.max(1, Math.round(height * scale));
+    }
+  }
+
   const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     bitmap.close();
     throw new Error("Canvas is not available in this browser.");
   }
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(bitmap, 0, 0);
+  if (options?.fillWhite) {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+  }
+  ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
+  return canvas;
+}
+
+async function imageFileToJpegBlob(file: File, quality = 0.92): Promise<Blob> {
+  const canvas = await drawFileToCanvas(file, { fillWhite: true });
   return canvasToJpegBlob(canvas, quality);
+}
+
+async function imageFileToPngBlob(file: File): Promise<Blob> {
+  const canvas = await drawFileToCanvas(file);
+  return canvasToPngBlob(canvas);
+}
+
+async function heicFileToJpegBlob(file: File, quality = 0.92): Promise<Blob> {
+  const heic2any = await loadHeic2Any();
+  const converted = await heic2any({
+    blob: file,
+    toType: "image/jpeg",
+    quality,
+  });
+  return Array.isArray(converted) ? converted[0] : converted;
 }
 
 async function embedImageInPdf(
@@ -74,17 +119,11 @@ export async function processHeicToJpg(
   files: FileItem[],
   onProgress: ProgressFn,
 ): Promise<ResultItem[]> {
-  const heic2any = await loadHeic2Any();
   const results: ResultItem[] = [];
 
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
-    const converted = await heic2any({
-      blob: item.file,
-      toType: "image/jpeg",
-      quality: 0.92,
-    });
-    const blob = Array.isArray(converted) ? converted[0] : converted;
+    const blob = await heicFileToJpegBlob(item.file, 0.92);
     results.push({
       id: item.id,
       name: replaceExt(item.name, "jpg"),
@@ -96,6 +135,44 @@ export async function processHeicToJpg(
   }
 
   return results;
+}
+
+export async function processHeicToPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const pdf = await PDFDocument.create();
+
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const jpeg = await heicFileToJpegBlob(item.file, 0.92);
+    const jpegBytes = new Uint8Array(await jpeg.arrayBuffer());
+    const image = await pdf.embedJpg(jpegBytes);
+    const page = pdf.addPage([image.width, image.height]);
+    page.drawImage(image, {
+      x: 0,
+      y: 0,
+      width: image.width,
+      height: image.height,
+    });
+    onProgress((i + 1) / (files.length + 1));
+  }
+
+  const pdfBytes = await pdf.save();
+  const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {
+    type: "application/pdf",
+  });
+  onProgress(1);
+
+  return [
+    {
+      id: crypto.randomUUID(),
+      name: files.length === 1 ? replaceExt(files[0].name, "pdf") : "heic.pdf",
+      size: blob.size,
+      blob,
+      originalSize: files.reduce((sum, f) => sum + f.size, 0),
+    },
+  ];
 }
 
 export async function processCompressImage(
@@ -143,6 +220,91 @@ export async function processWebpToJpg(
     results.push({
       id: item.id,
       name: replaceExt(item.name, "jpg"),
+      size: blob.size,
+      blob,
+      originalSize: item.size,
+    });
+    onProgress((i + 1) / files.length);
+  }
+
+  return results;
+}
+
+export async function processPngToJpg(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const results: ResultItem[] = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const blob = await imageFileToJpegBlob(item.file, 0.92);
+    results.push({
+      id: item.id,
+      name: replaceExt(item.name, "jpg"),
+      size: blob.size,
+      blob,
+      originalSize: item.size,
+    });
+    onProgress((i + 1) / files.length);
+  }
+
+  return results;
+}
+
+export async function processJpgToPng(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const results: ResultItem[] = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const blob = await imageFileToPngBlob(item.file);
+    results.push({
+      id: item.id,
+      name: replaceExt(item.name, "png"),
+      size: blob.size,
+      blob,
+      originalSize: item.size,
+    });
+    onProgress((i + 1) / files.length);
+  }
+
+  return results;
+}
+
+export async function processResizeImage(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "resize") {
+    throw new Error("Resize Image requires a max edge size.");
+  }
+  const maxEdge = options.maxEdge;
+  if (!Number.isFinite(maxEdge) || maxEdge < 16 || maxEdge > 10000) {
+    throw new Error("Choose a max edge between 16 and 10000 pixels.");
+  }
+
+  const results: ResultItem[] = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const name = item.name.toLowerCase();
+    const isPng = item.file.type === "image/png" || name.endsWith(".png");
+    const canvas = await drawFileToCanvas(item.file, {
+      maxEdge,
+      fillWhite: !isPng,
+    });
+    const blob = isPng
+      ? await canvasToPngBlob(canvas)
+      : await canvasToJpegBlob(canvas, 0.9);
+    const ext = isPng ? "png" : "jpg";
+    const base = item.name.replace(/\.[^.]+$/, "");
+    results.push({
+      id: item.id,
+      name: `${base}-resized.${ext}`,
       size: blob.size,
       blob,
       originalSize: item.size,

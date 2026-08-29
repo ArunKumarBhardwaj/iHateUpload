@@ -1,8 +1,50 @@
 import Link from "next/link";
 import { ArrowRight, Lock, ShieldOff, Zap } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { TOOLS } from "@/lib/tools";
+import { TOOLS, type ToolId } from "@/lib/tools";
+
+const POPULAR: ToolId[] = [
+  "merge-pdf",
+  "compress-pdf",
+  "heic-to-jpg",
+  "resize-image",
+  "png-to-jpg",
+  "heic-to-pdf",
+];
+
+const PDF_IDS: ToolId[] = TOOLS.filter((t) => t.kind === "pdf").map((t) => t.id);
+const IMAGE_IDS: ToolId[] = TOOLS.filter((t) => t.kind === "image").map(
+  (t) => t.id,
+);
+
+function ToolCards({ ids }: { ids: readonly ToolId[] }) {
+  return (
+    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {ids.map((id) => {
+        const tool = TOOLS.find((entry) => entry.id === id);
+        if (!tool) return null;
+        return (
+          <Link
+            key={tool.id}
+            href={`/tools/${tool.slug}`}
+            className="group flex h-full flex-col rounded-2xl border border-ink/12 bg-card/80 p-5 transition-colors hover:border-signal/40 hover:bg-signal/5"
+          >
+            <h3 className="font-display text-xl font-bold text-ink group-hover:text-signal">
+              {tool.title}
+            </h3>
+            <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
+              {tool.description}
+            </p>
+            <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-ink">
+              Open tool
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function HomePage() {
   return (
@@ -13,7 +55,7 @@ export default function HomePage() {
           <div className="absolute -right-16 bottom-0 h-80 w-80 rounded-full bg-lagoon/20 blur-3xl" />
         </div>
 
-        <div className="relative mx-auto flex min-h-[78vh] max-w-6xl flex-col justify-center px-4 py-16 sm:px-6 sm:py-24">
+        <div className="relative mx-auto flex min-h-[72vh] max-w-6xl flex-col items-center justify-center px-4 py-16 text-center sm:px-6 sm:py-20">
           <p className="animate-rise font-display text-5xl font-bold leading-[1.05] tracking-tight text-ink sm:text-7xl md:text-8xl">
             iHate
             <span className="text-signal">Upload</span>
@@ -22,20 +64,14 @@ export default function HomePage() {
             Free file tools that refuse to touch your cloud.
           </h1>
           <p className="animate-rise-delay-2 mt-4 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Merge, compress, protect, and organize PDFs, convert HEIC or WebP,
-            and build image PDFs with zero cloud hops. Cut wifi mid-job and it
-            still finishes.
+            Pick a tool. Work stays in this tab. Zero cloud hops.
           </p>
-          <div className="animate-rise-delay-2 mt-8 flex flex-wrap gap-3">
-            <Button asChild size="lg" className="h-11 px-5 text-base">
-              <Link href="/tools/merge-pdf">
-                Start with Merge PDF
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="h-11 px-5 text-base">
-              <Link href="#tools">Browse tools</Link>
-            </Button>
+
+          <div className="animate-rise-delay-2 mt-10 w-full max-w-5xl text-left">
+            <p className="text-center text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
+              Popular tools
+            </p>
+            <ToolCards ids={POPULAR} />
           </div>
         </div>
       </section>
@@ -44,79 +80,34 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-              {TOOLS.length} tools. Zero cloud hops.
+              Zero cloud hops.
             </h2>
             <p className="mt-3 text-muted-foreground">
-              One tab for the jobs that usually force you across five upload
-              sites. No account. No watermark. No daily cap.
+              One place for PDF and image jobs that usually force you across five
+              upload sites.
             </p>
           </div>
-          <div className="mt-12 space-y-12">
-            {(
-              [
-                {
-                  label: "Move a file along",
-                  ids: [
-                    "merge-pdf",
-                    "compress-pdf",
-                    "split-pdf",
-                    "image-to-pdf",
-                    "pdf-to-jpg",
-                  ],
-                },
-                {
-                  label: "Keep it private",
-                  ids: [
-                    "protect-pdf",
-                    "unlock-pdf",
-                    "organize-pdf",
-                    "rotate-pdf",
-                  ],
-                },
-                {
-                  label: "Phone & web formats",
-                  ids: ["heic-to-jpg", "webp-to-jpg", "compress-image"],
-                },
-              ] as const
-            ).map((group) => (
-              <div key={group.label}>
-                <p className="text-center text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
-                  {group.label}
-                </p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {group.ids.map((id) => {
-                    const tool = TOOLS.find((entry) => entry.id === id);
-                    if (!tool) return null;
-                    return (
-                      <Link
-                        key={tool.id}
-                        href={`/tools/${tool.slug}`}
-                        className="group flex h-full flex-col rounded-2xl border border-ink/12 bg-card/80 p-5 transition-colors hover:border-signal/40 hover:bg-signal/5"
-                      >
-                        <h3 className="font-display text-xl font-bold text-ink group-hover:text-signal">
-                          {tool.title}
-                        </h3>
-                        <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
-                          {tool.description}
-                        </p>
-                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-ink">
-                          Open tool
-                          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-                        </span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+
+          <div id="pdf-tools" className="mt-14 scroll-mt-24">
+            <p className="text-center text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
+              PDF
+            </p>
+            <ToolCards ids={PDF_IDS} />
+          </div>
+
+          <div id="image-tools" className="mt-14 scroll-mt-24">
+            <p className="text-center text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
+              Images
+            </p>
+            <ToolCards ids={IMAGE_IDS} />
           </div>
         </div>
       </section>
 
       <section className="py-16 sm:py-20">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:grid-cols-3 sm:px-6">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 text-center sm:grid-cols-3 sm:px-6 sm:text-left">
           <div>
-            <ShieldOff className="size-6 text-signal" />
+            <ShieldOff className="mx-auto size-6 text-signal sm:mx-0" />
             <h3 className="mt-3 font-display text-xl font-bold text-ink">
               Zero cloud hops
             </h3>
@@ -126,7 +117,7 @@ export default function HomePage() {
             </p>
           </div>
           <div>
-            <Lock className="size-6 text-lagoon" />
+            <Lock className="mx-auto size-6 text-lagoon sm:mx-0" />
             <h3 className="mt-3 font-display text-xl font-bold text-ink">
               Built for awkward files
             </h3>
@@ -136,7 +127,7 @@ export default function HomePage() {
             </p>
           </div>
           <div>
-            <Zap className="size-6 text-signal" />
+            <Zap className="mx-auto size-6 text-signal sm:mx-0" />
             <h3 className="mt-3 font-display text-xl font-bold text-ink">
               Chain tools, skip re-picks
             </h3>

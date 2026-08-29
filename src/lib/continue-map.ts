@@ -8,10 +8,14 @@ const CONTINUE_MAP: Partial<Record<ToolId, ToolId[]>> = {
   "rotate-pdf": ["compress-pdf", "protect-pdf", "merge-pdf"],
   "organize-pdf": ["compress-pdf", "protect-pdf", "merge-pdf", "split-pdf"],
   "image-to-pdf": ["compress-pdf", "protect-pdf", "merge-pdf"],
-  "heic-to-jpg": ["compress-image", "image-to-pdf"],
-  "compress-image": ["image-to-pdf"],
-  "pdf-to-jpg": ["compress-image"],
-  "webp-to-jpg": ["compress-image", "image-to-pdf"],
+  "heic-to-jpg": ["compress-image", "resize-image", "image-to-pdf"],
+  "heic-to-pdf": ["compress-pdf", "protect-pdf", "merge-pdf"],
+  "compress-image": ["resize-image", "image-to-pdf"],
+  "resize-image": ["compress-image", "image-to-pdf"],
+  "pdf-to-jpg": ["compress-image", "resize-image"],
+  "webp-to-jpg": ["compress-image", "resize-image", "image-to-pdf"],
+  "png-to-jpg": ["compress-image", "resize-image", "image-to-pdf"],
+  "jpg-to-png": ["compress-image", "resize-image", "image-to-pdf"],
   "split-pdf": ["merge-pdf", "compress-pdf"],
 };
 

@@ -1,6 +1,6 @@
 import type { ToolId } from "@/lib/tools";
 
-type Handoff = { files: File[]; from: ToolId };
+type Handoff = { files: File[]; from: ToolId | "home" };
 
 let pending: Handoff | null = null;
 
