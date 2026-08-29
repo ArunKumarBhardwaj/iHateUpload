@@ -1,7 +1,8 @@
 import imageCompression from "browser-image-compression";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, degrees, toDegrees } from "@cantoo/pdf-lib";
 
 import type { FileItem, ResultItem } from "@/lib/job";
+import type { ToolOptions } from "@/lib/tool-options";
 
 type ProgressFn = (ratio: number) => void;
 
@@ -355,4 +356,182 @@ export async function processCompressPdf(
 
   onProgress(1);
   return results;
+}
+
+export async function getPdfPageCount(file: File): Promise<number> {
+  const doc = await PDFDocument.load(await file.arrayBuffer(), {
+    ignoreEncryption: true,
+  });
+  return doc.getPageCount();
+}
+
+function requirePassword(options: ToolOptions, label: string): string {
+  if (options.kind !== "password" && options.kind !== "password-confirm") {
+    throw new Error(`${label} requires a password.`);
+  }
+  const password = options.password.trim();
+  if (!password) throw new Error("Enter a password.");
+  return password;
+}
+
+export async function processProtectPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  const password = requirePassword(options, "Protect PDF");
+  const results: ResultItem[] = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const doc = await PDFDocument.load(await item.file.arrayBuffer(), {
+      ignoreEncryption: true,
+    });
+    doc.encrypt({
+      userPassword: password,
+      ownerPassword: password,
+    });
+    const pdfBytes = await doc.save();
+    const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {
+      type: "application/pdf",
+    });
+    results.push({
+      id: item.id,
+      name: replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-protected.pdf"),
+      size: blob.size,
+      blob,
+      originalSize: item.size,
+    });
+    onProgress((i + 1) / files.length);
+  }
+
+  return results;
+}
+
+export async function processUnlockPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  const password = requirePassword(options, "Unlock PDF");
+  const results: ResultItem[] = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    let doc: PDFDocument;
+    try {
+      doc = await PDFDocument.load(await item.file.arrayBuffer(), {
+        password,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (/password/i.test(message) || /encrypt/i.test(message)) {
+        throw new Error(
+          `Wrong password for "${item.name}". Check it and try again.`,
+        );
+      }
+      throw error instanceof Error
+        ? error
+        : new Error(`Could not unlock "${item.name}".`);
+    }
+    const pdfBytes = await doc.save({ useObjectStreams: true });
+    const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {
+      type: "application/pdf",
+    });
+    results.push({
+      id: item.id,
+      name: replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-unlocked.pdf"),
+      size: blob.size,
+      blob,
+      originalSize: item.size,
+    });
+    onProgress((i + 1) / files.length);
+  }
+
+  return results;
+}
+
+export async function processRotatePdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "rotate") {
+    throw new Error("Rotate PDF requires a rotation angle.");
+  }
+  const delta = options.degrees;
+  const results: ResultItem[] = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const doc = await PDFDocument.load(await item.file.arrayBuffer(), {
+      ignoreEncryption: true,
+    });
+    for (const page of doc.getPages()) {
+      const current = toDegrees(page.getRotation());
+      page.setRotation(degrees((current + delta) % 360));
+    }
+    const pdfBytes = await doc.save({ useObjectStreams: true });
+    const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {
+      type: "application/pdf",
+    });
+    results.push({
+      id: item.id,
+      name: replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-rotated.pdf"),
+      size: blob.size,
+      blob,
+      originalSize: item.size,
+    });
+    onProgress((i + 1) / files.length);
+  }
+
+  return results;
+}
+
+export async function processOrganizePdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "organize") {
+    throw new Error("Organize PDF requires a page order.");
+  }
+  if (options.pageOrder.length < 1) {
+    throw new Error("Keep at least one page.");
+  }
+
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to organize.");
+
+  const donor = await PDFDocument.load(await item.file.arrayBuffer(), {
+    ignoreEncryption: true,
+  });
+  const pageCount = donor.getPageCount();
+  for (const index of options.pageOrder) {
+    if (index < 0 || index >= pageCount) {
+      throw new Error("Page order includes an invalid page.");
+    }
+  }
+
+  onProgress(0.2);
+  const out = await PDFDocument.create();
+  const copied = await out.copyPages(donor, options.pageOrder);
+  for (const page of copied) out.addPage(page);
+  onProgress(0.8);
+
+  const pdfBytes = await out.save({ useObjectStreams: true });
+  const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {
+    type: "application/pdf",
+  });
+  onProgress(1);
+
+  return [
+    {
+      id: crypto.randomUUID(),
+      name: replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-organized.pdf"),
+      size: blob.size,
+      blob,
+      originalSize: item.size,
+    },
+  ];
 }

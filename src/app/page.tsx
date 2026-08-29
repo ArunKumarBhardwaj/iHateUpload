@@ -22,8 +22,9 @@ export default function HomePage() {
             Free file tools that refuse to touch your cloud.
           </h1>
           <p className="animate-rise-delay-2 mt-4 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Merge and compress PDFs, convert HEIC or WebP, and build image PDFs
-            in the browser. Your files never leave this device.
+            Merge, compress, protect, and organize PDFs, convert HEIC or WebP,
+            and build image PDFs in the browser. Your files never leave this
+            device.
           </p>
           <div className="animate-rise-delay-2 mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg" className="h-11 px-5 text-base">

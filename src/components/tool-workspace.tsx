@@ -1,11 +1,15 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FileImage, FileText, Loader2, Upload } from "lucide-react";
 import JSZip from "jszip";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { continueToolsFor } from "@/lib/continue-map";
+import { setHandoff, takeHandoff } from "@/lib/handoff";
 import {
   createFileItems,
   idleJob,
@@ -13,15 +17,21 @@ import {
   type JobState,
   type ResultItem,
 } from "@/lib/job";
+import type { ToolOptions } from "@/lib/tool-options";
 import type { ToolDefinition, ToolId } from "@/lib/tools";
 import {
+  getPdfPageCount,
   processCompressImage,
   processCompressPdf,
   processHeicToJpg,
   processImageToPdf,
   processMergePdf,
+  processOrganizePdf,
   processPdfToJpg,
+  processProtectPdf,
+  processRotatePdf,
   processSplitPdf,
+  processUnlockPdf,
   processWebpToJpg,
 } from "@/lib/processors";
 import { cn, downloadBlob, formatBytes } from "@/lib/utils";
@@ -30,6 +40,7 @@ async function runTool(
   id: ToolId,
   files: FileItem[],
   onProgress: (ratio: number) => void,
+  options: ToolOptions,
 ): Promise<ResultItem[]> {
   switch (id) {
     case "heic-to-jpg":
@@ -48,6 +59,14 @@ async function runTool(
       return processPdfToJpg(files, onProgress);
     case "compress-pdf":
       return processCompressPdf(files, onProgress);
+    case "protect-pdf":
+      return processProtectPdf(files, onProgress, options);
+    case "unlock-pdf":
+      return processUnlockPdf(files, onProgress, options);
+    case "rotate-pdf":
+      return processRotatePdf(files, onProgress, options);
+    case "organize-pdf":
+      return processOrganizePdf(files, onProgress, options);
   }
 }
 
@@ -60,18 +79,37 @@ async function downloadAllResults(results: ResultItem[]) {
   downloadBlob(blob, "ihateupload-results.zip");
 }
 
+type RotateDegrees = 90 | 180 | 270;
+
 export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [job, setJob] = useState<JobState>(idleJob);
   const [dragging, setDragging] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [rotateDegrees, setRotateDegrees] = useState<RotateDegrees>(90);
+  const [pageOrder, setPageOrder] = useState<number[]>([]);
   const FileIcon = tool.kind === "pdf" ? FileText : FileImage;
 
   const files =
     job.status === "idle" ? [] : "files" in job ? job.files : [];
 
+  const passwordConfirmMismatch =
+    tool.ui === "password-confirm" &&
+    password.length > 0 &&
+    confirmPassword.length > 0 &&
+    password !== confirmPassword;
+
   const canProcess =
     job.status === "ready" &&
-    (tool.id !== "merge-pdf" || job.files.length >= 2);
+    (tool.id !== "merge-pdf" || job.files.length >= 2) &&
+    (tool.ui !== "password" || password.trim().length > 0) &&
+    (tool.ui !== "password-confirm" ||
+      (password.trim().length > 0 &&
+        confirmPassword === password &&
+        !passwordConfirmMismatch)) &&
+    (tool.ui !== "organize" || pageOrder.length >= 1);
 
   const setFiles = useCallback((next: FileItem[]) => {
     if (next.length === 0) {
@@ -81,6 +119,45 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     setJob({ status: "ready", files: next });
   }, []);
 
+  useEffect(() => {
+    setPassword("");
+    setConfirmPassword("");
+    setRotateDegrees(90);
+    setPageOrder([]);
+  }, [tool.id]);
+
+  useEffect(() => {
+    const handoff = takeHandoff();
+    if (!handoff) return;
+    const items = createFileItems(handoff.files);
+    setFiles(tool.multiple ? items : items.slice(0, 1));
+  }, [tool.id, tool.multiple, setFiles]);
+
+  const organizeSource =
+    tool.ui === "organize" &&
+    (job.status === "ready" || job.status === "error")
+      ? job.files[0]
+      : undefined;
+
+  useEffect(() => {
+    if (!organizeSource) {
+      setPageOrder([]);
+      return;
+    }
+    let cancelled = false;
+    getPdfPageCount(organizeSource.file)
+      .then((count) => {
+        if (cancelled) return;
+        setPageOrder(Array.from({ length: count }, (_, i) => i));
+      })
+      .catch(() => {
+        if (!cancelled) setPageOrder([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [organizeSource?.id]);
+
   const onPick = useCallback(
     (list: FileList | null) => {
       if (!list || list.length === 0) return;
@@ -89,6 +166,21 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     },
     [setFiles, tool.multiple],
   );
+
+  const buildOptions = useCallback((): ToolOptions => {
+    switch (tool.ui) {
+      case "password":
+        return { kind: "password", password };
+      case "password-confirm":
+        return { kind: "password-confirm", password };
+      case "rotate":
+        return { kind: "rotate", degrees: rotateDegrees };
+      case "organize":
+        return { kind: "organize", pageOrder };
+      case "none":
+        return { kind: "none" };
+    }
+  }, [tool.ui, password, rotateDegrees, pageOrder]);
 
   const process = useCallback(async () => {
     if (job.status !== "ready") return;
@@ -101,6 +193,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       return;
     }
     const current = job.files;
+    const options = buildOptions();
     setJob({ status: "processing", files: current, progress: 0 });
     try {
       const results = await runTool(tool.id, current, (ratio) => {
@@ -109,7 +202,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
           files: current,
           progress: Math.round(ratio * 100),
         });
-      });
+      }, options);
       setJob({ status: "done", files: current, results });
     } catch (error) {
       const message =
@@ -118,11 +211,51 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
           : "Something went wrong while processing.";
       setJob({ status: "error", message, files: current });
     }
-  }, [job, tool.id]);
+  }, [job, tool.id, buildOptions]);
 
   const reset = () => {
     setJob(idleJob());
+    setPassword("");
+    setConfirmPassword("");
+    setRotateDegrees(90);
+    setPageOrder([]);
     if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const continueTargets =
+    job.status === "done"
+      ? continueToolsFor(
+          tool.id,
+          job.results.map((result) => ({ type: result.blob.type })),
+        )
+      : [];
+
+  const continueWith = (next: ToolDefinition) => {
+    if (job.status !== "done") return;
+    const handoffFiles = job.results.map(
+      (result) =>
+        new File([result.blob], result.name, {
+          type: result.blob.type || "application/octet-stream",
+        }),
+    );
+    setHandoff({ files: handoffFiles, from: tool.id });
+    router.push(`/tools/${next.slug}`);
+  };
+
+  const movePage = (index: number, direction: -1 | 1) => {
+    setPageOrder((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      const tmp = next[index];
+      next[index] = next[target];
+      next[target] = tmp;
+      return next;
+    });
+  };
+
+  const removePage = (index: number) => {
+    setPageOrder((prev) => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -205,6 +338,134 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
             </p>
           )}
 
+        {(job.status === "ready" || job.status === "error") &&
+          tool.ui === "password" && (
+            <div className="mt-5 space-y-2">
+              <label className="text-sm font-medium text-ink" htmlFor="pdf-password">
+                Password
+              </label>
+              <Input
+                id="pdf-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="PDF password"
+              />
+            </div>
+          )}
+
+        {(job.status === "ready" || job.status === "error") &&
+          tool.ui === "password-confirm" && (
+            <div className="mt-5 space-y-3">
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium text-ink"
+                  htmlFor="pdf-password"
+                >
+                  Password
+                </label>
+                <Input
+                  id="pdf-password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Choose a password"
+                />
+              </div>
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium text-ink"
+                  htmlFor="pdf-password-confirm"
+                >
+                  Confirm password
+                </label>
+                <Input
+                  id="pdf-password-confirm"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat password"
+                  aria-invalid={passwordConfirmMismatch}
+                />
+              </div>
+              {passwordConfirmMismatch && (
+                <p className="text-sm text-destructive">
+                  Passwords do not match.
+                </p>
+              )}
+            </div>
+          )}
+
+        {(job.status === "ready" || job.status === "error") &&
+          tool.ui === "rotate" && (
+            <div className="mt-5 space-y-2">
+              <p className="text-sm font-medium text-ink">Rotate by</p>
+              <div className="flex flex-wrap gap-2">
+                {([90, 180, 270] as const).map((value) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    variant={rotateDegrees === value ? "default" : "outline"}
+                    onClick={() => setRotateDegrees(value)}
+                  >
+                    {value}°
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+        {(job.status === "ready" || job.status === "error") &&
+          tool.ui === "organize" &&
+          pageOrder.length > 0 && (
+            <div className="mt-5 space-y-2">
+              <p className="text-sm font-medium text-ink">Pages</p>
+              <ul className="space-y-2">
+                {pageOrder.map((pageIndex, listIndex) => (
+                  <li
+                    key={`${pageIndex}-${listIndex}`}
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-ink/10 bg-background/70 px-3 py-2"
+                  >
+                    <span className="min-w-0 flex-1 text-sm font-medium text-ink">
+                      Page {pageIndex + 1}
+                    </span>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      disabled={listIndex === 0}
+                      onClick={() => movePage(listIndex, -1)}
+                    >
+                      Move up
+                    </Button>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      disabled={listIndex === pageOrder.length - 1}
+                      onClick={() => movePage(listIndex, 1)}
+                    >
+                      Move down
+                    </Button>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      disabled={pageOrder.length <= 1}
+                      onClick={() => removePage(listIndex)}
+                    >
+                      Remove
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
         {job.status === "processing" && (
           <div className="mt-5 space-y-2">
             <div className="flex items-center justify-between text-sm">
@@ -264,6 +525,24 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                 </li>
               ))}
             </ul>
+            {continueTargets.length > 0 && (
+              <div className="space-y-2 border-t border-ink/10 pt-4">
+                <p className="text-sm font-medium text-ink">Continue with</p>
+                <div className="flex flex-wrap gap-2">
+                  {continueTargets.map((next) => (
+                    <Button
+                      key={next.id}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => continueWith(next)}
+                    >
+                      {next.shortTitle}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

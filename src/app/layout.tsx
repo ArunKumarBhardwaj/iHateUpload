@@ -24,12 +24,12 @@ export const metadata: Metadata = {
     template: "%s | iHateUpload",
   },
   description:
-    "Merge and compress PDFs, convert HEIC or WebP, and build image PDFs in your browser. No upload, no signup, no watermark.",
+    "Merge, compress, protect, and organize PDFs, convert HEIC or WebP, and build image PDFs in your browser. No upload, no signup, no watermark.",
   metadataBase: new URL("https://ihateupload.com"),
   openGraph: {
     title: "iHateUpload",
     description:
-      "Free browser tools that hate uploading your files. PDF merge and compress, HEIC to JPG, image to PDF, and more.",
+      "Free browser tools that hate uploading your files. PDF merge, compress, protect, organize, HEIC to JPG, image to PDF, and more.",
     type: "website",
   },
 };

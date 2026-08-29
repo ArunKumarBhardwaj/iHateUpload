@@ -4,6 +4,10 @@ export type ToolId =
   | "pdf-to-jpg"
   | "compress-pdf"
   | "split-pdf"
+  | "protect-pdf"
+  | "unlock-pdf"
+  | "rotate-pdf"
+  | "organize-pdf"
   | "heic-to-jpg"
   | "compress-image"
   | "webp-to-jpg";
@@ -21,6 +25,7 @@ export type ToolDefinition = {
   seoDescription: string;
   showInNav: boolean;
   kind: "image" | "pdf";
+  ui: "none" | "password" | "password-confirm" | "rotate" | "organize";
 };
 
 export const TOOLS: ToolDefinition[] = [
@@ -39,6 +44,7 @@ export const TOOLS: ToolDefinition[] = [
       "Convert images to PDF in your browser. Files never leave your device.",
     showInNav: true,
     kind: "image",
+    ui: "none",
   },
   {
     id: "merge-pdf",
@@ -55,6 +61,7 @@ export const TOOLS: ToolDefinition[] = [
       "Merge PDF files in your browser. Private, free, no signup, no watermark.",
     showInNav: true,
     kind: "pdf",
+    ui: "none",
   },
   {
     id: "pdf-to-jpg",
@@ -71,6 +78,7 @@ export const TOOLS: ToolDefinition[] = [
       "Convert PDF pages to JPG in your browser. Files stay on your device.",
     showInNav: true,
     kind: "pdf",
+    ui: "none",
   },
   {
     id: "compress-pdf",
@@ -87,6 +95,7 @@ export const TOOLS: ToolDefinition[] = [
       "Compress PDF files in your browser. No upload, no daily limits.",
     showInNav: true,
     kind: "pdf",
+    ui: "none",
   },
   {
     id: "split-pdf",
@@ -103,6 +112,75 @@ export const TOOLS: ToolDefinition[] = [
       "Split a PDF into pages in your browser. Private and free.",
     showInNav: false,
     kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "protect-pdf",
+    slug: "protect-pdf",
+    title: "Protect PDF",
+    shortTitle: "Protect PDF",
+    description:
+      "Add a password so opening the PDF requires it. Encryption stays on this device.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    actionLabel: "Protect PDF",
+    seoTitle: "Protect PDF with Password — Free, No Upload",
+    seoDescription:
+      "Password-protect PDF files in your browser. No upload, no signup.",
+    showInNav: true,
+    kind: "pdf",
+    ui: "password-confirm",
+  },
+  {
+    id: "unlock-pdf",
+    slug: "unlock-pdf",
+    title: "Unlock PDF",
+    shortTitle: "Unlock PDF",
+    description:
+      "Remove password protection from a PDF you can open. Runs locally.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    actionLabel: "Unlock PDF",
+    seoTitle: "Unlock PDF Online — Free, No Upload",
+    seoDescription:
+      "Remove a PDF password in your browser when you know it. Files stay private.",
+    showInNav: false,
+    kind: "pdf",
+    ui: "password",
+  },
+  {
+    id: "rotate-pdf",
+    slug: "rotate-pdf",
+    title: "Rotate PDF",
+    shortTitle: "Rotate PDF",
+    description:
+      "Rotate every page by 90°, 180°, or 270°. Processing stays on this device.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    actionLabel: "Rotate PDF",
+    seoTitle: "Rotate PDF Online — Free, No Upload",
+    seoDescription:
+      "Rotate PDF pages in your browser. No upload, no watermark.",
+    showInNav: false,
+    kind: "pdf",
+    ui: "rotate",
+  },
+  {
+    id: "organize-pdf",
+    slug: "organize-pdf",
+    title: "Organize PDF",
+    shortTitle: "Organize PDF",
+    description:
+      "Reorder or remove pages, then save a new PDF. Nothing is uploaded.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    actionLabel: "Save PDF",
+    seoTitle: "Organize PDF Pages — Free, No Upload",
+    seoDescription:
+      "Reorder and delete PDF pages in your browser. Private and free.",
+    showInNav: true,
+    kind: "pdf",
+    ui: "organize",
   },
   {
     id: "heic-to-jpg",
@@ -119,6 +197,7 @@ export const TOOLS: ToolDefinition[] = [
       "Convert HEIC to JPG online without uploading. Files stay on your device. Free, unlimited, no watermark.",
     showInNav: true,
     kind: "image",
+    ui: "none",
   },
   {
     id: "compress-image",
@@ -135,6 +214,7 @@ export const TOOLS: ToolDefinition[] = [
       "Compress images in your browser. No upload, no daily limits, no watermark.",
     showInNav: false,
     kind: "image",
+    ui: "none",
   },
   {
     id: "webp-to-jpg",
@@ -151,6 +231,7 @@ export const TOOLS: ToolDefinition[] = [
       "Convert WebP to JPG in your browser. No upload, no watermark.",
     showInNav: false,
     kind: "image",
+    ui: "none",
   },
 ];
 
