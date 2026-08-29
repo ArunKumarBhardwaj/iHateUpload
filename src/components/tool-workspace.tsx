@@ -298,8 +298,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
             Drop files here
           </span>
           <span className="max-w-sm text-sm text-muted-foreground">
-            Or click to choose. Processing stays on this device. Nothing is
-            uploaded.
+            Or click to choose. We refuse the upload. Work stays in this tab.
           </span>
         </button>
         <input

@@ -23,8 +23,8 @@ export default function HomePage() {
           </h1>
           <p className="animate-rise-delay-2 mt-4 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
             Merge, compress, protect, and organize PDFs, convert HEIC or WebP,
-            and build image PDFs in the browser. Your files never leave this
-            device.
+            and build image PDFs with zero cloud hops. Cut wifi mid-job and it
+            still finishes.
           </p>
           <div className="animate-rise-delay-2 mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg" className="h-11 px-5 text-base">
@@ -40,37 +40,68 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="tools" className="border-t border-ink/10 bg-card/40 py-16 sm:py-20">
+      <section id="tools" className="border-t border-ink/10 py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <h2 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-            {TOOLS.length} tools. Zero uploads.
+            {TOOLS.length} tools. Zero cloud hops.
           </h2>
           <p className="mt-3 max-w-2xl text-muted-foreground">
-            Each tool runs locally with browser APIs. No account. No watermark.
-            No daily cap.
+            One tab for the jobs that usually force you across five upload sites.
+            No account. No watermark. No daily cap.
           </p>
-          <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {TOOLS.map((tool, index) => (
-              <Link
-                key={tool.id}
-                href={`/tools/${tool.slug}`}
-                className="group block border-t-2 border-ink/15 pt-5 transition-colors hover:border-signal"
-                style={{ animationDelay: `${index * 80}ms` }}
-              >
+          <div className="mt-12 space-y-14">
+            {(
+              [
+                {
+                  label: "Move a file along",
+                  ids: [
+                    "merge-pdf",
+                    "compress-pdf",
+                    "split-pdf",
+                    "image-to-pdf",
+                    "pdf-to-jpg",
+                  ],
+                },
+                {
+                  label: "Keep it private",
+                  ids: [
+                    "protect-pdf",
+                    "unlock-pdf",
+                    "organize-pdf",
+                    "rotate-pdf",
+                  ],
+                },
+                {
+                  label: "Phone & web formats",
+                  ids: ["heic-to-jpg", "webp-to-jpg", "compress-image"],
+                },
+              ] as const
+            ).map((group) => (
+              <div key={group.label}>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
-                  Tool {String(index + 1).padStart(2, "0")}
+                  {group.label}
                 </p>
-                <h3 className="mt-2 font-display text-2xl font-bold text-ink group-hover:text-signal">
-                  {tool.title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {tool.description}
-                </p>
-                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-ink">
-                  Open tool
-                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-                </span>
-              </Link>
+                <div className="mt-4 divide-y divide-ink/10 border-y border-ink/10">
+                  {group.ids.map((id) => {
+                    const tool = TOOLS.find((entry) => entry.id === id);
+                    if (!tool) return null;
+                    return (
+                      <Link
+                        key={tool.id}
+                        href={`/tools/${tool.slug}`}
+                        className="group flex flex-col gap-1 py-5 transition-colors sm:flex-row sm:items-baseline sm:justify-between sm:gap-8"
+                      >
+                        <h3 className="font-display text-xl font-bold text-ink group-hover:text-signal sm:text-2xl">
+                          {tool.title}
+                        </h3>
+                        <p className="max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-right">
+                          {tool.description}
+                        </p>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -81,31 +112,31 @@ export default function HomePage() {
           <div>
             <ShieldOff className="size-6 text-signal" />
             <h3 className="mt-3 font-display text-xl font-bold text-ink">
-              No upload servers
+              Zero cloud hops
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Processing happens in your tab. Disconnect from wifi after the page
-              loads and it still works.
+              Your file never takes a trip to our servers, because we do not have
+              one for it. Load the page, kill wifi, keep working.
             </p>
           </div>
           <div>
             <Lock className="size-6 text-lagoon" />
             <h3 className="mt-3 font-display text-xl font-bold text-ink">
-              Safe for real documents
+              Built for awkward files
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Resumes, IDs, and family photos stay on the machine that opened
-              them.
+              Resumes, IDs, contracts, family photos. The stuff you would not
+              drop on a random converter.
             </p>
           </div>
           <div>
             <Zap className="size-6 text-signal" />
             <h3 className="mt-3 font-display text-xl font-bold text-ink">
-              Free forever basics
+              Chain tools, skip re-picks
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              No signup wall. No watermark tax. Built for the search terms people
-              already type every day.
+              Finish one job, hit Continue with, and the next tool already has
+              your result. That is the difference from hopping five sites.
             </p>
           </div>
         </div>

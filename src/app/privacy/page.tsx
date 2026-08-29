@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy",
   description:
-    "iHateUpload processes files in your browser. We do not receive your uploads.",
+    "iHateUpload refuses the upload. Tools run in your tab with zero cloud hops for your files.",
 };
 
 export default function PrivacyPage() {
@@ -14,23 +14,23 @@ export default function PrivacyPage() {
       </h1>
       <div className="mt-6 space-y-4 text-base leading-relaxed text-muted-foreground">
         <p>
-          iHateUpload is built so your files never need to reach our servers.
-          Conversion, compression, and PDF creation run in your browser with
-          JavaScript and Web APIs.
+          iHateUpload exists because we hate sending private files to random
+          converter sites. Merge, compress, protect, organize, and convert run
+          inside this tab with JavaScript and Web APIs.
         </p>
         <p>
-          We do not operate an upload API for these tools. We do not store your
-          documents. When you close the tab, the processed blobs in memory are
-          gone.
+          There is no upload API for your documents. We do not store them. Close
+          the tab and the in-memory blobs are gone. Cut wifi after the page loads
+          and the tools still finish.
         </p>
         <p>
-          The website itself may collect standard hosting analytics (page views,
-          approximate region, user agent) from the CDN or host. That is separate
-          from file processing.
+          The site itself may collect normal hosting analytics (page views,
+          approximate region, user agent) from the CDN or host, including Vercel
+          Analytics after deploy. That is separate from file processing.
         </p>
         <p>
-          If ads are added later, ad networks may set cookies according to their
-          own policies. Core tools will still process files locally.
+          If ads show up later, those networks may set their own cookies. Core
+          tools will still refuse the upload.
         </p>
       </div>
     </div>

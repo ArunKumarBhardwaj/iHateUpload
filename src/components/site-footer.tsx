@@ -7,7 +7,7 @@ export function SiteFooter() {
         <p>
           <span className="font-medium text-ink">iHateUpload</span>
           {" · "}
-          Files stay in your browser. No server processing.
+          We refuse the upload. Work finishes in this tab.
         </p>
         <div className="flex gap-4">
           <Link href="/privacy" className="hover:text-ink">

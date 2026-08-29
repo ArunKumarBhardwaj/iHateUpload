@@ -32,7 +32,7 @@ export default async function ToolPage({ params }: ToolPageProps) {
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
       <div className="mb-8 max-w-2xl">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
-          Browser-only tool
+          Upload-free tool
         </p>
         <h1 className="mt-2 font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
           {tool.title}

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="iHateUpload">
+  <rect width="32" height="32" rx="8" fill="#0B1220"/>
+  <path
+    d="M16 8v11.5M16 8l-4.75 4.75M16 8l4.75 4.75M11 23h10"
+    fill="none"
+    stroke="#F7FAFC"
+    stroke-width="2.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M8.5 24.5 23.5 7.5"
+    fill="none"
+    stroke="#E11D48"
+    stroke-width="2.8"
+    stroke-linecap="round"
+  />
+</svg>

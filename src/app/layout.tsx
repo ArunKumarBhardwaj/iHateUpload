@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Syne } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -20,16 +22,16 @@ const body = Manrope({
 
 export const metadata: Metadata = {
   title: {
-    default: "iHateUpload — Free tools. Files never leave your device.",
+    default: "iHateUpload — Free tools that refuse the upload.",
     template: "%s | iHateUpload",
   },
   description:
-    "Merge, compress, protect, and organize PDFs, convert HEIC or WebP, and build image PDFs in your browser. No upload, no signup, no watermark.",
+    "Merge, compress, protect, and organize PDFs, convert HEIC or WebP, and build image PDFs with zero cloud hops. No account. No watermark. Cut wifi mid-job and it still finishes.",
   metadataBase: new URL("https://ihateupload.com"),
   openGraph: {
     title: "iHateUpload",
     description:
-      "Free browser tools that hate uploading your files. PDF merge, compress, protect, organize, HEIC to JPG, image to PDF, and more.",
+      "Upload-free PDF and image tools. Merge, compress, protect, organize, HEIC to JPG, and more — all inside your tab.",
     type: "website",
   },
 };
@@ -46,6 +48,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <SiteHeader />
         <main className="relative z-10 flex-1">{children}</main>
         <SiteFooter />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
