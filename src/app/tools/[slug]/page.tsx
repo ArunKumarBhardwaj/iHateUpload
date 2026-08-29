@@ -34,7 +34,7 @@ export default async function ToolPage({ params }: ToolPageProps) {
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
           Browser-only tool
         </p>
-        <h1 className="mt-2 font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
+        <h1 className="mt-2 font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
           {tool.title}
         </h1>
         <p className="mt-3 text-base text-muted-foreground sm:text-lg">

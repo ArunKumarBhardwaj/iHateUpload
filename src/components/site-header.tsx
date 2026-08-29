@@ -21,7 +21,7 @@ export function SiteHeader({ className }: { className?: string }) {
           </span>
         </Link>
         <nav className="hidden items-center gap-1 md:flex">
-          {TOOLS.map((tool) => (
+          {TOOLS.filter((tool) => tool.showInNav).map((tool) => (
             <Link
               key={tool.id}
               href={`/tools/${tool.slug}`}

@@ -24,12 +24,12 @@ export const metadata: Metadata = {
     template: "%s | iHateUpload",
   },
   description:
-    "Convert HEIC to JPG, compress images, and make PDFs in your browser. No upload, no signup, no watermark.",
+    "Merge and compress PDFs, convert HEIC or WebP, and build image PDFs in your browser. No upload, no signup, no watermark.",
   metadataBase: new URL("https://ihateupload.com"),
   openGraph: {
     title: "iHateUpload",
     description:
-      "Free browser tools that hate uploading your files. HEIC to JPG, compress image, image to PDF.",
+      "Free browser tools that hate uploading your files. PDF merge and compress, HEIC to JPG, image to PDF, and more.",
     type: "website",
   },
 };
@@ -38,6 +38,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      data-scroll-behavior="smooth"
       className={`${display.variable} ${body.variable} h-full`}
     >
       <body className="relative flex min-h-full flex-col">

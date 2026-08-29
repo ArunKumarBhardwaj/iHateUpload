@@ -14,7 +14,7 @@ export default function HomePage() {
         </div>
 
         <div className="relative mx-auto flex min-h-[78vh] max-w-6xl flex-col justify-center px-4 py-16 sm:px-6 sm:py-24">
-          <p className="animate-rise font-display text-5xl font-extrabold tracking-tight text-ink sm:text-7xl md:text-8xl">
+          <p className="animate-rise font-display text-5xl font-bold leading-[1.05] tracking-tight text-ink sm:text-7xl md:text-8xl">
             iHate
             <span className="text-signal">Upload</span>
           </p>
@@ -22,13 +22,13 @@ export default function HomePage() {
             Free file tools that refuse to touch your cloud.
           </h1>
           <p className="animate-rise-delay-2 mt-4 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Convert HEIC photos, compress images, and build PDFs in the browser.
-            Your files never leave this device.
+            Merge and compress PDFs, convert HEIC or WebP, and build image PDFs
+            in the browser. Your files never leave this device.
           </p>
           <div className="animate-rise-delay-2 mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg" className="h-11 px-5 text-base">
-              <Link href="/tools/heic-to-jpg">
-                Start with HEIC → JPG
+              <Link href="/tools/merge-pdf">
+                Start with Merge PDF
                 <ArrowRight data-icon="inline-end" />
               </Link>
             </Button>
@@ -42,13 +42,13 @@ export default function HomePage() {
       <section id="tools" className="border-t border-ink/10 bg-card/40 py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <h2 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-            Three tools. Zero uploads.
+            {TOOLS.length} tools. Zero uploads.
           </h2>
           <p className="mt-3 max-w-2xl text-muted-foreground">
             Each tool runs locally with browser APIs. No account. No watermark.
             No daily cap.
           </p>
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
+          <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {TOOLS.map((tool, index) => (
               <Link
                 key={tool.id}
@@ -57,7 +57,7 @@ export default function HomePage() {
                 style={{ animationDelay: `${index * 80}ms` }}
               >
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
-                  Tool 0{index + 1}
+                  Tool {String(index + 1).padStart(2, "0")}
                 </p>
                 <h3 className="mt-2 font-display text-2xl font-bold text-ink group-hover:text-signal">
                   {tool.title}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { FileImage, Loader2, Upload } from "lucide-react";
+import { FileImage, FileText, Loader2, Upload } from "lucide-react";
+import JSZip from "jszip";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -15,8 +16,13 @@ import {
 import type { ToolDefinition, ToolId } from "@/lib/tools";
 import {
   processCompressImage,
+  processCompressPdf,
   processHeicToJpg,
   processImageToPdf,
+  processMergePdf,
+  processPdfToJpg,
+  processSplitPdf,
+  processWebpToJpg,
 } from "@/lib/processors";
 import { cn, downloadBlob, formatBytes } from "@/lib/utils";
 
@@ -30,18 +36,42 @@ async function runTool(
       return processHeicToJpg(files, onProgress);
     case "compress-image":
       return processCompressImage(files, onProgress);
+    case "webp-to-jpg":
+      return processWebpToJpg(files, onProgress);
     case "image-to-pdf":
       return processImageToPdf(files, onProgress);
+    case "merge-pdf":
+      return processMergePdf(files, onProgress);
+    case "split-pdf":
+      return processSplitPdf(files, onProgress);
+    case "pdf-to-jpg":
+      return processPdfToJpg(files, onProgress);
+    case "compress-pdf":
+      return processCompressPdf(files, onProgress);
   }
+}
+
+async function downloadAllResults(results: ResultItem[]) {
+  const zip = new JSZip();
+  for (const result of results) {
+    zip.file(result.name, result.blob);
+  }
+  const blob = await zip.generateAsync({ type: "blob" });
+  downloadBlob(blob, "ihateupload-results.zip");
 }
 
 export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [job, setJob] = useState<JobState>(idleJob);
   const [dragging, setDragging] = useState(false);
+  const FileIcon = tool.kind === "pdf" ? FileText : FileImage;
 
   const files =
     job.status === "idle" ? [] : "files" in job ? job.files : [];
+
+  const canProcess =
+    job.status === "ready" &&
+    (tool.id !== "merge-pdf" || job.files.length >= 2);
 
   const setFiles = useCallback((next: FileItem[]) => {
     if (next.length === 0) {
@@ -62,6 +92,14 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
 
   const process = useCallback(async () => {
     if (job.status !== "ready") return;
+    if (tool.id === "merge-pdf" && job.files.length < 2) {
+      setJob({
+        status: "error",
+        message: "Add at least two PDF files to merge.",
+        files: job.files,
+      });
+      return;
+    }
     const current = job.files;
     setJob({ status: "processing", files: current, progress: 0 });
     try {
@@ -147,7 +185,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                 key={file.id}
                 className="flex items-center gap-3 rounded-lg border border-ink/10 bg-background/70 px-3 py-2.5"
               >
-                <FileImage className="size-4 shrink-0 text-lagoon" />
+                <FileIcon className="size-4 shrink-0 text-lagoon" />
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
                   {file.name}
                 </span>
@@ -158,6 +196,14 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
             ))}
           </ul>
         )}
+
+        {job.status === "ready" &&
+          tool.id === "merge-pdf" &&
+          job.files.length < 2 && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Add at least two PDFs to merge.
+            </p>
+          )}
 
         {job.status === "processing" && (
           <div className="mt-5 space-y-2">
@@ -182,38 +228,47 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
         )}
 
         {job.status === "done" && (
-          <ul className="mt-5 space-y-2">
-            {job.results.map((result) => (
-              <li
-                key={result.id}
-                className="flex flex-col gap-2 rounded-lg border border-lagoon/25 bg-lagoon/5 px-3 py-3 sm:flex-row sm:items-center"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-ink">
-                    {result.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatBytes(result.originalSize)} →{" "}
-                    {formatBytes(result.size)}
-                  </p>
-                </div>
+          <div className="mt-5 space-y-3">
+            {job.results.length > 1 && (
+              <div className="flex justify-end">
                 <Button
                   size="sm"
-                  onClick={() => downloadBlob(result.blob, result.name)}
+                  variant="outline"
+                  onClick={() => downloadAllResults(job.results)}
                 >
-                  Download
+                  Download all
                 </Button>
-              </li>
-            ))}
-          </ul>
+              </div>
+            )}
+            <ul className="space-y-2">
+              {job.results.map((result) => (
+                <li
+                  key={result.id}
+                  className="flex flex-col gap-2 rounded-lg border border-lagoon/25 bg-lagoon/5 px-3 py-3 sm:flex-row sm:items-center"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-ink">
+                      {result.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatBytes(result.originalSize)} →{" "}
+                      {formatBytes(result.size)}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => downloadBlob(result.blob, result.name)}
+                  >
+                    Download
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         <div className="mt-6 flex flex-wrap gap-2">
-          <Button
-            size="lg"
-            disabled={job.status !== "ready"}
-            onClick={process}
-          >
+          <Button size="lg" disabled={!canProcess} onClick={process}>
             {tool.actionLabel}
           </Button>
           {job.status !== "idle" && (
