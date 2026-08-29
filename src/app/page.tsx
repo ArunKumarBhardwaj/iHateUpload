@@ -42,14 +42,16 @@ export default function HomePage() {
 
       <section id="tools" className="border-t border-ink/10 py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-            {TOOLS.length} tools. Zero cloud hops.
-          </h2>
-          <p className="mt-3 max-w-2xl text-muted-foreground">
-            One tab for the jobs that usually force you across five upload sites.
-            No account. No watermark. No daily cap.
-          </p>
-          <div className="mt-12 space-y-14">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+              {TOOLS.length} tools. Zero cloud hops.
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              One tab for the jobs that usually force you across five upload
+              sites. No account. No watermark. No daily cap.
+            </p>
+          </div>
+          <div className="mt-12 space-y-12">
             {(
               [
                 {
@@ -78,10 +80,10 @@ export default function HomePage() {
               ] as const
             ).map((group) => (
               <div key={group.label}>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
+                <p className="text-center text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
                   {group.label}
                 </p>
-                <div className="mt-4 divide-y divide-ink/10 border-y border-ink/10">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {group.ids.map((id) => {
                     const tool = TOOLS.find((entry) => entry.id === id);
                     if (!tool) return null;
@@ -89,14 +91,18 @@ export default function HomePage() {
                       <Link
                         key={tool.id}
                         href={`/tools/${tool.slug}`}
-                        className="group flex flex-col gap-1 py-5 transition-colors sm:flex-row sm:items-baseline sm:justify-between sm:gap-8"
+                        className="group flex h-full flex-col rounded-2xl border border-ink/12 bg-card/80 p-5 transition-colors hover:border-signal/40 hover:bg-signal/5"
                       >
-                        <h3 className="font-display text-xl font-bold text-ink group-hover:text-signal sm:text-2xl">
+                        <h3 className="font-display text-xl font-bold text-ink group-hover:text-signal">
                           {tool.title}
                         </h3>
-                        <p className="max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-right">
+                        <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
                           {tool.description}
                         </p>
+                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-ink">
+                          Open tool
+                          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                        </span>
                       </Link>
                     );
                   })}
