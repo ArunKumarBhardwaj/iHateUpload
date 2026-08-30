@@ -25,8 +25,11 @@ export type ToolDefinition = {
   accept: string;
   multiple: boolean;
   actionLabel: string;
+  /** Search-intent title (template appends `| iHateUpload`). */
   seoTitle: string;
   seoDescription: string;
+  /** Crawlable how-to steps for the tool page. */
+  seoHowTo: [string, string, string];
   showInNav: boolean;
   kind: "image" | "pdf";
   ui: "none" | "password" | "password-confirm" | "rotate" | "organize" | "resize";
@@ -43,9 +46,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
     multiple: true,
     actionLabel: "Create PDF",
-    seoTitle: "JPG to PDF Converter — Free, No Upload",
+    seoTitle: "JPG to PDF Converter Free — No Upload",
     seoDescription:
-      "Convert images to PDF in your browser. Files never leave your device.",
+      "Convert JPG, PNG, or WebP to PDF online free. No upload, no signup, no watermark — files stay in your browser.",
+    seoHowTo: [
+      "Choose one or more JPG, PNG, or WebP images.",
+      "Click Create PDF to build the document on this device.",
+      "Download your PDF — nothing was uploaded.",
+    ],
     showInNav: true,
     kind: "image",
     ui: "none",
@@ -60,9 +68,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "application/pdf,.pdf",
     multiple: true,
     actionLabel: "Merge PDFs",
-    seoTitle: "Merge PDF Online — Free, No Upload",
+    seoTitle: "Merge PDF Online Free — No Upload",
     seoDescription:
-      "Merge PDF files in your browser. Private, free, no signup, no watermark.",
+      "Merge PDF files online free in your browser. Combine multiple PDFs privately — no upload, no watermark, no signup.",
+    seoHowTo: [
+      "Add at least two PDF files in the order you want.",
+      "Click Merge PDFs to combine them locally.",
+      "Download the single merged PDF.",
+    ],
     showInNav: true,
     kind: "pdf",
     ui: "none",
@@ -77,9 +90,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "application/pdf,.pdf",
     multiple: false,
     actionLabel: "Convert to JPG",
-    seoTitle: "PDF to JPG Converter — Free, No Upload",
+    seoTitle: "PDF to JPG Converter Free — No Upload",
     seoDescription:
-      "Convert PDF pages to JPG in your browser. Files stay on your device.",
+      "Convert PDF to JPG online free. Export every page as an image in your browser — no upload, no watermark.",
+    seoHowTo: [
+      "Drop a PDF file into the workspace.",
+      "Click Convert to JPG to render each page locally.",
+      "Download the JPG images (or zip when there are many).",
+    ],
     showInNav: true,
     kind: "pdf",
     ui: "none",
@@ -94,9 +112,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "application/pdf,.pdf",
     multiple: true,
     actionLabel: "Compress PDF",
-    seoTitle: "Compress PDF Online — Free, No Upload",
+    seoTitle: "Compress PDF Online Free — No Upload",
     seoDescription:
-      "Compress PDF files in your browser. No upload, no daily limits.",
+      "Compress PDF online free to shrink file size for email. Private browser compression — no upload, no daily limits.",
+    seoHowTo: [
+      "Choose the PDF you want to shrink.",
+      "Click Compress PDF — processing stays on this device.",
+      "Download the smaller PDF when it finishes.",
+    ],
     showInNav: true,
     kind: "pdf",
     ui: "none",
@@ -111,9 +134,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "application/pdf,.pdf",
     multiple: false,
     actionLabel: "Split PDF",
-    seoTitle: "Split PDF Online — Free, No Upload",
+    seoTitle: "Split PDF Online Free — No Upload",
     seoDescription:
-      "Split a PDF into pages in your browser. Private and free.",
+      "Split PDF online free into separate pages. Extract pages in your browser — no upload, no signup.",
+    seoHowTo: [
+      "Choose the PDF you want to split.",
+      "Click Split PDF to create one file per page locally.",
+      "Download individual pages or grab them all as a zip.",
+    ],
     showInNav: false,
     kind: "pdf",
     ui: "none",
@@ -128,9 +156,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "application/pdf,.pdf",
     multiple: true,
     actionLabel: "Protect PDF",
-    seoTitle: "Protect PDF with Password — Free, No Upload",
+    seoTitle: "Protect PDF with Password Free — No Upload",
     seoDescription:
-      "Password-protect PDF files in your browser. No upload, no signup.",
+      "Password-protect a PDF online free. Encrypt PDFs in your browser — no upload, no signup.",
+    seoHowTo: [
+      "Choose the PDF to protect.",
+      "Enter and confirm a password.",
+      "Download the encrypted PDF created on this device.",
+    ],
     showInNav: true,
     kind: "pdf",
     ui: "password-confirm",
@@ -145,9 +178,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "application/pdf,.pdf",
     multiple: true,
     actionLabel: "Unlock PDF",
-    seoTitle: "Unlock PDF Online — Free, No Upload",
+    seoTitle: "Unlock PDF Online Free — No Upload",
     seoDescription:
-      "Remove a PDF password in your browser when you know it. Files stay private.",
+      "Unlock PDF online free when you know the password. Remove PDF password in your browser — files stay private.",
+    seoHowTo: [
+      "Choose a password-protected PDF you can open.",
+      "Enter the correct password.",
+      "Download the unlocked PDF created locally.",
+    ],
     showInNav: false,
     kind: "pdf",
     ui: "password",
@@ -162,9 +200,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "application/pdf,.pdf",
     multiple: true,
     actionLabel: "Rotate PDF",
-    seoTitle: "Rotate PDF Online — Free, No Upload",
+    seoTitle: "Rotate PDF Online Free — No Upload",
     seoDescription:
-      "Rotate PDF pages in your browser. No upload, no watermark.",
+      "Rotate PDF pages online free by 90°, 180°, or 270°. Fix sideways scans in your browser — no upload.",
+    seoHowTo: [
+      "Choose the PDF with pages that need rotating.",
+      "Pick 90°, 180°, or 270°.",
+      "Download the rotated PDF.",
+    ],
     showInNav: false,
     kind: "pdf",
     ui: "rotate",
@@ -179,9 +222,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "application/pdf,.pdf",
     multiple: false,
     actionLabel: "Save PDF",
-    seoTitle: "Organize PDF Pages — Free, No Upload",
+    seoTitle: "Organize PDF Pages Free — No Upload",
     seoDescription:
-      "Reorder and delete PDF pages in your browser. Private and free.",
+      "Organize PDF pages online free. Reorder or delete pages in your browser — private and free.",
+    seoHowTo: [
+      "Choose a PDF to reorganize.",
+      "Move or remove pages in the list.",
+      "Save and download the new PDF.",
+    ],
     showInNav: true,
     kind: "pdf",
     ui: "organize",
@@ -196,9 +244,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: ".heic,.heif,image/heic,image/heif",
     multiple: true,
     actionLabel: "Convert to JPG",
-    seoTitle: "HEIC to JPG Converter — Free, No Upload",
+    seoTitle: "HEIC to JPG Converter Free — No Upload",
     seoDescription:
-      "Convert HEIC to JPG online without uploading. Files stay on your device. Free, unlimited, no watermark.",
+      "Convert HEIC to JPG online free without uploading. iPhone photos stay on your device — unlimited, no watermark.",
+    seoHowTo: [
+      "Add one or more HEIC or HEIF photos from your iPhone.",
+      "Click Convert to JPG — conversion runs in this tab.",
+      "Download the JPG files.",
+    ],
     showInNav: true,
     kind: "image",
     ui: "none",
@@ -213,9 +266,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: ".heic,.heif,image/heic,image/heif",
     multiple: true,
     actionLabel: "Create PDF",
-    seoTitle: "HEIC to PDF Converter — Free, No Upload",
+    seoTitle: "HEIC to PDF Converter Free — No Upload",
     seoDescription:
-      "Convert HEIC to PDF in your browser. No upload, no account, no watermark.",
+      "Convert HEIC to PDF online free for forms and email. iPhone photos never leave your browser.",
+    seoHowTo: [
+      "Add HEIC photos you want in a PDF.",
+      "Click Create PDF to build the document locally.",
+      "Download the PDF for forms or email.",
+    ],
     showInNav: true,
     kind: "image",
     ui: "none",
@@ -230,10 +288,15 @@ export const TOOLS: ToolDefinition[] = [
     accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
     multiple: true,
     actionLabel: "Compress images",
-    seoTitle: "Compress Image Online — Free, No Upload",
+    seoTitle: "Compress Image Online Free — No Upload",
     seoDescription:
-      "Compress images in your browser. No upload, no daily limits, no watermark.",
-    showInNav: false,
+      "Compress image online free for email, WhatsApp, or web. Shrink JPG, PNG, and WebP in your browser — no upload, no watermark.",
+    seoHowTo: [
+      "Choose JPG, PNG, or WebP images to shrink.",
+      "Click Compress images — work stays on this device.",
+      "Download the compressed files.",
+    ],
+    showInNav: true,
     kind: "image",
     ui: "none",
   },
@@ -247,9 +310,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
     multiple: true,
     actionLabel: "Resize images",
-    seoTitle: "Resize Image Online — Free, No Upload",
+    seoTitle: "Resize Image Online Free — No Upload",
     seoDescription:
-      "Resize images in your browser. No upload, no daily limits, no watermark.",
+      "Resize image online free by max edge. Scale JPG, PNG, or WebP in your browser — no upload, no watermark.",
+    seoHowTo: [
+      "Choose the images to resize.",
+      "Pick a max edge size (or enter a custom pixel value).",
+      "Download the resized images.",
+    ],
     showInNav: true,
     kind: "image",
     ui: "resize",
@@ -264,9 +332,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "image/webp,.webp",
     multiple: true,
     actionLabel: "Convert to JPG",
-    seoTitle: "WebP to JPG Converter — Free, No Upload",
+    seoTitle: "WebP to JPG Converter Free — No Upload",
     seoDescription:
-      "Convert WebP to JPG in your browser. No upload, no watermark.",
+      "Convert WebP to JPG online free. Make WebP images work in older apps and forms — no upload, no watermark.",
+    seoHowTo: [
+      "Add one or more WebP images.",
+      "Click Convert to JPG.",
+      "Download the JPG files.",
+    ],
     showInNav: false,
     kind: "image",
     ui: "none",
@@ -281,9 +354,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "image/png,.png",
     multiple: true,
     actionLabel: "Convert to JPG",
-    seoTitle: "PNG to JPG Converter — Free, No Upload",
+    seoTitle: "PNG to JPG Converter Free — No Upload",
     seoDescription:
-      "Convert PNG to JPG in your browser. No upload, no watermark.",
+      "Convert PNG to JPG online free for smaller files and wider support. Runs in your browser — no upload.",
+    seoHowTo: [
+      "Add PNG images to convert.",
+      "Click Convert to JPG.",
+      "Download the JPG files.",
+    ],
     showInNav: true,
     kind: "image",
     ui: "none",
@@ -298,9 +376,14 @@ export const TOOLS: ToolDefinition[] = [
     accept: "image/jpeg,.jpg,.jpeg",
     multiple: true,
     actionLabel: "Convert to PNG",
-    seoTitle: "JPG to PNG Converter — Free, No Upload",
+    seoTitle: "JPG to PNG Converter Free — No Upload",
     seoDescription:
-      "Convert JPG to PNG in your browser. No upload, no watermark.",
+      "Convert JPG to PNG online free. Keep lossless pixels for editing — no upload, no watermark.",
+    seoHowTo: [
+      "Add JPG or JPEG images.",
+      "Click Convert to PNG.",
+      "Download the PNG files.",
+    ],
     showInNav: true,
     kind: "image",
     ui: "none",

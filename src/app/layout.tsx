@@ -22,17 +22,29 @@ const body = Manrope({
 
 export const metadata: Metadata = {
   title: {
-    default: "iHateUpload — Free tools that refuse the upload.",
+    default: "Free Online PDF & Image Tools — No Upload | iHateUpload",
     template: "%s | iHateUpload",
   },
   description:
-    "Merge, compress, protect, and organize PDFs, convert HEIC or WebP, and build image PDFs with zero cloud hops. No account. No watermark. Cut wifi mid-job and it still finishes.",
+    "Compress image, merge PDF, convert PDF to JPG, HEIC to JPG, and more — free in your browser. No upload, no signup, no watermark.",
   metadataBase: new URL("https://ihateupload.com"),
   openGraph: {
-    title: "iHateUpload",
+    title: "Free Online PDF & Image Tools — No Upload",
     description:
-      "Upload-free PDF and image tools. Merge, compress, protect, organize, HEIC to JPG, and more — all inside your tab.",
+      "Compress image, merge PDF, convert PDF, HEIC to JPG, and more. Files stay on your device.",
     type: "website",
+    url: "https://ihateupload.com",
+    siteName: "iHateUpload",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Free Online PDF & Image Tools — No Upload",
+    description:
+      "Compress image, merge PDF, convert PDF, HEIC to JPG — no upload.",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 

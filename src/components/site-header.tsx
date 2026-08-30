@@ -78,7 +78,7 @@ export function SiteHeader({ className }: { className?: string }) {
               key={section.id}
               type="button"
               className={cn(
-                "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors hover:bg-ink/5",
+                "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 font-display text-sm font-bold tracking-tight transition-colors hover:bg-ink/5 sm:text-base",
                 open === section.id ? "bg-ink/5 text-ink" : "text-ink/70",
               )}
               aria-expanded={open === section.id}
