@@ -7,7 +7,9 @@
     "dev": "next dev --port 43127",
     "build": "next build",
     "start": "next start --port 43127",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync-pdf-worker": "cp node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs public/pdf.worker.min.mjs",
+    "prebuild": "bun run sync-pdf-worker"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "^2.9.1",
@@ -20,7 +22,7 @@
     "jszip": "^3.10.1",
     "lucide-react": "^1.37.0",
     "next": "16.3.3",
-    "pdfjs-dist": "^6.2.108",
+    "pdfjs-dist": "6.2.108",
     "radix-ui": "^1.6.7",
     "react": "19.2.8",
     "react-dom": "19.2.8",
