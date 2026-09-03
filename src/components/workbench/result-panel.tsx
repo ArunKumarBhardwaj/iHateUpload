@@ -28,7 +28,11 @@ export function ResultPanel({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-lagoon/25 bg-lagoon/5 px-4 py-3">
+      <div
+        role="status"
+        aria-live="polite"
+        className="rounded-xl border border-lagoon/25 bg-lagoon/5 px-4 py-3"
+      >
         <p className="flex items-center gap-2 font-display text-base font-semibold text-ink">
           <Check className="size-4 text-lagoon" />
           {results.length === 1

@@ -29,13 +29,20 @@ export function Thumbnail({
   switch (state.status) {
     case "pending":
       return (
-        <div className={cn(box, "bg-white/70 ring-1 ring-ink/10")}>
+        <div
+          role="img"
+          aria-label={alt}
+          aria-busy="true"
+          className={cn(box, "bg-white/70 ring-1 ring-ink/10")}
+        >
           <Loader2 className="size-4 animate-spin text-muted-foreground/70" />
         </div>
       );
     case "unavailable":
       return (
         <div
+          role="img"
+          aria-label={`${alt}, preview unavailable`}
           className={cn(
             box,
             "flex-col gap-1 bg-white/70 text-muted-foreground/70 ring-1 ring-ink/10",

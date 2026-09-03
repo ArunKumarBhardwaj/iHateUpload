@@ -33,6 +33,7 @@ import type { ToolDefinition, ToolId } from "@/lib/tools";
 import {
   processCompressImage,
   processCompressPdf,
+  processExtractPages,
   processHeicToJpg,
   processHeicToPdf,
   processImageToPdf,
@@ -78,10 +79,12 @@ async function runTool(
       return processMergePdf(files, onProgress);
     case "split-pdf":
       return processSplitPdf(files, onProgress);
+    case "extract-pages":
+      return processExtractPages(files, onProgress, options);
     case "pdf-to-jpg":
       return processPdfToJpg(files, onProgress);
     case "compress-pdf":
-      return processCompressPdf(files, onProgress);
+      return processCompressPdf(files, onProgress, options);
     case "protect-pdf":
       return processProtectPdf(files, onProgress, options);
     case "unlock-pdf":
@@ -90,6 +93,31 @@ async function runTool(
       return processRotatePdf(files, onProgress, options);
     case "organize-pdf":
       return processOrganizePdf(files, onProgress, options);
+  }
+}
+
+function downloadLabel(results: ResultItem[]) {
+  if (results.length !== 1) return `Download all (${results.length})`;
+  const type = results[0].blob.type;
+  if (type.includes("pdf")) return "Download PDF";
+  if (type.includes("png")) return "Download PNG";
+  if (type.includes("jpeg") || type.includes("jpg")) return "Download JPG";
+  if (type.includes("zip")) return "Download zip";
+  return "Download file";
+}
+
+function jobAnnouncement(job: JobState): string {
+  switch (job.status) {
+    case "processing":
+      return `Working locally, ${job.progress} percent.`;
+    case "done":
+      return job.results.length === 1
+        ? "1 file is ready to download."
+        : `${job.results.length} files are ready to download.`;
+    case "error":
+      return job.message;
+    default:
+      return "";
   }
 }
 
@@ -118,12 +146,13 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const files = job.status === "idle" ? NO_FILES : job.files;
   const previews = useFilePreviews(files, tool.kind);
 
-  const organizeFile = options.kind === "organize" ? files[0] : undefined;
-  const organizeFacts = organizeFile
-    ? previews.get(organizeFile.id)?.facts
-    : undefined;
-  const pageCount =
-    organizeFacts?.kind === "pdf" ? organizeFacts.pages : 0;
+  const pagedFile =
+    options.kind === "organize" || options.kind === "extract"
+      ? files[0]
+      : undefined;
+  const pagedFacts = pagedFile ? previews.get(pagedFile.id)?.facts : undefined;
+  const pageCount = pagedFacts?.kind === "pdf" ? pagedFacts.pages : 0;
+  const organizeFile = options.kind === "organize" ? pagedFile : undefined;
   const pagePreviews = usePagePreviews(organizeFile, pageCount);
 
   const setFiles = useCallback((next: FileItem[]) => {
@@ -148,13 +177,21 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
    * during render rather than in an effect means the grid never paints one
    * frame of the previous document's order.
    */
-  const pageKey = `${organizeFile?.id ?? ""}:${pageCount}`;
+  const pageKey = `${pagedFile?.id ?? ""}:${pageCount}`;
   const [orderedKey, setOrderedKey] = useState(pageKey);
   if (options.kind === "organize" && orderedKey !== pageKey) {
     setOrderedKey(pageKey);
     setOptions({
       kind: "organize",
       pageOrder: Array.from({ length: pageCount }, (_, index) => index),
+    });
+  }
+  if (options.kind === "extract" && orderedKey !== pageKey) {
+    setOrderedKey(pageKey);
+    setOptions({
+      kind: "extract",
+      range: pageCount > 0 ? `1-${pageCount}` : "",
+      pageCount,
     });
   }
 
@@ -286,6 +323,9 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
         <div className="mb-5">
           <Stepper job={job} options={options} />
         </div>
+        <p className="sr-only" aria-live="polite" aria-atomic="true">
+          {jobAnnouncement(job)}
+        </p>
 
         <input
           ref={inputRef}
@@ -414,7 +454,11 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   </span>
                   <span className="text-muted-foreground">{job.progress}%</span>
                 </div>
-                <Progress value={job.progress} />
+                <Progress
+                  value={job.progress}
+                  aria-label="Processing"
+                  aria-valuetext={`${job.progress} percent`}
+                />
               </div>
             )}
             <p className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -444,9 +488,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   }}
                 >
                   <Download />
-                  {job.results.length === 1
-                    ? "Download"
-                    : `Download all (${job.results.length})`}
+                  {downloadLabel(job.results)}
                 </Button>
               ) : (
                 <Button
