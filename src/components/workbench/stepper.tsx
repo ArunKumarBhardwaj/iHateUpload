@@ -1,0 +1,82 @@
+"use client";
+
+import { Check } from "lucide-react";
+
+import type { JobState } from "@/lib/job";
+import type { ToolOptions } from "@/lib/tool-options";
+import { cn } from "@/lib/utils";
+
+type StepId = "choose" | "options" | "run" | "download";
+
+const STEP_LABELS: Record<StepId, string> = {
+  choose: "Choose",
+  options: "Options",
+  run: "Process",
+  download: "Download",
+};
+
+function stepsFor(options: ToolOptions): StepId[] {
+  return options.kind === "none"
+    ? ["choose", "run", "download"]
+    : ["choose", "options", "run", "download"];
+}
+
+function currentStep(job: JobState, hasOptions: boolean): StepId {
+  switch (job.status) {
+    case "idle":
+      return "choose";
+    case "ready":
+    case "error":
+      return hasOptions ? "options" : "run";
+    case "processing":
+      return "run";
+    case "done":
+      return "download";
+  }
+}
+
+export function Stepper({
+  job,
+  options,
+}: {
+  job: JobState;
+  options: ToolOptions;
+}) {
+  const steps = stepsFor(options);
+  const active = steps.indexOf(currentStep(job, options.kind !== "none"));
+
+  return (
+    <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+      {steps.map((step, index) => (
+        <li key={step} className="flex items-center gap-2">
+          {index > 0 && <span className="text-ink/20">/</span>}
+          <span
+            aria-current={index === active ? "step" : undefined}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-medium",
+              index === active && "bg-signal/10 text-signal",
+              index < active && "text-lagoon",
+              index > active && "text-muted-foreground/70",
+            )}
+          >
+            {index < active ? (
+              <Check className="size-3" />
+            ) : (
+              <span
+                className={cn(
+                  "inline-flex size-4 items-center justify-center rounded-full text-[10px]",
+                  index === active
+                    ? "bg-signal text-primary-foreground"
+                    : "bg-ink/10 text-ink/50",
+                )}
+              >
+                {index + 1}
+              </span>
+            )}
+            {STEP_LABELS[step]}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}

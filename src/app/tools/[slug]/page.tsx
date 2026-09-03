@@ -102,7 +102,8 @@ export default async function ToolPage({ params }: ToolPageProps) {
         </p>
       </div>
 
-      <ToolWorkspace tool={tool} />
+      {/* Keyed so navigating between tools starts from a clean workspace. */}
+      <ToolWorkspace key={tool.id} tool={tool} />
 
       <section className="mx-auto mt-12 max-w-3xl">
         <h2 className="font-display text-2xl font-bold text-ink">

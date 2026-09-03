@@ -2,11 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileImage, FileText, Loader2, Upload } from "lucide-react";
+import { Download, FileImage, FileText, Loader2, Lock, Upload } from "lucide-react";
 import JSZip from "jszip";
 
+import { FileList } from "@/components/workbench/file-list";
+import {
+  OptionsPanel,
+  optionsHint,
+  optionsNeedCanvas,
+} from "@/components/workbench/options-panel";
+import { ResultPanel } from "@/components/workbench/result-panel";
+import { Stepper } from "@/components/workbench/stepper";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { continueToolsFor } from "@/lib/continue-map";
 import { setHandoff, takeHandoff } from "@/lib/handoff";
@@ -17,10 +24,13 @@ import {
   type JobState,
   type ResultItem,
 } from "@/lib/job";
-import type { ToolOptions } from "@/lib/tool-options";
+import {
+  initialOptions,
+  optionsReady,
+  type ToolOptions,
+} from "@/lib/tool-options";
 import type { ToolDefinition, ToolId } from "@/lib/tools";
 import {
-  getPdfPageCount,
   processCompressImage,
   processCompressPdf,
   processHeicToJpg,
@@ -38,6 +48,7 @@ import {
   processUnlockPdf,
   processWebpToJpg,
 } from "@/lib/processors";
+import { useFilePreviews, usePagePreviews } from "@/lib/use-previews";
 import { cn, downloadBlob, formatBytes } from "@/lib/utils";
 
 async function runTool(
@@ -91,137 +102,108 @@ async function downloadAllResults(results: ResultItem[]) {
   downloadBlob(blob, "ihateupload-results.zip");
 }
 
-type RotateDegrees = 90 | 180 | 270;
-
-const RESIZE_PRESETS = [1920, 1280, 800, 640] as const;
+/** Stable identity so the preview hook does not restart on every render. */
+const NO_FILES: FileItem[] = [];
 
 export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [job, setJob] = useState<JobState>(idleJob);
   const [dragging, setDragging] = useState(false);
-  const [password, setPassword] = useState("");
+  const [options, setOptions] = useState<ToolOptions>(() =>
+    initialOptions(tool.ui),
+  );
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [rotateDegrees, setRotateDegrees] = useState<RotateDegrees>(90);
-  const [pageOrder, setPageOrder] = useState<number[]>([]);
-  const [maxEdge, setMaxEdge] = useState(1280);
-  const FileIcon = tool.kind === "pdf" ? FileText : FileImage;
 
-  const files =
-    job.status === "idle" ? [] : "files" in job ? job.files : [];
+  const files = job.status === "idle" ? NO_FILES : job.files;
+  const previews = useFilePreviews(files, tool.kind);
 
-  const passwordConfirmMismatch =
-    tool.ui === "password-confirm" &&
-    password.length > 0 &&
-    confirmPassword.length > 0 &&
-    password !== confirmPassword;
-
-  const canProcess =
-    job.status === "ready" &&
-    (tool.id !== "merge-pdf" || job.files.length >= 2) &&
-    (tool.ui !== "password" || password.trim().length > 0) &&
-    (tool.ui !== "password-confirm" ||
-      (password.trim().length > 0 &&
-        confirmPassword === password &&
-        !passwordConfirmMismatch)) &&
-    (tool.ui !== "organize" || pageOrder.length >= 1) &&
-    (tool.ui !== "resize" || (maxEdge >= 16 && maxEdge <= 10000));
+  const organizeFile = options.kind === "organize" ? files[0] : undefined;
+  const organizeFacts = organizeFile
+    ? previews.get(organizeFile.id)?.facts
+    : undefined;
+  const pageCount =
+    organizeFacts?.kind === "pdf" ? organizeFacts.pages : 0;
+  const pagePreviews = usePagePreviews(organizeFile, pageCount);
 
   const setFiles = useCallback((next: FileItem[]) => {
-    if (next.length === 0) {
-      setJob(idleJob());
-      return;
-    }
-    setJob({ status: "ready", files: next });
+    setJob(next.length === 0 ? idleJob() : { status: "ready", files: next });
   }, []);
 
-  useEffect(() => {
-    setPassword("");
-    setConfirmPassword("");
-    setRotateDegrees(90);
-    setPageOrder([]);
-    setMaxEdge(1280);
-  }, [tool.id]);
-
+  /**
+   * The handoff is a one-shot module value the previous tool left behind. It
+   * only exists on the client, so reading it in a state initialiser would
+   * render files the server never sent and break hydration.
+   */
   useEffect(() => {
     const handoff = takeHandoff();
     if (!handoff) return;
     const items = createFileItems(handoff.files);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
     setFiles(tool.multiple ? items : items.slice(0, 1));
-  }, [tool.id, tool.multiple, setFiles]);
+  }, [tool.multiple, setFiles]);
 
-  const organizeSource =
-    tool.ui === "organize" &&
-    (job.status === "ready" || job.status === "error")
-      ? job.files[0]
-      : undefined;
+  /**
+   * A new document resets the page order to its natural sequence. Adjusting
+   * during render rather than in an effect means the grid never paints one
+   * frame of the previous document's order.
+   */
+  const pageKey = `${organizeFile?.id ?? ""}:${pageCount}`;
+  const [orderedKey, setOrderedKey] = useState(pageKey);
+  if (options.kind === "organize" && orderedKey !== pageKey) {
+    setOrderedKey(pageKey);
+    setOptions({
+      kind: "organize",
+      pageOrder: Array.from({ length: pageCount }, (_, index) => index),
+    });
+  }
 
-  useEffect(() => {
-    if (!organizeSource) {
-      setPageOrder([]);
-      return;
-    }
-    let cancelled = false;
-    getPdfPageCount(organizeSource.file)
-      .then((count) => {
-        if (cancelled) return;
-        setPageOrder(Array.from({ length: count }, (_, i) => i));
-      })
-      .catch(() => {
-        if (!cancelled) setPageOrder([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [organizeSource?.id]);
-
-  const onPick = useCallback(
-    (list: FileList | null) => {
+  const addFiles = useCallback(
+    (list: FileList | null, mode: "replace" | "append") => {
       if (!list || list.length === 0) return;
-      const items = createFileItems(list);
-      setFiles(tool.multiple ? items : items.slice(0, 1));
+      const picked = createFileItems(list);
+      if (!tool.multiple) {
+        setFiles(picked.slice(0, 1));
+        return;
+      }
+      setFiles(mode === "append" ? [...files, ...picked] : picked);
     },
-    [setFiles, tool.multiple],
+    [files, setFiles, tool.multiple],
   );
 
-  const buildOptions = useCallback((): ToolOptions => {
-    switch (tool.ui) {
-      case "password":
-        return { kind: "password", password };
-      case "password-confirm":
-        return { kind: "password-confirm", password };
-      case "rotate":
-        return { kind: "rotate", degrees: rotateDegrees };
-      case "organize":
-        return { kind: "organize", pageOrder };
-      case "resize":
-        return { kind: "resize", maxEdge };
-      case "none":
-        return { kind: "none" };
-    }
-  }, [tool.ui, password, rotateDegrees, pageOrder, maxEdge]);
+  const busy = job.status === "processing";
+  const settled = job.status === "ready" || job.status === "error";
+  const locked = busy || job.status === "done";
+  const reorderable = tool.ordered && tool.multiple;
+  const enoughFiles = tool.id !== "merge-pdf" || files.length >= 2;
+  const canProcess =
+    settled && enoughFiles && optionsReady(options, confirmPassword);
 
   const process = useCallback(async () => {
-    if (job.status !== "ready") return;
-    if (tool.id === "merge-pdf" && job.files.length < 2) {
+    if (job.status !== "ready" && job.status !== "error") return;
+    const current = job.files;
+    if (tool.id === "merge-pdf" && current.length < 2) {
       setJob({
         status: "error",
         message: "Add at least two PDF files to merge.",
-        files: job.files,
+        files: current,
       });
       return;
     }
-    const current = job.files;
-    const options = buildOptions();
     setJob({ status: "processing", files: current, progress: 0 });
     try {
-      const results = await runTool(tool.id, current, (ratio) => {
-        setJob({
-          status: "processing",
-          files: current,
-          progress: Math.round(ratio * 100),
-        });
-      }, options);
+      const results = await runTool(
+        tool.id,
+        current,
+        (ratio) => {
+          setJob({
+            status: "processing",
+            files: current,
+            progress: Math.round(ratio * 100),
+          });
+        },
+        options,
+      );
       setJob({ status: "done", files: current, results });
     } catch (error) {
       const message =
@@ -230,25 +212,14 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
           : "Something went wrong while processing.";
       setJob({ status: "error", message, files: current });
     }
-  }, [job, tool.id, buildOptions]);
+  }, [job, tool.id, options]);
 
   const reset = () => {
     setJob(idleJob());
-    setPassword("");
+    setOptions(initialOptions(tool.ui));
     setConfirmPassword("");
-    setRotateDegrees(90);
-    setPageOrder([]);
-    setMaxEdge(1280);
     if (inputRef.current) inputRef.current.value = "";
   };
-
-  const continueTargets =
-    job.status === "done"
-      ? continueToolsFor(
-          tool.id,
-          job.results.map((result) => ({ type: result.blob.type })),
-        )
-      : [];
 
   const continueWith = (next: ToolDefinition) => {
     if (job.status !== "done") return;
@@ -262,27 +233,35 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     router.push(`/tools/${next.slug}`);
   };
 
-  const movePage = (index: number, direction: -1 | 1) => {
-    setPageOrder((prev) => {
-      const target = index + direction;
-      if (target < 0 || target >= prev.length) return prev;
-      const next = [...prev];
-      const tmp = next[index];
-      next[index] = next[target];
-      next[target] = tmp;
-      return next;
-    });
+  const moveFile = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= files.length) return;
+    const next = [...files];
+    [next[index], next[target]] = [next[target], next[index]];
+    setFiles(next);
   };
 
-  const removePage = (index: number) => {
-    setPageOrder((prev) => prev.filter((_, i) => i !== index));
-  };
+  const optionsInCanvas = optionsNeedCanvas(options);
+  const optionsPanel = (
+    <OptionsPanel
+      options={options}
+      onOptions={setOptions}
+      confirmPassword={confirmPassword}
+      onConfirmPassword={setConfirmPassword}
+      pagePreviews={pagePreviews}
+      pageCount={pageCount}
+      disabled={locked}
+    />
+  );
+
+  const SourceIcon = tool.kind === "pdf" ? FileText : FileImage;
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="mx-auto w-full max-w-5xl">
       <div
         className={cn(
-          "relative overflow-hidden rounded-2xl border border-ink/15 bg-card/90 p-5 shadow-[0_20px_60px_-30px_rgba(11,18,32,0.45)] sm:p-8",
+          // No `overflow-hidden` here: it would stop the action bar sticking.
+          "relative rounded-2xl border border-ink/15 bg-card/90 p-5 shadow-[0_20px_60px_-30px_rgba(11,18,32,0.45)] sm:p-8",
           dragging && "border-signal ring-2 ring-signal/30",
         )}
         onDragEnter={(e) => {
@@ -300,323 +279,188 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          onPick(e.dataTransfer.files);
+          if (locked) return;
+          addFiles(e.dataTransfer.files, settled ? "append" : "replace");
         }}
       >
-        <button
-          type="button"
-          className={cn(
-            "flex w-full flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-ink/25 bg-background/60 px-4 py-12 text-center transition-colors hover:border-signal/50 hover:bg-background",
-            files.length === 0 && "animate-pulse-ring",
-          )}
-          onClick={() => inputRef.current?.click()}
-        >
-          <span className="flex size-12 items-center justify-center rounded-full bg-signal/10 text-signal">
-            <Upload className="size-5" />
-          </span>
-          <span className="font-display text-lg font-semibold text-ink">
-            Drop files here
-          </span>
-          <span className="max-w-sm text-sm text-muted-foreground">
-            Or click to choose. We refuse the upload. Work stays in this tab.
-          </span>
-        </button>
+        <div className="mb-5">
+          <Stepper job={job} options={options} />
+        </div>
+
         <input
           ref={inputRef}
           type="file"
           className="sr-only"
           accept={tool.accept}
           multiple={tool.multiple}
-          onChange={(e) => onPick(e.target.files)}
+          onChange={(e) => {
+            addFiles(e.target.files, settled ? "append" : "replace");
+            e.target.value = "";
+          }}
         />
 
-        {files.length > 0 && (
-          <ul className="mt-5 space-y-2">
-            {files.map((file) => (
-              <li
-                key={file.id}
-                className="flex items-center gap-3 rounded-lg border border-ink/10 bg-background/70 px-3 py-2.5"
-              >
-                <FileIcon className="size-4 shrink-0 text-lagoon" />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-                  {file.name}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {formatBytes(file.size)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {job.status === "ready" &&
-          tool.id === "merge-pdf" &&
-          job.files.length < 2 && (
-            <p className="mt-3 text-sm text-muted-foreground">
-              Add at least two PDFs to merge.
-            </p>
-          )}
-
-        {(job.status === "ready" || job.status === "error") &&
-          tool.ui === "password" && (
-            <div className="mt-5 space-y-2">
-              <label className="text-sm font-medium text-ink" htmlFor="pdf-password">
-                Password
-              </label>
-              <Input
-                id="pdf-password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="PDF password"
-              />
-            </div>
-          )}
-
-        {(job.status === "ready" || job.status === "error") &&
-          tool.ui === "password-confirm" && (
-            <div className="mt-5 space-y-3">
-              <div className="space-y-2">
-                <label
-                  className="text-sm font-medium text-ink"
-                  htmlFor="pdf-password"
-                >
-                  Password
-                </label>
-                <Input
-                  id="pdf-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Choose a password"
-                />
-              </div>
-              <div className="space-y-2">
-                <label
-                  className="text-sm font-medium text-ink"
-                  htmlFor="pdf-password-confirm"
-                >
-                  Confirm password
-                </label>
-                <Input
-                  id="pdf-password-confirm"
-                  type="password"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat password"
-                  aria-invalid={passwordConfirmMismatch}
-                />
-              </div>
-              {passwordConfirmMismatch && (
-                <p className="text-sm text-destructive">
-                  Passwords do not match.
-                </p>
-              )}
-            </div>
-          )}
-
-        {(job.status === "ready" || job.status === "error") &&
-          tool.ui === "rotate" && (
-            <div className="mt-5 space-y-2">
-              <p className="text-sm font-medium text-ink">Rotate by</p>
-              <div className="flex flex-wrap gap-2">
-                {([90, 180, 270] as const).map((value) => (
-                  <Button
-                    key={value}
-                    type="button"
-                    size="sm"
-                    variant={rotateDegrees === value ? "default" : "outline"}
-                    onClick={() => setRotateDegrees(value)}
-                  >
-                    {value}°
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
-        {(job.status === "ready" || job.status === "error") &&
-          tool.ui === "resize" && (
-            <div className="mt-5 space-y-3">
-              <p className="text-sm font-medium text-ink">
-                Max edge (longest side)
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {RESIZE_PRESETS.map((value) => (
-                  <Button
-                    key={value}
-                    type="button"
-                    size="sm"
-                    variant={maxEdge === value ? "default" : "outline"}
-                    onClick={() => setMaxEdge(value)}
-                  >
-                    {value}px
-                  </Button>
-                ))}
-              </div>
-              <div className="space-y-2">
-                <label
-                  className="text-sm font-medium text-ink"
-                  htmlFor="resize-max-edge"
-                >
-                  Custom pixels
-                </label>
-                <Input
-                  id="resize-max-edge"
-                  type="number"
-                  min={16}
-                  max={10000}
-                  step={1}
-                  value={maxEdge}
-                  onChange={(e) => {
-                    const next = Number(e.target.value);
-                    if (Number.isFinite(next)) setMaxEdge(Math.round(next));
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-        {(job.status === "ready" || job.status === "error") &&
-          tool.ui === "organize" &&
-          pageOrder.length > 0 && (
-            <div className="mt-5 space-y-2">
-              <p className="text-sm font-medium text-ink">Pages</p>
-              <ul className="space-y-2">
-                {pageOrder.map((pageIndex, listIndex) => (
-                  <li
-                    key={`${pageIndex}-${listIndex}`}
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-ink/10 bg-background/70 px-3 py-2"
-                  >
-                    <span className="min-w-0 flex-1 text-sm font-medium text-ink">
-                      Page {pageIndex + 1}
-                    </span>
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="outline"
-                      disabled={listIndex === 0}
-                      onClick={() => movePage(listIndex, -1)}
-                    >
-                      Move up
-                    </Button>
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="outline"
-                      disabled={listIndex === pageOrder.length - 1}
-                      onClick={() => movePage(listIndex, 1)}
-                    >
-                      Move down
-                    </Button>
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="outline"
-                      disabled={pageOrder.length <= 1}
-                      onClick={() => removePage(listIndex)}
-                    >
-                      Remove
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-        {job.status === "processing" && (
-          <div className="mt-5 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="inline-flex items-center gap-2 font-medium text-ink">
-                <Loader2 className="size-4 animate-spin text-signal" />
-                Working locally…
-              </span>
-              <span className="text-muted-foreground">{job.progress}%</span>
-            </div>
-            <Progress value={job.progress} />
-          </div>
-        )}
-
-        {job.status === "error" && (
-          <div
-            role="alert"
-            className="mt-5 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        {job.status === "idle" && (
+          <button
+            type="button"
+            className="flex w-full animate-pulse-ring flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-ink/25 bg-background/60 px-4 py-14 text-center transition-colors hover:border-signal/50 hover:bg-background"
+            onClick={() => inputRef.current?.click()}
           >
-            {job.message}
+            <span className="flex size-14 items-center justify-center rounded-full bg-signal/10 text-signal">
+              <Upload className="size-6" />
+            </span>
+            <span className="inline-flex h-12 items-center rounded-lg bg-primary px-6 font-display text-base font-semibold text-primary-foreground">
+              {tool.multiple ? "Select files" : "Select a file"}
+            </span>
+            <span className="max-w-sm text-sm text-muted-foreground">
+              Or drop {tool.kind === "pdf" ? "PDFs" : "images"} here. We refuse
+              the upload, so the work happens in this tab.
+            </span>
+          </button>
+        )}
+
+        {(settled || busy) && (
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+            <div className="min-w-0 space-y-5">
+              {optionsInCanvas ? (
+                <div className="flex items-center gap-3 rounded-xl border border-ink/10 bg-background/70 px-3 py-2.5">
+                  <SourceIcon className="size-4 shrink-0 text-lagoon" />
+                  <span
+                    className="min-w-0 flex-1 truncate text-sm font-medium text-ink"
+                    title={files[0]?.name}
+                  >
+                    {files[0]?.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {files[0] ? formatBytes(files[0].size) : null}
+                  </span>
+                </div>
+              ) : (
+                <FileList
+                  tool={tool}
+                  files={files}
+                  previews={previews}
+                  reorderable={reorderable}
+                  disabled={locked}
+                  onAddMore={() => inputRef.current?.click()}
+                  onSortByName={() =>
+                    setFiles(
+                      [...files].sort((a, b) =>
+                        a.name.localeCompare(b.name, undefined, {
+                          numeric: true,
+                        }),
+                      ),
+                    )
+                  }
+                  onMove={moveFile}
+                  onRemove={(id) =>
+                    setFiles(files.filter((file) => file.id !== id))
+                  }
+                />
+              )}
+              {optionsInCanvas && optionsPanel}
+            </div>
+
+            <aside className="space-y-4 lg:border-l lg:border-ink/10 lg:pl-6">
+              <div>
+                <h2 className="font-display text-lg font-semibold text-ink">
+                  {options.kind === "none" ? "Ready to run" : "Settings"}
+                </h2>
+                <div className="mt-2 space-y-2 rounded-lg border border-lagoon/20 bg-lagoon/5 px-3 py-2.5 text-sm text-muted-foreground">
+                  <p>{optionsHint(options, tool.actionLabel)}</p>
+                  {reorderable && files.length > 1 && (
+                    <p>Output follows the order of the cards.</p>
+                  )}
+                  {tool.id === "merge-pdf" && files.length < 2 && (
+                    <p className="font-medium text-ink">
+                      Add at least two PDFs to merge.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {!optionsInCanvas && optionsPanel}
+
+              {job.status === "error" && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                >
+                  {job.message}
+                </div>
+              )}
+            </aside>
           </div>
         )}
 
         {job.status === "done" && (
-          <div className="mt-5 space-y-3">
-            {job.results.length > 1 && (
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => downloadAllResults(job.results)}
-                >
-                  Download all
-                </Button>
-              </div>
+          <ResultPanel
+            results={job.results}
+            continueTargets={continueToolsFor(
+              tool.id,
+              job.results.map((result) => ({ type: result.blob.type })),
             )}
-            <ul className="space-y-2">
-              {job.results.map((result) => (
-                <li
-                  key={result.id}
-                  className="flex flex-col gap-2 rounded-lg border border-lagoon/25 bg-lagoon/5 px-3 py-3 sm:flex-row sm:items-center"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-ink">
-                      {result.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatBytes(result.originalSize)} →{" "}
-                      {formatBytes(result.size)}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => downloadBlob(result.blob, result.name)}
-                  >
-                    Download
-                  </Button>
-                </li>
-              ))}
-            </ul>
-            {continueTargets.length > 0 && (
-              <div className="space-y-2 border-t border-ink/10 pt-4">
-                <p className="text-sm font-medium text-ink">Continue with</p>
-                <div className="flex flex-wrap gap-2">
-                  {continueTargets.map((next) => (
-                    <Button
-                      key={next.id}
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => continueWith(next)}
-                    >
-                      {next.shortTitle}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+            onContinue={continueWith}
+          />
         )}
 
-        <div className="mt-6 flex flex-wrap gap-2">
-          <Button size="lg" disabled={!canProcess} onClick={process}>
-            {tool.actionLabel}
-          </Button>
-          {job.status !== "idle" && (
-            <Button size="lg" variant="outline" onClick={reset}>
-              Clear
-            </Button>
-          )}
-        </div>
+        {job.status !== "idle" && (
+          <div className="sticky bottom-0 -mx-5 -mb-5 mt-6 rounded-b-2xl border-t border-ink/10 bg-card/95 px-5 pb-5 pt-4 backdrop-blur sm:-mx-8 sm:-mb-8 sm:px-8 sm:pb-8">
+            {job.status === "processing" && (
+              <div className="mb-3 space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="inline-flex items-center gap-2 font-medium text-ink">
+                    <Loader2 className="size-4 animate-spin text-signal" />
+                    Working locally…
+                  </span>
+                  <span className="text-muted-foreground">{job.progress}%</span>
+                </div>
+                <Progress value={job.progress} />
+              </div>
+            )}
+            <p className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Lock className="size-3" />
+              Runs in this tab. Nothing is uploaded.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12"
+                disabled={busy}
+                onClick={reset}
+              >
+                Start over
+              </Button>
+              {job.status === "done" ? (
+                <Button
+                  size="lg"
+                  className="h-12 flex-1 px-6 text-base sm:flex-none"
+                  onClick={() => {
+                    if (job.results.length === 1) {
+                      downloadBlob(job.results[0].blob, job.results[0].name);
+                      return;
+                    }
+                    void downloadAllResults(job.results);
+                  }}
+                >
+                  <Download />
+                  {job.results.length === 1
+                    ? "Download"
+                    : `Download all (${job.results.length})`}
+                </Button>
+              ) : (
+                <Button
+                  size="lg"
+                  className="h-12 flex-1 px-6 text-base sm:flex-none"
+                  disabled={!canProcess}
+                  onClick={process}
+                >
+                  {tool.actionLabel}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

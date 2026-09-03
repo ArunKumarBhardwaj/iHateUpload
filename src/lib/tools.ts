@@ -24,6 +24,8 @@ export type ToolDefinition = {
   description: string;
   accept: string;
   multiple: boolean;
+  /** Input order changes the output, so the file list offers reordering. */
+  ordered: boolean;
   actionLabel: string;
   /** Search-intent title (template appends `| iHateUpload`). */
   seoTitle: string;
@@ -45,6 +47,7 @@ export const TOOLS: ToolDefinition[] = [
       "Turn JPG or PNG photos into a single PDF. Runs entirely on your device.",
     accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
     multiple: true,
+    ordered: true,
     actionLabel: "Create PDF",
     seoTitle: "JPG to PDF Converter Free — No Upload",
     seoDescription:
@@ -67,6 +70,7 @@ export const TOOLS: ToolDefinition[] = [
       "Combine multiple PDFs into one file. Order stays as you picked. No upload.",
     accept: "application/pdf,.pdf",
     multiple: true,
+    ordered: true,
     actionLabel: "Merge PDFs",
     seoTitle: "Merge PDF Online Free — No Upload",
     seoDescription:
@@ -89,6 +93,7 @@ export const TOOLS: ToolDefinition[] = [
       "Export every PDF page as a JPG image. Useful for sharing or editing.",
     accept: "application/pdf,.pdf",
     multiple: false,
+    ordered: false,
     actionLabel: "Convert to JPG",
     seoTitle: "PDF to JPG Converter Free — No Upload",
     seoDescription:
@@ -111,6 +116,7 @@ export const TOOLS: ToolDefinition[] = [
       "Shrink PDF size for email and uploads. Processing stays on this device.",
     accept: "application/pdf,.pdf",
     multiple: true,
+    ordered: false,
     actionLabel: "Compress PDF",
     seoTitle: "Compress PDF Online Free — No Upload",
     seoDescription:
@@ -133,6 +139,7 @@ export const TOOLS: ToolDefinition[] = [
       "Split one PDF into a separate file per page. Download what you need.",
     accept: "application/pdf,.pdf",
     multiple: false,
+    ordered: false,
     actionLabel: "Split PDF",
     seoTitle: "Split PDF Online Free — No Upload",
     seoDescription:
@@ -155,6 +162,7 @@ export const TOOLS: ToolDefinition[] = [
       "Add a password so opening the PDF requires it. Encryption stays on this device.",
     accept: "application/pdf,.pdf",
     multiple: true,
+    ordered: false,
     actionLabel: "Protect PDF",
     seoTitle: "Protect PDF with Password Free — No Upload",
     seoDescription:
@@ -177,6 +185,7 @@ export const TOOLS: ToolDefinition[] = [
       "Remove password protection from a PDF you can open. Runs locally.",
     accept: "application/pdf,.pdf",
     multiple: true,
+    ordered: false,
     actionLabel: "Unlock PDF",
     seoTitle: "Unlock PDF Online Free — No Upload",
     seoDescription:
@@ -199,6 +208,7 @@ export const TOOLS: ToolDefinition[] = [
       "Rotate every page by 90°, 180°, or 270°. Processing stays on this device.",
     accept: "application/pdf,.pdf",
     multiple: true,
+    ordered: false,
     actionLabel: "Rotate PDF",
     seoTitle: "Rotate PDF Online Free — No Upload",
     seoDescription:
@@ -221,6 +231,7 @@ export const TOOLS: ToolDefinition[] = [
       "Reorder or remove pages, then save a new PDF. Nothing is uploaded.",
     accept: "application/pdf,.pdf",
     multiple: false,
+    ordered: false,
     actionLabel: "Save PDF",
     seoTitle: "Organize PDF Pages Free — No Upload",
     seoDescription:
@@ -243,6 +254,7 @@ export const TOOLS: ToolDefinition[] = [
       "Convert iPhone HEIC photos to JPG in your browser. No upload, no account.",
     accept: ".heic,.heif,image/heic,image/heif",
     multiple: true,
+    ordered: false,
     actionLabel: "Convert to JPG",
     seoTitle: "HEIC to JPG Converter Free — No Upload",
     seoDescription:
@@ -265,6 +277,7 @@ export const TOOLS: ToolDefinition[] = [
       "Turn iPhone HEIC photos into a PDF for forms and email. Stays on this device.",
     accept: ".heic,.heif,image/heic,image/heif",
     multiple: true,
+    ordered: true,
     actionLabel: "Create PDF",
     seoTitle: "HEIC to PDF Converter Free — No Upload",
     seoDescription:
@@ -287,6 +300,7 @@ export const TOOLS: ToolDefinition[] = [
       "Shrink JPG, PNG, and WebP for email, WhatsApp, or web. Private and free.",
     accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
     multiple: true,
+    ordered: false,
     actionLabel: "Compress images",
     seoTitle: "Compress Image Online Free — No Upload",
     seoDescription:
@@ -309,6 +323,7 @@ export const TOOLS: ToolDefinition[] = [
       "Scale JPG, PNG, or WebP to a max edge for forms, email, or web. Private.",
     accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
     multiple: true,
+    ordered: false,
     actionLabel: "Resize images",
     seoTitle: "Resize Image Online Free — No Upload",
     seoDescription:
@@ -331,6 +346,7 @@ export const TOOLS: ToolDefinition[] = [
       "Convert WebP images to JPG so older apps and forms accept them.",
     accept: "image/webp,.webp",
     multiple: true,
+    ordered: false,
     actionLabel: "Convert to JPG",
     seoTitle: "WebP to JPG Converter Free — No Upload",
     seoDescription:
@@ -353,6 +369,7 @@ export const TOOLS: ToolDefinition[] = [
       "Convert PNG images to JPG for smaller files and wider app support.",
     accept: "image/png,.png",
     multiple: true,
+    ordered: false,
     actionLabel: "Convert to JPG",
     seoTitle: "PNG to JPG Converter Free — No Upload",
     seoDescription:
@@ -375,6 +392,7 @@ export const TOOLS: ToolDefinition[] = [
       "Convert JPG images to PNG when you need lossless pixels or transparency later.",
     accept: "image/jpeg,.jpg,.jpeg",
     multiple: true,
+    ordered: false,
     actionLabel: "Convert to PNG",
     seoTitle: "JPG to PNG Converter Free — No Upload",
     seoDescription:

@@ -2,6 +2,7 @@ import imageCompression from "browser-image-compression";
 import { PDFDocument, degrees, toDegrees } from "@cantoo/pdf-lib";
 
 import type { FileItem, ResultItem } from "@/lib/job";
+import { loadPdfJs } from "@/lib/pdfjs";
 import type { ToolOptions } from "@/lib/tool-options";
 
 type ProgressFn = (ratio: number) => void;
@@ -9,14 +10,6 @@ type ProgressFn = (ratio: number) => void;
 function replaceExt(name: string, ext: string) {
   const base = name.replace(/\.[^.]+$/, "");
   return `${base}.${ext}`;
-}
-
-async function loadPdfJs() {
-  const pdfjs = await import("pdfjs-dist");
-  if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-  }
-  return pdfjs;
 }
 
 async function loadHeic2Any() {
