@@ -1,5 +1,6 @@
 import imageCompression from "browser-image-compression";
 import { PDFDocument, degrees, toDegrees } from "@cantoo/pdf-lib";
+import type { PDFPageProxy } from "pdfjs-dist";
 
 import type { FileItem, ResultItem } from "@/lib/job";
 import { loadPdfJs } from "@/lib/pdfjs";
@@ -7,9 +8,50 @@ import type { ToolOptions } from "@/lib/tool-options";
 
 type ProgressFn = (ratio: number) => void;
 
+/**
+ * iOS ≤ 17 caps a single canvas at 4096×4096 / 16.7 M pixels. Crossing it
+ * paints a blank canvas and does not throw. Stay under that on every engine
+ * rather than sniff the OS. iOS 18 raised the cap; we still target the lower
+ * one because 28% of visitors are on iOS and we cannot see the version.
+ */
+const CANVAS_MAX_EDGE = 4096;
+const CANVAS_MAX_PIXELS = 16_777_216;
+
+const HEIC_BRANDS = new Set([
+  "heic",
+  "heix",
+  "heif",
+  "heim",
+  "heis",
+  "hevc",
+  "hevx",
+  "mif1",
+  "msf1",
+]);
+
 function replaceExt(name: string, ext: string) {
   const base = name.replace(/\.[^.]+$/, "");
   return `${base}.${ext}`;
+}
+
+function releaseCanvas(canvas: HTMLCanvasElement) {
+  canvas.width = 0;
+  canvas.height = 0;
+}
+
+function clampCanvasSize(width: number, height: number) {
+  const longest = Math.max(width, height, 1);
+  const pixels = Math.max(width * height, 1);
+  const scale = Math.min(
+    1,
+    CANVAS_MAX_EDGE / longest,
+    Math.sqrt(CANVAS_MAX_PIXELS / pixels),
+  );
+  return {
+    width: Math.max(1, Math.floor(width * scale)),
+    height: Math.max(1, Math.floor(height * scale)),
+    scale,
+  };
 }
 
 async function loadHeic2Any() {
@@ -17,23 +59,55 @@ async function loadHeic2Any() {
   return mod.default;
 }
 
+async function sniffImageKind(
+  file: Blob,
+): Promise<"jpeg" | "png" | "heic" | "unknown"> {
+  const buf = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return "jpeg";
+  }
+  if (
+    buf.length >= 8 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47
+  ) {
+    return "png";
+  }
+  if (buf.length >= 12) {
+    const box = String.fromCharCode(buf[4], buf[5], buf[6], buf[7]);
+    const brand = String.fromCharCode(buf[8], buf[9], buf[10], buf[11]);
+    if (box === "ftyp" && HEIC_BRANDS.has(brand)) return "heic";
+  }
+  return "unknown";
+}
+
 async function canvasToJpegBlob(
   canvas: HTMLCanvasElement,
   quality: number,
 ): Promise<Blob> {
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, "image/jpeg", quality);
-  });
-  if (!blob) throw new Error("Could not encode JPEG.");
-  return blob;
+  try {
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", quality);
+    });
+    if (!blob) throw new Error("Could not encode JPEG.");
+    return blob;
+  } finally {
+    releaseCanvas(canvas);
+  }
 }
 
 async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, "image/png");
-  });
-  if (!blob) throw new Error("Could not encode PNG.");
-  return blob;
+  try {
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/png");
+    });
+    if (!blob) throw new Error("Could not encode PNG.");
+    return blob;
+  } finally {
+    releaseCanvas(canvas);
+  }
 }
 
 async function drawFileToCanvas(
@@ -53,19 +127,21 @@ async function drawFileToCanvas(
     }
   }
 
+  const box = clampCanvasSize(width, height);
   const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = box.width;
+  canvas.height = box.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     bitmap.close();
+    releaseCanvas(canvas);
     throw new Error("Canvas is not available in this browser.");
   }
   if (options?.fillWhite) {
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, box.width, box.height);
   }
-  ctx.drawImage(bitmap, 0, 0, width, height);
+  ctx.drawImage(bitmap, 0, 0, box.width, box.height);
   bitmap.close();
   return canvas;
 }
@@ -80,14 +156,52 @@ async function imageFileToPngBlob(file: File): Promise<Blob> {
   return canvasToPngBlob(canvas);
 }
 
+/**
+ * iOS Safari often transcodes a Photo Library HEIC to JPEG before onChange
+ * fires, and names the result something like tempImage1234.jpg. heic2any then
+ * throws. Sniff the bytes and pass a JPEG through instead of decoding it twice.
+ */
 async function heicFileToJpegBlob(file: File, quality = 0.92): Promise<Blob> {
+  const kind = await sniffImageKind(file);
+  if (kind === "jpeg") return file;
   const heic2any = await loadHeic2Any();
-  const converted = await heic2any({
-    blob: file,
-    toType: "image/jpeg",
-    quality,
+  try {
+    const converted = await heic2any({
+      blob: file,
+      toType: "image/jpeg",
+      quality,
+    });
+    return Array.isArray(converted) ? converted[0] : converted;
+  } catch (error) {
+    if (kind === "heic") throw error;
+    return imageFileToJpegBlob(file, quality);
+  }
+}
+
+async function renderPdfPageToJpeg(
+  page: PDFPageProxy,
+  scale: number,
+  quality: number,
+): Promise<Blob> {
+  const preferred = page.getViewport({ scale });
+  const box = clampCanvasSize(preferred.width, preferred.height);
+  const viewport = page.getViewport({
+    scale: scale * (box.width / Math.max(preferred.width, 1)),
   });
-  return Array.isArray(converted) ? converted[0] : converted;
+  const canvas = document.createElement("canvas");
+  canvas.width = box.width;
+  canvas.height = box.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    releaseCanvas(canvas);
+    throw new Error("Canvas is not available in this browser.");
+  }
+  try {
+    await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+    return await canvasToJpegBlob(canvas, quality);
+  } finally {
+    page.cleanup();
+  }
 }
 
 async function embedImageInPdf(
@@ -431,25 +545,21 @@ export async function processPdfToJpg(
   const base = item.name.replace(/\.[^.]+$/, "");
   const results: ResultItem[] = [];
 
-  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-    const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 2 });
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.floor(viewport.width);
-    canvas.height = Math.floor(viewport.height);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas is not available in this browser.");
-
-    await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-    const blob = await canvasToJpegBlob(canvas, 0.9);
-    results.push({
-      id: crypto.randomUUID(),
-      name: `${base}-page-${pageNum}.jpg`,
-      size: blob.size,
-      blob,
-      originalSize: item.size,
-    });
-    onProgress(pageNum / pdf.numPages);
+  try {
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const blob = await renderPdfPageToJpeg(page, 2, 0.9);
+      results.push({
+        id: crypto.randomUUID(),
+        name: `${base}-page-${pageNum}.jpg`,
+        size: blob.size,
+        blob,
+        originalSize: item.size,
+      });
+      onProgress(pageNum / pdf.numPages);
+    }
+  } finally {
+    await pdf.loadingTask.destroy();
   }
 
   return results;
@@ -468,30 +578,26 @@ export async function processCompressPdf(
     const src = await getDocument({ data: data.slice() }).promise;
     const out = await PDFDocument.create();
 
-    for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
-      const page = await src.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Canvas is not available in this browser.");
+    try {
+      for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
+        const page = await src.getPage(pageNum);
+        const jpeg = await renderPdfPageToJpeg(page, 1.5, 0.72);
+        const jpegBytes = new Uint8Array(await jpeg.arrayBuffer());
+        const image = await out.embedJpg(jpegBytes);
+        const pdfPage = out.addPage([image.width, image.height]);
+        pdfPage.drawImage(image, {
+          x: 0,
+          y: 0,
+          width: image.width,
+          height: image.height,
+        });
 
-      await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-      const jpeg = await canvasToJpegBlob(canvas, 0.72);
-      const jpegBytes = new Uint8Array(await jpeg.arrayBuffer());
-      const image = await out.embedJpg(jpegBytes);
-      const pdfPage = out.addPage([image.width, image.height]);
-      pdfPage.drawImage(image, {
-        x: 0,
-        y: 0,
-        width: image.width,
-        height: image.height,
-      });
-
-      const totalSteps = files.length * src.numPages;
-      const done = i * src.numPages + pageNum;
-      onProgress(done / (totalSteps + 1));
+        const totalSteps = files.length * src.numPages;
+        const done = i * src.numPages + pageNum;
+        onProgress(done / (totalSteps + 1));
+      }
+    } finally {
+      await src.loadingTask.destroy();
     }
 
     const pdfBytes = await out.save({ useObjectStreams: true });

@@ -252,7 +252,7 @@ export const TOOLS: ToolDefinition[] = [
     shortTitle: "HEIC → JPG",
     description:
       "Convert iPhone HEIC photos to JPG in your browser. No upload, no account.",
-    accept: ".heic,.heif,image/heic,image/heif",
+    accept: ".heic,.heif,.jpg,.jpeg,image/heic,image/heif,image/jpeg",
     multiple: true,
     ordered: false,
     actionLabel: "Convert to JPG",
@@ -275,7 +275,7 @@ export const TOOLS: ToolDefinition[] = [
     shortTitle: "HEIC → PDF",
     description:
       "Turn iPhone HEIC photos into a PDF for forms and email. Stays on this device.",
-    accept: ".heic,.heif,image/heic,image/heif",
+    accept: ".heic,.heif,.jpg,.jpeg,image/heic,image/heif,image/jpeg",
     multiple: true,
     ordered: true,
     actionLabel: "Create PDF",
