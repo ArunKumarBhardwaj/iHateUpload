@@ -25,6 +25,7 @@ export function ResultPanel({
   onContinue: (tool: ToolDefinition) => void;
 }) {
   const delta = sizeDelta(results);
+  const answer = results.find((result) => result.previewText)?.previewText;
 
   return (
     <div className="space-y-4">
@@ -35,28 +36,43 @@ export function ResultPanel({
       >
         <p className="flex items-center gap-2 font-display text-base font-semibold text-ink">
           <Check className="size-4 text-lagoon" />
-          {results.length === 1
-            ? "1 file is ready"
-            : `${results.length} files are ready`}
+          {answer
+            ? "Answer is ready"
+            : results.length === 1
+              ? "1 file is ready"
+              : `${results.length} files are ready`}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {delta ? (
-            <>
-              {formatBytes(delta.before)} → {formatBytes(delta.after)}{" "}
-              <span
-                className={
-                  delta.percent > 0 ? "font-medium text-lagoon" : undefined
-                }
-              >
-                ({delta.percent > 0 ? "−" : "+"}
-                {Math.abs(delta.percent)}%)
-              </span>
-            </>
-          ) : (
-            "Built on this device. Nothing was uploaded."
-          )}
+          {answer
+            ? "The PDF stayed in this tab. Only extracted text was sent."
+            : delta ? (
+              <>
+                {formatBytes(delta.before)} → {formatBytes(delta.after)}{" "}
+                <span
+                  className={
+                    delta.percent > 0 ? "font-medium text-lagoon" : undefined
+                  }
+                >
+                  ({delta.percent > 0 ? "−" : "+"}
+                  {Math.abs(delta.percent)}%)
+                </span>
+              </>
+            ) : (
+              "Built on this device. Nothing was uploaded."
+            )}
         </p>
       </div>
+
+      {answer ? (
+        <div className="rounded-2xl border border-ink/8 bg-background px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-lagoon">
+            Answer
+          </p>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
+            {answer}
+          </p>
+        </div>
+      ) : null}
 
       <ul className="space-y-2">
         {results.map((result) => (

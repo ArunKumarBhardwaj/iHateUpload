@@ -1,7 +1,9 @@
+import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { Lock, ShieldCheck, Sparkles } from "lucide-react";
 
+import { ToolCardGrid } from "@/components/tool-card";
 import { TOOLS, type ToolId } from "@/lib/tools";
 
 export const metadata: Metadata = {
@@ -28,107 +30,146 @@ const POPULAR: ToolId[] = [
   "pdf-to-jpg",
   "heic-to-jpg",
   "image-to-pdf",
-  "png-to-pdf",
 ];
 
-const PDF_IDS: ToolId[] = TOOLS.filter((t) => t.kind === "pdf").map((t) => t.id);
-const IMAGE_IDS: ToolId[] = TOOLS.filter((t) => t.kind === "image").map(
-  (t) => t.id,
-);
+const PDF_TOOLS = TOOLS.filter((tool) => tool.kind === "pdf");
+const IMAGE_TOOLS = TOOLS.filter((tool) => tool.kind === "image");
 
-function ToolCards({ ids }: { ids: readonly ToolId[] }) {
-  return (
-    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {ids.map((id) => {
-        const tool = TOOLS.find((entry) => entry.id === id);
-        if (!tool) return null;
-        return (
-          <Link
-            key={tool.id}
-            href={`/tools/${tool.slug}`}
-            className="group flex h-full flex-col rounded-2xl border border-ink/12 bg-card/80 p-5 transition-colors hover:border-signal/40 hover:bg-signal/5"
-          >
-            <h3 className="font-display text-lg font-bold text-ink group-hover:text-signal sm:text-xl">
-              {tool.title}
-            </h3>
-            <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
-              {tool.description}
-            </p>
-            <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-ink">
-              Open tool
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </Link>
-        );
-      })}
-    </div>
-  );
+function toolsById(ids: readonly ToolId[]) {
+  return ids
+    .map((id) => TOOLS.find((tool) => tool.id === id))
+    .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined);
 }
 
 export default function HomePage() {
   return (
     <>
-      <section className="relative overflow-hidden border-b border-ink/10">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-24 top-0 h-56 w-56 rounded-full bg-signal/15 blur-3xl" />
-          <div className="absolute -right-16 top-10 h-56 w-56 rounded-full bg-lagoon/15 blur-3xl" />
-        </div>
-
-        <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-          <h1 className="max-w-3xl font-display text-2xl font-bold leading-tight tracking-tight text-ink sm:text-3xl md:text-4xl">
-            Free online PDF &amp; image tools — no upload
+      <section className="border-b border-ink/8 bg-card">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <p className="text-sm font-semibold text-lagoon">
+            Free PDF and image tools
+          </p>
+          <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
+            Tools that never leave this tab.
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Compress image, merge PDF, convert PDF to JPG, HEIC to JPG, and more.
-            Work stays in this tab. Zero cloud hops.
+          <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+            Compress, merge, convert, sign, and crop. Files stay on your device.
+            No account. No watermark. No daily cap.
           </p>
-
-          <div id="tools" className="mt-8 scroll-mt-24">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
-              Popular tools
-            </p>
-            <ToolCards ids={POPULAR} />
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="/#tools"
+              className="inline-flex h-12 items-center rounded-xl bg-primary px-6 font-display text-base font-semibold text-primary-foreground"
+            >
+              Explore tools
+            </Link>
+            <Link
+              href="/tools/merge-pdf"
+              className="inline-flex h-12 items-center rounded-xl border border-ink/12 bg-background px-6 font-display text-base font-semibold text-ink hover:border-signal/40"
+            >
+              Merge PDF
+            </Link>
           </div>
+          <ul className="mt-10 grid gap-3 sm:grid-cols-3">
+            <Trust
+              icon={<Lock className="size-4" />}
+              title="No upload"
+              text="Processing never leaves this browser tab."
+            />
+            <Trust
+              icon={<ShieldCheck className="size-4" />}
+              title="No account"
+              text="Open a tool, pick a file, download."
+            />
+            <Trust
+              icon={<Sparkles className="size-4" />}
+              title="No watermark"
+              text="The file you get is the file you made."
+            />
+          </ul>
         </div>
       </section>
 
-      <section className="py-10 sm:py-14">
+      <section id="tools" className="scroll-mt-24 py-12 sm:py-16">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div id="pdf-tools" className="scroll-mt-24">
-            <h2 className="text-center font-display text-sm font-bold tracking-tight text-ink sm:text-base">
-              PDF tools
-            </h2>
-            <p className="mx-auto mt-2 max-w-xl text-center text-sm text-muted-foreground">
-              Merge, compress, convert, protect, and organize PDFs in your
-              browser.
-            </p>
-            <ToolCards ids={PDF_IDS} />
-          </div>
-
-          <div id="image-tools" className="mt-12 scroll-mt-24 sm:mt-14">
-            <h2 className="text-center font-display text-sm font-bold tracking-tight text-ink sm:text-base">
-              Image tools
-            </h2>
-            <p className="mx-auto mt-2 max-w-xl text-center text-sm text-muted-foreground">
-              Compress, resize, and convert JPG, PNG, WebP, and HEIC — no upload.
-            </p>
-            <ToolCards ids={IMAGE_IDS} />
+          <SectionHead
+            eyebrow="Popular"
+            title="Most used tools"
+            copy="The jobs people open first. Same local path as everything else."
+          />
+          <div className="mt-6">
+            <ToolCardGrid tools={toolsById(POPULAR)} />
           </div>
         </div>
       </section>
 
-      <section className="border-t border-ink/10 py-10 sm:py-12">
-        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <h2 className="font-display text-xl font-bold text-ink sm:text-2xl">
-            Why iHateUpload
-          </h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Most free converters upload your files. These tools run in your
-            browser instead — so resumes, IDs, contracts, and photos never leave
-            your device. No account, no watermark, no daily cap.
-          </p>
+      <section id="pdf-tools" className="scroll-mt-24 border-t border-ink/8 py-12 sm:py-16">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <SectionHead
+            eyebrow="PDF"
+            title="PDF tools"
+            copy="Merge, compress, convert, protect, sign, and organize in the browser."
+          />
+          <div className="mt-6">
+            <ToolCardGrid tools={PDF_TOOLS} />
+          </div>
+        </div>
+      </section>
+
+      <section id="image-tools" className="scroll-mt-24 border-t border-ink/8 py-12 sm:py-16">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <SectionHead
+            eyebrow="Images"
+            title="Image tools"
+            copy="Compress, resize, and convert JPG, PNG, WebP, and HEIC."
+          />
+          <div className="mt-6">
+            <ToolCardGrid tools={IMAGE_TOOLS} />
+          </div>
         </div>
       </section>
     </>
+  );
+}
+
+function SectionHead({
+  eyebrow,
+  title,
+  copy,
+}: {
+  eyebrow: string;
+  title: string;
+  copy: string;
+}) {
+  return (
+    <div className="max-w-2xl">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
+        {eyebrow}
+      </p>
+      <h2 className="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">
+        {title}
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground sm:text-base">{copy}</p>
+    </div>
+  );
+}
+
+function Trust({
+  icon,
+  title,
+  text,
+}: {
+  icon: ReactNode;
+  title: string;
+  text: string;
+}) {
+  return (
+    <li className="rounded-2xl border border-ink/8 bg-background px-4 py-4">
+      <p className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+        <span className="text-lagoon">{icon}</span>
+        {title}
+      </p>
+      <p className="mt-1 text-sm text-muted-foreground">{text}</p>
+    </li>
   );
 }

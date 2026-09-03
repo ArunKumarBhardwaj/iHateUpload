@@ -520,20 +520,48 @@ export function OptionsPanel({
         </div>
       );
 
-    case "ask":
+    case "ask": {
+      const suggestions = [
+        "What is this document about?",
+        "Summarize the key points.",
+        "List names, dates, and amounts.",
+        "What action is requested?",
+      ];
       return (
-        <Field label="Question" htmlFor="ask-question">
-          <Input
-            id="ask-question"
-            value={options.question}
-            disabled={disabled}
-            onChange={(e) =>
-              onOptions({ kind: "ask", question: e.target.value })
-            }
-            placeholder="What is this document about?"
-          />
-        </Field>
+        <div className="space-y-3">
+          <Field label="Question" htmlFor="ask-question">
+            <textarea
+              id="ask-question"
+              rows={4}
+              value={options.question}
+              disabled={disabled}
+              onChange={(e) =>
+                onOptions({ kind: "ask", question: e.target.value })
+              }
+              placeholder="What is this document about?"
+              className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            {suggestions.map((suggestion) => (
+              <Button
+                key={suggestion}
+                type="button"
+                size="sm"
+                variant="outline"
+                className={OPTION_BUTTON}
+                disabled={disabled}
+                onClick={() =>
+                  onOptions({ kind: "ask", question: suggestion })
+                }
+              >
+                {suggestion}
+              </Button>
+            ))}
+          </div>
+        </div>
       );
+    }
   }
 }
 

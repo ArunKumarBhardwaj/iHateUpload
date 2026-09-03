@@ -58,7 +58,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${display.variable} ${body.variable} h-full`}
     >
       <body className="relative flex min-h-full flex-col">
-        <div className="noise absolute inset-0 z-0" aria-hidden />
         <SiteHeader />
         <main className="relative z-10 flex-1">{children}</main>
         <SiteFooter />

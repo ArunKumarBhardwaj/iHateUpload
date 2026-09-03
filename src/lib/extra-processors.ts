@@ -30,6 +30,7 @@ function resultFrom(
   blob: Blob,
   name: string,
   originalSize: number,
+  extra?: Pick<ResultItem, "previewText">,
 ): ResultItem {
   return {
     id: item?.id ?? crypto.randomUUID(),
@@ -37,6 +38,7 @@ function resultFrom(
     size: blob.size,
     blob,
     originalSize,
+    ...extra,
   };
 }
 
@@ -505,5 +507,9 @@ export async function processAskPdf(
   }
   const blob = new Blob([payload.answer], { type: "text/plain" });
   onProgress(1);
-  return [resultFrom(item, blob, "answer.txt", item.size)];
+  return [
+    resultFrom(item, blob, "answer.txt", item.size, {
+      previewText: payload.answer,
+    }),
+  ];
 }

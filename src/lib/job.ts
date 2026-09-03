@@ -11,6 +11,8 @@ export type ResultItem = {
   size: number;
   blob: Blob;
   originalSize: number;
+  /** Shown in the result panel when the output is text, not a file. */
+  previewText?: string;
 };
 
 export type JobState =

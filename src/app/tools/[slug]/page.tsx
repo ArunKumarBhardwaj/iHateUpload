@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ToolCardGrid } from "@/components/tool-card";
 import { ToolWorkspace } from "@/components/tool-workspace";
 import { getTool, TOOLS } from "@/lib/tools";
 
@@ -80,7 +80,7 @@ export default async function ToolPage({ params }: ToolPageProps) {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -90,14 +90,14 @@ export default async function ToolPage({ params }: ToolPageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(howToLd) }}
       />
 
-      <div className="mb-8 max-w-2xl">
+      <div className="mb-6 max-w-2xl">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
           Upload-free tool
         </p>
-        <h1 className="mt-2 font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
+        <h1 className="mt-2 font-display text-3xl font-bold leading-tight tracking-tight text-ink sm:text-4xl">
           {tool.title}
         </h1>
-        <p className="mt-3 text-base text-muted-foreground sm:text-lg">
+        <p className="mt-2 text-base text-muted-foreground">
           {tool.description}
         </p>
       </div>
@@ -105,39 +105,36 @@ export default async function ToolPage({ params }: ToolPageProps) {
       {/* Keyed so navigating between tools starts from a clean workspace. */}
       <ToolWorkspace key={tool.id} tool={tool} />
 
-      <section className="mx-auto mt-12 max-w-3xl">
+      <section className="mt-12">
         <h2 className="font-display text-2xl font-bold text-ink">
           How to {tool.title.toLowerCase()} online
         </h2>
-        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-muted-foreground sm:text-base">
-          {tool.seoHowTo.map((step) => (
-            <li key={step}>{step}</li>
+        <ol className="mt-5 grid gap-3 sm:grid-cols-3">
+          {tool.seoHowTo.map((step, index) => (
+            <li
+              key={step}
+              className="rounded-2xl border border-ink/8 bg-card p-4"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-lagoon">
+                Step {index + 1}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-ink">{step}</p>
+            </li>
           ))}
         </ol>
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
-          {tool.seoDescription} Processing never leaves this tab — cut wifi
-          mid-job and it can still finish.
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          {tool.seoDescription} Processing never leaves this tab.
         </p>
       </section>
 
       {related.length > 0 && (
-        <section className="mx-auto mt-10 max-w-3xl">
-          <h2 className="font-display text-xl font-bold text-ink">
+        <section className="mt-12">
+          <h2 className="font-display text-2xl font-bold text-ink">
             Related {tool.kind === "pdf" ? "PDF" : "image"} tools
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {related.map((t, i) => (
-              <span key={t.id}>
-                <Link
-                  href={`/tools/${t.slug}`}
-                  className="font-medium text-ink underline-offset-2 hover:underline"
-                >
-                  {t.title}
-                </Link>
-                {i < related.length - 1 ? " · " : ""}
-              </span>
-            ))}
-          </p>
+          <div className="mt-5">
+            <ToolCardGrid tools={related} />
+          </div>
         </section>
       )}
     </div>

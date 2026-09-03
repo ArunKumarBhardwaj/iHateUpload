@@ -15,6 +15,14 @@ const STEP_LABELS: Record<StepId, string> = {
   download: "Download",
 };
 
+function labelFor(step: StepId, options: ToolOptions): string {
+  if (options.kind !== "ask") return STEP_LABELS[step];
+  if (step === "options") return "Question";
+  if (step === "run") return "Ask";
+  if (step === "download") return "Answer";
+  return STEP_LABELS[step];
+}
+
 function stepsFor(options: ToolOptions): StepId[] {
   return options.kind === "none"
     ? ["choose", "run", "download"]
@@ -73,7 +81,7 @@ export function Stepper({
                 {index + 1}
               </span>
             )}
-            {STEP_LABELS[step]}
+            {labelFor(step, options)}
           </span>
         </li>
       ))}

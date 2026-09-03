@@ -2,8 +2,9 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Lock } from "lucide-react";
 
+import { ToolIcon } from "@/components/tool-icon";
 import { TOOLS, type ToolDefinition } from "@/lib/tools";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +56,7 @@ export function SiteHeader({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "relative z-20 border-b border-ink/10 bg-card/70 backdrop-blur-md",
+        "sticky top-0 z-20 border-b border-ink/8 bg-card/90 backdrop-blur-md",
         className,
       )}
     >
@@ -63,7 +64,7 @@ export function SiteHeader({ className }: { className?: string }) {
         ref={rootRef}
         className="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6"
       >
-        <Link href="/" className="group flex items-baseline gap-0.5">
+        <Link href="/" className="flex items-baseline gap-0.5">
           <span className="font-display text-xl font-bold tracking-tight text-ink sm:text-2xl">
             iHate
           </span>
@@ -72,13 +73,13 @@ export function SiteHeader({ className }: { className?: string }) {
           </span>
         </Link>
 
-        <nav className="flex items-center gap-1 sm:gap-2">
+        <nav className="flex items-center gap-1">
           {SECTIONS.map((section) => (
             <button
               key={section.id}
               type="button"
               className={cn(
-                "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 font-display text-sm font-bold tracking-tight transition-colors hover:bg-ink/5 sm:text-base",
+                "inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-ink/5",
                 open === section.id ? "bg-ink/5 text-ink" : "text-ink/70",
               )}
               aria-expanded={open === section.id}
@@ -92,7 +93,7 @@ export function SiteHeader({ className }: { className?: string }) {
               {section.label}
               <ChevronDown
                 className={cn(
-                  "size-4 text-ink/50 transition-transform",
+                  "size-4 text-ink/40 transition-transform",
                   open === section.id && "rotate-180",
                 )}
               />
@@ -100,18 +101,19 @@ export function SiteHeader({ className }: { className?: string }) {
           ))}
         </nav>
 
-        <p className="hidden text-xs font-medium uppercase tracking-[0.14em] text-lagoon md:block">
-          Hates uploads
+        <p className="hidden items-center gap-1.5 text-xs font-semibold text-lagoon md:inline-flex">
+          <Lock className="size-3.5" />
+          No upload
         </p>
 
         {active && (
           <div
             id={panelId}
             role="menu"
-            className="fixed left-1/2 top-16 z-30 mt-2 w-[min(96vw,40rem)] -translate-x-1/2 rounded-2xl border border-ink/15 bg-card p-5 shadow-[0_24px_60px_-28px_rgba(11,18,32,0.55)]"
+            className="absolute left-1/2 top-full z-30 mt-2 w-[min(96vw,44rem)] -translate-x-1/2 rounded-2xl border border-ink/10 bg-card p-4 shadow-[0_24px_60px_-28px_rgba(17,19,24,0.35)]"
           >
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <p className="font-display text-lg font-bold text-ink">
+            <div className="mb-3 flex items-baseline justify-between gap-2">
+              <p className="text-sm font-semibold text-ink">
                 {active.label} tools
               </p>
               <Link
@@ -119,23 +121,30 @@ export function SiteHeader({ className }: { className?: string }) {
                 className="text-sm font-semibold text-signal hover:underline"
                 onClick={() => setOpen(null)}
               >
-                See all {active.label.toLowerCase()} ↓
+                See all
               </Link>
             </div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-1 sm:grid-cols-2">
               {active.tools.map((tool) => (
                 <Link
                   key={tool.id}
                   role="menuitem"
                   href={`/tools/${tool.slug}`}
-                  className="group rounded-xl border border-ink/12 bg-background/80 px-3 py-3 transition-colors hover:border-signal/40 hover:bg-signal/5"
+                  className="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-signal/5"
                   onClick={() => setOpen(null)}
                 >
-                  <span className="block font-display text-sm font-bold text-ink group-hover:text-signal">
-                    {tool.title}
-                  </span>
-                  <span className="mt-1 line-clamp-2 block text-xs leading-snug text-muted-foreground">
-                    {tool.description}
+                  <ToolIcon
+                    id={tool.id}
+                    className="size-8 rounded-lg"
+                    iconClassName="size-4"
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-ink">
+                      {tool.title}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {tool.shortTitle}
+                    </span>
                   </span>
                 </Link>
               ))}

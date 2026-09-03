@@ -156,9 +156,11 @@ function jobAnnouncement(job: JobState): string {
     case "processing":
       return `Working locally, ${job.progress} percent.`;
     case "done":
-      return job.results.length === 1
-        ? "1 file is ready to download."
-        : `${job.results.length} files are ready to download.`;
+      return job.results.some((result) => result.previewText)
+        ? "The answer is ready."
+        : job.results.length === 1
+          ? "1 file is ready to download."
+          : `${job.results.length} files are ready to download.`;
     case "error":
       return job.message;
     default:
@@ -375,7 +377,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       <div
         className={cn(
           // No `overflow-hidden` here: it would stop the action bar sticking.
-          "relative rounded-2xl border border-ink/15 bg-card/90 p-5 shadow-[0_20px_60px_-30px_rgba(11,18,32,0.45)] sm:p-8",
+          "relative rounded-2xl border border-ink/8 bg-card p-5 shadow-[0_16px_40px_-28px_rgba(17,19,24,0.35)] sm:p-8",
           dragging && "border-signal ring-2 ring-signal/30",
         )}
         onDragEnter={(e) => {
@@ -419,18 +421,17 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
         {job.status === "idle" && (
           <button
             type="button"
-            className="flex w-full animate-pulse-ring flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-ink/25 bg-background/60 px-4 py-14 text-center transition-colors hover:border-signal/50 hover:bg-background"
+            className="flex w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-ink/15 bg-background px-4 py-16 text-center transition-colors hover:border-signal/40 hover:bg-signal/[0.03] sm:py-20"
             onClick={() => inputRef.current?.click()}
           >
-            <span className="flex size-14 items-center justify-center rounded-full bg-signal/10 text-signal">
-              <Upload className="size-6" />
+            <span className="flex size-16 items-center justify-center rounded-full bg-signal/10 text-signal">
+              <Upload className="size-7" />
             </span>
-            <span className="inline-flex h-12 items-center rounded-lg bg-primary px-6 font-display text-base font-semibold text-primary-foreground">
+            <span className="inline-flex h-12 items-center rounded-xl bg-primary px-8 font-display text-base font-semibold text-primary-foreground">
               {tool.multiple ? "Select files" : "Select a file"}
             </span>
-            <span className="max-w-sm text-sm text-muted-foreground">
-              Or drop {dropLabel(tool)} here. We refuse the upload, so the work
-              happens in this tab.
+            <span className="text-sm text-muted-foreground">
+              or drop {dropLabel(tool)} here
             </span>
           </button>
         )}
