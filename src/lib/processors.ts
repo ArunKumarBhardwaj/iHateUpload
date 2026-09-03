@@ -4,7 +4,11 @@ import type { PDFPageProxy } from "pdfjs-dist";
 
 import type { FileItem, ResultItem } from "@/lib/job";
 import { loadPdfJs } from "@/lib/pdfjs";
-import type { ToolOptions } from "@/lib/tool-options";
+import {
+  parsePageRange,
+  type CompressLevel,
+  type ToolOptions,
+} from "@/lib/tool-options";
 
 type ProgressFn = (ratio: number) => void;
 
@@ -565,58 +569,139 @@ export async function processPdfToJpg(
   return results;
 }
 
+const COMPRESS_RASTER: Record<
+  Exclude<CompressLevel, "light">,
+  { scale: number; quality: number }
+> = {
+  medium: { scale: 1.35, quality: 0.65 },
+  heavy: { scale: 0.95, quality: 0.44 },
+};
+
+function pdfBlob(bytes: Uint8Array) {
+  return new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
+}
+
+function stripPdfMetadata(doc: PDFDocument) {
+  doc.setTitle("");
+  doc.setAuthor("");
+  doc.setSubject("");
+  doc.setKeywords([]);
+  doc.setProducer("iHateUpload");
+  doc.setCreator("iHateUpload");
+}
+
+/**
+ * Light never paints a page. It rewrites the PDF (object streams + stripped
+ * metadata) so text stays selectable. Medium and Smallest may flatten pages
+ * to JPEG when that actually shrinks the file; we still keep the rewrite if
+ * it is smaller than the flatten.
+ */
 export async function processCompressPdf(
   files: FileItem[],
   onProgress: ProgressFn,
+  options: ToolOptions,
 ): Promise<ResultItem[]> {
-  const { getDocument } = await loadPdfJs();
+  if (options.kind !== "compress") {
+    throw new Error("Compress PDF requires a compression level.");
+  }
+
   const results: ResultItem[] = [];
 
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
-    const data = new Uint8Array(await item.file.arrayBuffer());
-    const src = await getDocument({ data: data.slice() }).promise;
-    const out = await PDFDocument.create();
-
-    try {
-      for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
-        const page = await src.getPage(pageNum);
-        const jpeg = await renderPdfPageToJpeg(page, 1.5, 0.72);
-        const jpegBytes = new Uint8Array(await jpeg.arrayBuffer());
-        const image = await out.embedJpg(jpegBytes);
-        const pdfPage = out.addPage([image.width, image.height]);
-        pdfPage.drawImage(image, {
-          x: 0,
-          y: 0,
-          width: image.width,
-          height: image.height,
-        });
-
-        const totalSteps = files.length * src.numPages;
-        const done = i * src.numPages + pageNum;
-        onProgress(done / (totalSteps + 1));
-      }
-    } finally {
-      await src.loadingTask.destroy();
-    }
-
-    const pdfBytes = await out.save({ useObjectStreams: true });
-    const compressed = new Blob([pdfBytes.buffer as ArrayBuffer], {
-      type: "application/pdf",
+    const bytes = new Uint8Array(await item.file.arrayBuffer());
+    const structuralDoc = await PDFDocument.load(bytes, {
+      ignoreEncryption: true,
     });
-    const output = compressed.size < item.size ? compressed : item.file;
+    stripPdfMetadata(structuralDoc);
+    const structuralBytes = await structuralDoc.save({
+      useObjectStreams: true,
+    });
+    let best: Blob = pdfBlob(structuralBytes);
+    if (best.size >= item.size) best = item.file;
+    onProgress((i + 0.35) / files.length);
+
+    if (options.level !== "light") {
+      const preset = COMPRESS_RASTER[options.level];
+      const { getDocument } = await loadPdfJs();
+      const src = await getDocument({ data: bytes.slice() }).promise;
+      const out = await PDFDocument.create();
+      try {
+        for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
+          const page = await src.getPage(pageNum);
+          const jpeg = await renderPdfPageToJpeg(
+            page,
+            preset.scale,
+            preset.quality,
+          );
+          const image = await out.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
+          const pdfPage = out.addPage([image.width, image.height]);
+          pdfPage.drawImage(image, {
+            x: 0,
+            y: 0,
+            width: image.width,
+            height: image.height,
+          });
+          onProgress(
+            (i + 0.35 + (0.6 * pageNum) / src.numPages) / files.length,
+          );
+        }
+      } finally {
+        await src.loadingTask.destroy();
+      }
+      stripPdfMetadata(out);
+      const raster = pdfBlob(await out.save({ useObjectStreams: true }));
+      if (raster.size < best.size) best = raster;
+    }
 
     results.push({
       id: item.id,
       name: replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-compressed.pdf"),
-      size: output.size,
-      blob: output,
+      size: best.size,
+      blob: best,
       originalSize: item.size,
     });
   }
 
   onProgress(1);
   return results;
+}
+
+export async function processExtractPages(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "extract") {
+    throw new Error("Extract Pages requires a page range.");
+  }
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to extract pages from.");
+
+  const donor = await PDFDocument.load(await item.file.arrayBuffer(), {
+    ignoreEncryption: true,
+  });
+  const indices = parsePageRange(options.range, donor.getPageCount());
+  if (indices.length === 0) {
+    throw new Error("Enter pages to keep, like 1-3, 7.");
+  }
+
+  const out = await PDFDocument.create();
+  const copied = await out.copyPages(donor, indices);
+  for (const page of copied) out.addPage(page);
+  onProgress(0.8);
+  const blob = pdfBlob(await out.save({ useObjectStreams: true }));
+  onProgress(1);
+
+  return [
+    {
+      id: crypto.randomUUID(),
+      name: replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-extracted.pdf"),
+      size: blob.size,
+      blob,
+      originalSize: item.size,
+    },
+  ];
 }
 
 export async function getPdfPageCount(file: File): Promise<number> {

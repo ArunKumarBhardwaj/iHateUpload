@@ -11,6 +11,8 @@ import {
   type ThumbnailState,
 } from "@/lib/preview";
 import {
+  COMPRESS_LEVELS,
+  parsePageRange,
   RESIZE_MAX,
   RESIZE_MIN,
   RESIZE_PRESETS,
@@ -62,6 +64,10 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Set the longest edge in pixels. The aspect ratio stays as it is.";
     case "organize":
       return "Reorder or drop pages in the grid, then save the new PDF.";
+    case "compress":
+      return "Light keeps text selectable. Medium and Smallest may flatten scans to shrink them further.";
+    case "extract":
+      return "Type the pages to keep. The new file is only those pages, in that order.";
   }
 }
 
@@ -170,6 +176,88 @@ export function OptionsPanel({
           </div>
         </div>
       );
+
+    case "compress":
+      return (
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-ink">Compression</legend>
+          {COMPRESS_LEVELS.map((level) => {
+            const selected = options.level === level.id;
+            return (
+              <label
+                key={level.id}
+                className={cn(
+                  "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5",
+                  selected
+                    ? "border-signal bg-signal/5"
+                    : "border-ink/10 bg-background/70",
+                  disabled && "cursor-not-allowed opacity-60",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="compress-level"
+                  className="mt-1"
+                  checked={selected}
+                  disabled={disabled}
+                  onChange={() =>
+                    onOptions({ kind: "compress", level: level.id })
+                  }
+                />
+                <span className="min-w-0">
+                  <span className="text-sm font-medium text-ink">
+                    {level.title}
+                    {level.recommended ? (
+                      <span className="ml-2 text-xs font-semibold text-lagoon">
+                        Recommended
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {level.result} · {level.use}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </fieldset>
+      );
+
+    case "extract": {
+      const kept = parsePageRange(options.range, options.pageCount);
+      return (
+        <div className="space-y-3">
+          <Field label="Pages to keep" htmlFor="extract-range">
+            <Input
+              id="extract-range"
+              value={options.range}
+              disabled={disabled || options.pageCount === 0}
+              onChange={(e) =>
+                onOptions({
+                  kind: "extract",
+                  range: e.target.value,
+                  pageCount: options.pageCount,
+                })
+              }
+              placeholder={
+                options.pageCount > 0
+                  ? `e.g. 1-${options.pageCount}`
+                  : "Reading pages…"
+              }
+              inputMode="text"
+              autoComplete="off"
+            />
+          </Field>
+          <p className="text-xs text-muted-foreground">
+            {options.pageCount === 0
+              ? "Reading the pages in this PDF…"
+              : kept.length === 0
+                ? `This PDF has ${options.pageCount} pages. Use 1-3, 7 or all.`
+                : `Keeping ${kept.length} of ${options.pageCount} pages.`}
+          </p>
+        </div>
+      );
+    }
 
     case "resize":
       return (

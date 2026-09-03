@@ -4,6 +4,7 @@ export type ToolId =
   | "pdf-to-jpg"
   | "compress-pdf"
   | "split-pdf"
+  | "extract-pages"
   | "protect-pdf"
   | "unlock-pdf"
   | "rotate-pdf"
@@ -34,7 +35,15 @@ export type ToolDefinition = {
   seoHowTo: [string, string, string];
   showInNav: boolean;
   kind: "image" | "pdf";
-  ui: "none" | "password" | "password-confirm" | "rotate" | "organize" | "resize";
+  ui:
+    | "none"
+    | "password"
+    | "password-confirm"
+    | "rotate"
+    | "organize"
+    | "resize"
+    | "compress"
+    | "extract";
 };
 
 export const TOOLS: ToolDefinition[] = [
@@ -120,15 +129,15 @@ export const TOOLS: ToolDefinition[] = [
     actionLabel: "Compress PDF",
     seoTitle: "Compress PDF Online Free — No Upload",
     seoDescription:
-      "Compress PDF online free to shrink file size for email. Private browser compression — no upload, no daily limits.",
+      "Compress PDF online free to shrink file size for email. Light mode keeps text selectable — no upload, no daily limits.",
     seoHowTo: [
       "Choose the PDF you want to shrink.",
-      "Click Compress PDF — processing stays on this device.",
+      "Pick Light to keep text selectable, or Medium / Smallest for scans.",
       "Download the smaller PDF when it finishes.",
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "compress",
   },
   {
     id: "split-pdf",
@@ -152,6 +161,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: false,
     kind: "pdf",
     ui: "none",
+  },
+  {
+    id: "extract-pages",
+    slug: "extract-pages",
+    title: "Extract Pages",
+    shortTitle: "Extract Pages",
+    description:
+      "Pull the pages you want into a new PDF. The rest stays behind. No upload.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Extract pages",
+    seoTitle: "Extract PDF Pages Free — No Upload",
+    seoDescription:
+      "Extract PDF pages online free. Keep only the pages you need in a new file — private, in your browser, no upload.",
+    seoHowTo: [
+      "Choose the PDF you want pages from.",
+      "Type the pages to keep, like 1-3, 7.",
+      "Download the new PDF with only those pages.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "extract",
   },
   {
     id: "protect-pdf",
