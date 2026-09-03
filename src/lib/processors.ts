@@ -4,6 +4,7 @@ import type { PDFPageProxy } from "pdfjs-dist";
 
 import type { FileItem, ResultItem } from "@/lib/job";
 import { loadPdfJs } from "@/lib/pdfjs";
+import { recompressJpegXObjects } from "@/lib/recompress-images";
 import {
   parsePageRange,
   type CompressLevel,
@@ -577,11 +578,11 @@ const COMPRESS_RASTER: Record<
   heavy: { scale: 0.95, quality: 0.44 },
 };
 
-function pdfBlob(bytes: Uint8Array) {
+export function pdfBlob(bytes: Uint8Array) {
   return new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
 }
 
-function stripPdfMetadata(doc: PDFDocument) {
+export function stripPdfMetadata(doc: PDFDocument) {
   doc.setTitle("");
   doc.setAuthor("");
   doc.setSubject("");
@@ -619,7 +620,18 @@ export async function processCompressPdf(
     });
     let best: Blob = pdfBlob(structuralBytes);
     if (best.size >= item.size) best = item.file;
-    onProgress((i + 0.35) / files.length);
+    onProgress((i + 0.28) / files.length);
+
+    if (options.level !== "light") {
+      const quality = options.level === "heavy" ? 0.42 : 0.62;
+      const imageDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      stripPdfMetadata(imageDoc);
+      await recompressJpegXObjects(imageDoc, quality);
+      const imageBytes = await imageDoc.save({ useObjectStreams: true });
+      const imageBlob = pdfBlob(imageBytes);
+      if (imageBlob.size < best.size) best = imageBlob;
+      onProgress((i + 0.42) / files.length);
+    }
 
     if (options.level !== "light") {
       const preset = COMPRESS_RASTER[options.level];

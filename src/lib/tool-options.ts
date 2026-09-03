@@ -2,6 +2,27 @@ import type { ToolDefinition } from "@/lib/tools";
 
 export type CompressLevel = "light" | "medium" | "heavy";
 
+export type SignMode = "draw" | "type" | "image";
+
+/** Ratios of the page box. Origin is top-left in the UI; processors flip Y. */
+export type PageBox = {
+  pageIndex: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+export type AnnotatePosition =
+  | "center"
+  | "diagonal"
+  | "header"
+  | "footer"
+  | "tl"
+  | "tr"
+  | "bl"
+  | "br";
+
 export type ToolOptions =
   | { kind: "none" }
   | { kind: "password"; password: string }
@@ -10,7 +31,70 @@ export type ToolOptions =
   | { kind: "organize"; pageOrder: number[] }
   | { kind: "resize"; maxEdge: number }
   | { kind: "compress"; level: CompressLevel }
-  | { kind: "extract"; range: string; pageCount: number };
+  | { kind: "extract"; range: string; pageCount: number }
+  | { kind: "sign"; mode: SignMode; text: string; dataUrl: string; box: PageBox }
+  | { kind: "crop"; box: PageBox }
+  | {
+      kind: "annotate";
+      variant: "watermark" | "numbers";
+      text: string;
+      opacity: number;
+      rotation: number;
+      position: AnnotatePosition;
+    }
+  | { kind: "ocr"; language: string }
+  | { kind: "ask"; question: string };
+
+export const DEFAULT_PAGE_BOX: PageBox = {
+  pageIndex: 0,
+  x: 0.62,
+  y: 0.72,
+  w: 0.32,
+  h: 0.16,
+};
+
+export const DEFAULT_CROP_BOX: PageBox = {
+  pageIndex: 0,
+  x: 0.08,
+  y: 0.08,
+  w: 0.84,
+  h: 0.84,
+};
+
+export const ANNOTATE_POSITIONS: {
+  id: AnnotatePosition;
+  title: string;
+}[] = [
+  { id: "diagonal", title: "Diagonal" },
+  { id: "center", title: "Center" },
+  { id: "header", title: "Header" },
+  { id: "footer", title: "Footer" },
+  { id: "tl", title: "Top left" },
+  { id: "tr", title: "Top right" },
+  { id: "bl", title: "Bottom left" },
+  { id: "br", title: "Bottom right" },
+];
+
+export function pageBoxToPdf(
+  box: PageBox,
+  pageWidth: number,
+  pageHeight: number,
+) {
+  return {
+    x: pageWidth * box.x,
+    y: pageHeight * (1 - box.y - box.h),
+    width: pageWidth * box.w,
+    height: pageHeight * box.h,
+  };
+}
+
+export const OCR_LANGUAGES = [
+  { id: "eng", title: "English" },
+  { id: "spa", title: "Spanish" },
+  { id: "fra", title: "French" },
+  { id: "deu", title: "German" },
+  { id: "hin", title: "Hindi" },
+] as const;
 
 export const RESIZE_PRESETS = [1920, 1280, 800, 640] as const;
 export const RESIZE_MIN = 16;
@@ -96,6 +180,38 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "compress", level: "light" };
     case "extract":
       return { kind: "extract", range: "", pageCount: 0 };
+    case "sign":
+      return {
+        kind: "sign",
+        mode: "draw",
+        text: "",
+        dataUrl: "",
+        box: { ...DEFAULT_PAGE_BOX },
+      };
+    case "crop":
+      return { kind: "crop", box: { ...DEFAULT_CROP_BOX } };
+    case "watermark":
+      return {
+        kind: "annotate",
+        variant: "watermark",
+        text: "CONFIDENTIAL",
+        opacity: 0.28,
+        rotation: -32,
+        position: "diagonal",
+      };
+    case "page-numbers":
+      return {
+        kind: "annotate",
+        variant: "numbers",
+        text: "",
+        opacity: 0.9,
+        rotation: 0,
+        position: "footer",
+      };
+    case "ocr":
+      return { kind: "ocr", language: "eng" };
+    case "ask":
+      return { kind: "ask", question: "" };
   }
 }
 
@@ -111,6 +227,8 @@ export function optionsReady(
     case "none":
     case "rotate":
     case "compress":
+    case "crop":
+    case "ocr":
       return true;
     case "password":
       return options.password.trim().length > 0;
@@ -129,5 +247,16 @@ export function optionsReady(
       );
     case "extract":
       return parsePageRange(options.range, options.pageCount).length >= 1;
+    case "sign": {
+      const ink =
+        options.mode === "type"
+          ? options.text.trim().length > 0
+          : options.dataUrl.startsWith("data:");
+      return ink && options.box.w > 0.04 && options.box.h > 0.04;
+    }
+    case "annotate":
+      return options.variant === "numbers" || options.text.trim().length > 0;
+    case "ask":
+      return options.question.trim().length > 0;
   }
 }

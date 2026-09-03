@@ -11,6 +11,7 @@ import {
   optionsHint,
   optionsNeedCanvas,
 } from "@/components/workbench/options-panel";
+import { PageOverlay } from "@/components/workbench/page-overlay";
 import { ResultPanel } from "@/components/workbench/result-panel";
 import { Stepper } from "@/components/workbench/stepper";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,20 @@ import {
   type ToolOptions,
 } from "@/lib/tool-options";
 import type { ToolDefinition, ToolId } from "@/lib/tools";
+import { shouldWarnLargeJob } from "@/lib/device-caps";
+import {
+  estimateLightCompressBytes,
+  processAnnotatePdf,
+  processAskPdf,
+  processCropPdf,
+  processExcelToPdf,
+  processFlattenPdf,
+  processOcrPdf,
+  processPngToPdf,
+  processSignPdf,
+  processStripMetadata,
+  processWordToPdf,
+} from "@/lib/extra-processors";
 import {
   processCompressImage,
   processCompressPdf,
@@ -93,6 +108,27 @@ async function runTool(
       return processRotatePdf(files, onProgress, options);
     case "organize-pdf":
       return processOrganizePdf(files, onProgress, options);
+    case "sign-pdf":
+      return processSignPdf(files, onProgress, options);
+    case "crop-pdf":
+      return processCropPdf(files, onProgress, options);
+    case "watermark-pdf":
+    case "page-numbers":
+      return processAnnotatePdf(files, onProgress, options);
+    case "flatten-pdf":
+      return processFlattenPdf(files, onProgress);
+    case "png-to-pdf":
+      return processPngToPdf(files, onProgress);
+    case "ocr-pdf":
+      return processOcrPdf(files, onProgress, options);
+    case "word-to-pdf":
+      return processWordToPdf(files, onProgress);
+    case "excel-to-pdf":
+      return processExcelToPdf(files, onProgress);
+    case "strip-metadata":
+      return processStripMetadata(files, onProgress);
+    case "ask-pdf":
+      return processAskPdf(files, onProgress, options);
   }
 }
 
@@ -103,7 +139,16 @@ function downloadLabel(results: ResultItem[]) {
   if (type.includes("png")) return "Download PNG";
   if (type.includes("jpeg") || type.includes("jpg")) return "Download JPG";
   if (type.includes("zip")) return "Download zip";
+  if (type.includes("text")) return "Download answer";
   return "Download file";
+}
+
+function dropLabel(tool: ToolDefinition) {
+  if (tool.accept.includes("docx")) return "Word files";
+  if (tool.accept.includes("xlsx") || tool.accept.includes(".xls")) {
+    return "spreadsheets";
+  }
+  return tool.kind === "pdf" ? "PDFs" : "images";
 }
 
 function jobAnnouncement(job: JobState): string {
@@ -142,12 +187,16 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     initialOptions(tool.ui),
   );
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [estimateLabel, setEstimateLabel] = useState<string | undefined>();
 
   const files = job.status === "idle" ? NO_FILES : job.files;
   const previews = useFilePreviews(files, tool.kind);
 
   const pagedFile =
-    options.kind === "organize" || options.kind === "extract"
+    options.kind === "organize" ||
+    options.kind === "extract" ||
+    options.kind === "sign" ||
+    options.kind === "crop"
       ? files[0]
       : undefined;
   const pagedFacts = pagedFile ? previews.get(pagedFile.id)?.facts : undefined;
@@ -279,6 +328,33 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   };
 
   const optionsInCanvas = optionsNeedCanvas(options);
+  useEffect(() => {
+    if (tool.id !== "compress-pdf" || files.length === 0) {
+      setEstimateLabel(undefined);
+      return;
+    }
+    const file = files[0].file;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void estimateLightCompressBytes(file).then((bytes) => {
+        if (cancelled) return;
+        setEstimateLabel(`About ${formatBytes(bytes)} after Light`);
+      });
+    }, 400);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [tool.id, files]);
+
+  const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+  const largeJob = shouldWarnLargeJob(totalBytes, pageCount);
+
+  const overlayFile =
+    (options.kind === "sign" || options.kind === "crop") && pagedFile
+      ? pagedFile.file
+      : undefined;
+
   const optionsPanel = (
     <OptionsPanel
       options={options}
@@ -288,6 +364,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       pagePreviews={pagePreviews}
       pageCount={pageCount}
       disabled={locked}
+      estimateLabel={estimateLabel}
     />
   );
 
@@ -352,8 +429,8 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
               {tool.multiple ? "Select files" : "Select a file"}
             </span>
             <span className="max-w-sm text-sm text-muted-foreground">
-              Or drop {tool.kind === "pdf" ? "PDFs" : "images"} here. We refuse
-              the upload, so the work happens in this tab.
+              Or drop {dropLabel(tool)} here. We refuse the upload, so the work
+              happens in this tab.
             </span>
           </button>
         )}
@@ -397,6 +474,24 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   }
                 />
               )}
+              {overlayFile && options.kind === "sign" ? (
+                <PageOverlay
+                  file={overlayFile}
+                  box={options.box}
+                  onBox={(box) => setOptions({ ...options, box })}
+                  disabled={locked}
+                  label="Place the signature"
+                />
+              ) : null}
+              {overlayFile && options.kind === "crop" ? (
+                <PageOverlay
+                  file={overlayFile}
+                  box={options.box}
+                  onBox={(box) => setOptions({ ...options, box })}
+                  disabled={locked}
+                  label="Keep this area"
+                />
+              ) : null}
               {optionsInCanvas && optionsPanel}
             </div>
 
@@ -407,6 +502,12 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                 </h2>
                 <div className="mt-2 space-y-2 rounded-lg border border-lagoon/20 bg-lagoon/5 px-3 py-2.5 text-sm text-muted-foreground">
                   <p>{optionsHint(options, tool.actionLabel)}</p>
+                  {largeJob && (
+                    <p className="font-medium text-ink">
+                      This file is large for this device. Stay on Light, or
+                      expect a wait.
+                    </p>
+                  )}
                   {reorderable && files.length > 1 && (
                     <p>Output follows the order of the cards.</p>
                   )}

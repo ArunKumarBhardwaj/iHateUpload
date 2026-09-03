@@ -9,6 +9,17 @@ export type ToolId =
   | "unlock-pdf"
   | "rotate-pdf"
   | "organize-pdf"
+  | "sign-pdf"
+  | "crop-pdf"
+  | "watermark-pdf"
+  | "page-numbers"
+  | "flatten-pdf"
+  | "png-to-pdf"
+  | "ocr-pdf"
+  | "word-to-pdf"
+  | "excel-to-pdf"
+  | "strip-metadata"
+  | "ask-pdf"
   | "heic-to-jpg"
   | "heic-to-pdf"
   | "compress-image"
@@ -43,7 +54,13 @@ export type ToolDefinition = {
     | "organize"
     | "resize"
     | "compress"
-    | "extract";
+    | "extract"
+    | "sign"
+    | "crop"
+    | "watermark"
+    | "page-numbers"
+    | "ocr"
+    | "ask";
 };
 
 export const TOOLS: ToolDefinition[] = [
@@ -65,6 +82,29 @@ export const TOOLS: ToolDefinition[] = [
       "Choose one or more JPG, PNG, or WebP images.",
       "Click Create PDF to build the document on this device.",
       "Download your PDF — nothing was uploaded.",
+    ],
+    showInNav: true,
+    kind: "image",
+    ui: "none",
+  },
+  {
+    id: "png-to-pdf",
+    slug: "png-to-pdf",
+    title: "PNG to PDF",
+    shortTitle: "PNG → PDF",
+    description:
+      "Turn PNG images into a single PDF. Same local path as Image to PDF.",
+    accept: "image/png,.png",
+    multiple: true,
+    ordered: true,
+    actionLabel: "Create PDF",
+    seoTitle: "PNG to PDF Converter Free — No Upload",
+    seoDescription:
+      "Convert PNG to PDF online free. Build the document in your browser — no upload, no watermark.",
+    seoHowTo: [
+      "Choose one or more PNG images.",
+      "Click Create PDF to build the document locally.",
+      "Download the PDF.",
     ],
     showInNav: true,
     kind: "image",
@@ -276,6 +316,238 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "organize",
+  },
+  {
+    id: "sign-pdf",
+    slug: "sign-pdf",
+    title: "Sign PDF",
+    shortTitle: "Sign PDF",
+    description:
+      "Draw, type, or stamp a signature on a page. The ink stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Sign PDF",
+    seoTitle: "Sign PDF Online Free — No Upload",
+    seoDescription:
+      "Sign a PDF online free. Draw, type, or stamp your signature in the browser — no upload, no watermark.",
+    seoHowTo: [
+      "Choose the PDF you want to sign.",
+      "Draw, type, or upload a signature and place it on the page.",
+      "Download the signed PDF created on this device.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "sign",
+  },
+  {
+    id: "crop-pdf",
+    slug: "crop-pdf",
+    title: "Crop PDF",
+    shortTitle: "Crop PDF",
+    description:
+      "Trim margins on every page. The crop box stays on this device.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Crop PDF",
+    seoTitle: "Crop PDF Online Free — No Upload",
+    seoDescription:
+      "Crop PDF pages online free. Trim margins in your browser — no upload, no watermark.",
+    seoHowTo: [
+      "Choose the PDF you want to crop.",
+      "Drag the crop box to the area you want to keep.",
+      "Download the cropped PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "crop",
+  },
+  {
+    id: "watermark-pdf",
+    slug: "watermark-pdf",
+    title: "Watermark PDF",
+    shortTitle: "Watermark",
+    description:
+      "Stamp DRAFT or CONFIDENTIAL across every page. Processing stays here.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Add watermark",
+    seoTitle: "Watermark PDF Online Free — No Upload",
+    seoDescription:
+      "Add a text watermark to a PDF online free. Stamp DRAFT or CONFIDENTIAL in your browser — no upload.",
+    seoHowTo: [
+      "Choose the PDF to watermark.",
+      "Type the stamp and pick position and opacity.",
+      "Download the watermarked PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "watermark",
+  },
+  {
+    id: "page-numbers",
+    slug: "page-numbers",
+    title: "Page Numbers",
+    shortTitle: "Page numbers",
+    description:
+      "Add page numbers to a PDF. The stamp runs in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Add page numbers",
+    seoTitle: "Add Page Numbers to PDF Free — No Upload",
+    seoDescription:
+      "Add page numbers to a PDF online free. Number pages in your browser — no upload, no watermark.",
+    seoHowTo: [
+      "Choose the PDF that needs numbers.",
+      "Pick where the numbers sit.",
+      "Download the numbered PDF.",
+    ],
+    showInNav: false,
+    kind: "pdf",
+    ui: "page-numbers",
+  },
+  {
+    id: "flatten-pdf",
+    slug: "flatten-pdf",
+    title: "Flatten PDF",
+    shortTitle: "Flatten",
+    description:
+      "Burn form fields and annotations into the page so they cannot be peeled off.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Flatten PDF",
+    seoTitle: "Flatten PDF Online Free — No Upload",
+    seoDescription:
+      "Flatten a PDF online free. Lock form fields and annotations in your browser — no upload.",
+    seoHowTo: [
+      "Choose the PDF to flatten.",
+      "Click Flatten PDF. Fields become part of the page.",
+      "Download the flattened PDF.",
+    ],
+    showInNav: false,
+    kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "ocr-pdf",
+    slug: "ocr-pdf",
+    title: "OCR PDF",
+    shortTitle: "OCR PDF",
+    description:
+      "Make a scanned PDF searchable. Tesseract runs in this tab. Slow on long scans.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Make searchable",
+    seoTitle: "OCR PDF Online Free — No Upload",
+    seoDescription:
+      "OCR a PDF online free. Make scanned pages searchable in your browser — no upload, no Premium.",
+    seoHowTo: [
+      "Choose a scanned or image-only PDF.",
+      "Pick the language and run OCR locally.",
+      "Download the searchable PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "ocr",
+  },
+  {
+    id: "strip-metadata",
+    slug: "strip-metadata",
+    title: "Strip Metadata",
+    shortTitle: "Strip metadata",
+    description:
+      "Remove author, titles, and hidden properties from a PDF. Stays on this device.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Strip metadata",
+    seoTitle: "Remove PDF Metadata Free — No Upload",
+    seoDescription:
+      "Strip PDF metadata online free. Remove author and hidden properties in your browser — no upload.",
+    seoHowTo: [
+      "Choose the PDF to clean.",
+      "Click Strip metadata.",
+      "Download the cleaned PDF.",
+    ],
+    showInNav: false,
+    kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "ask-pdf",
+    slug: "ask-pdf",
+    title: "Ask PDF",
+    shortTitle: "Ask PDF",
+    description:
+      "Ask a question about a PDF. The file stays here. Only extracted text is sent.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Ask",
+    seoTitle: "Ask a PDF a Question Free — File Never Uploads",
+    seoDescription:
+      "Ask questions about a PDF without uploading the file. Text is extracted locally. The PDF never leaves this tab.",
+    seoHowTo: [
+      "Choose a PDF with selectable text.",
+      "Type a question. Only the extracted words are sent.",
+      "Read the answer. The PDF itself was never uploaded.",
+    ],
+    showInNav: false,
+    kind: "pdf",
+    ui: "ask",
+  },
+  {
+    id: "word-to-pdf",
+    slug: "word-to-pdf",
+    title: "Word to PDF",
+    shortTitle: "Word → PDF",
+    description:
+      "Turn a .docx into a PDF in this tab. Layout is good enough, not Acrobat.",
+    accept:
+      ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    multiple: true,
+    ordered: true,
+    actionLabel: "Create PDF",
+    seoTitle: "Word to PDF Converter Free — No Upload",
+    seoDescription:
+      "Convert Word to PDF online free in your browser. No upload. Layout is simple and private.",
+    seoHowTo: [
+      "Choose one or more .docx files.",
+      "Click Create PDF. Conversion runs locally.",
+      "Download the PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "excel-to-pdf",
+    slug: "excel-to-pdf",
+    title: "Excel to PDF",
+    shortTitle: "Excel → PDF",
+    description:
+      "Turn a spreadsheet into a simple PDF table. Runs on this device.",
+    accept:
+      ".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
+    multiple: true,
+    ordered: true,
+    actionLabel: "Create PDF",
+    seoTitle: "Excel to PDF Converter Free — No Upload",
+    seoDescription:
+      "Convert Excel to PDF online free in your browser. Spreadsheet stays on your device.",
+    seoHowTo: [
+      "Choose one or more spreadsheet files.",
+      "Click Create PDF to draw a simple table locally.",
+      "Download the PDF.",
+    ],
+    showInNav: false,
+    kind: "pdf",
+    ui: "none",
   },
   {
     id: "heic-to-jpg",

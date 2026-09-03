@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { ServiceWorkerRegister } from "@/lib/sw-register";
 
 import "./globals.css";
 
@@ -46,6 +47,7 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -60,6 +62,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <SiteHeader />
         <main className="relative z-10 flex-1">{children}</main>
         <SiteFooter />
+        <ServiceWorkerRegister />
         <Analytics />
         <SpeedInsights />
       </body>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { ArrowDown, ArrowUp, FileText, RotateCcw, X } from "lucide-react";
 
 import { Thumbnail } from "@/components/workbench/thumbnail";
@@ -11,11 +12,14 @@ import {
   type ThumbnailState,
 } from "@/lib/preview";
 import {
+  ANNOTATE_POSITIONS,
   COMPRESS_LEVELS,
+  OCR_LANGUAGES,
   parsePageRange,
   RESIZE_MAX,
   RESIZE_MIN,
   RESIZE_PRESETS,
+  type SignMode,
   type ToolOptions,
 } from "@/lib/tool-options";
 import { PAGE_THUMBNAIL_LIMIT } from "@/lib/use-previews";
@@ -46,7 +50,11 @@ function Field({
 
 /** Page grids need the canvas width; narrow controls sit in the sidebar. */
 export function optionsNeedCanvas(options: ToolOptions): boolean {
-  return options.kind === "organize";
+  return (
+    options.kind === "organize" ||
+    options.kind === "sign" ||
+    options.kind === "crop"
+  );
 }
 
 /** One sentence telling the reader what the panel next to it is asking for. */
@@ -68,6 +76,18 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Light keeps text selectable. Medium and Smallest may flatten scans to shrink them further.";
     case "extract":
       return "Type the pages to keep. The new file is only those pages, in that order.";
+    case "sign":
+      return "Draw, type, or stamp a signature, then drag it onto the page.";
+    case "crop":
+      return "Drag the box to the area every page should keep.";
+    case "annotate":
+      return options.variant === "numbers"
+        ? "Pick where the page numbers sit."
+        : "Type the stamp. It is drawn on every page in this tab.";
+    case "ocr":
+      return "This is slow. Tesseract reads each page on this device.";
+    case "ask":
+      return "The PDF stays here. Only extracted text is sent with your question.";
   }
 }
 
@@ -83,6 +103,7 @@ export function OptionsPanel({
   pagePreviews,
   pageCount,
   disabled,
+  estimateLabel,
 }: {
   options: ToolOptions;
   onOptions: (next: ToolOptions) => void;
@@ -91,6 +112,7 @@ export function OptionsPanel({
   pagePreviews: ReadonlyMap<number, ThumbnailState>;
   pageCount: number;
   disabled: boolean;
+  estimateLabel?: string;
 }) {
   switch (options.kind) {
     case "none":
@@ -220,6 +242,9 @@ export function OptionsPanel({
               </label>
             );
           })}
+          {estimateLabel ? (
+            <p className="pt-1 text-xs text-muted-foreground">{estimateLabel}</p>
+          ) : null}
         </fieldset>
       );
 
@@ -417,5 +442,271 @@ export function OptionsPanel({
         </div>
       );
     }
+
+    case "sign":
+      return (
+        <SignControls
+          options={options}
+          onOptions={onOptions}
+          pageCount={pageCount}
+          disabled={disabled}
+        />
+      );
+
+    case "crop":
+      return (
+        <p className="text-sm text-muted-foreground">
+          The same crop applies to every page. Drag the box on the page.
+        </p>
+      );
+
+    case "annotate":
+      return (
+        <div className="space-y-3">
+          {options.variant === "watermark" ? (
+            <Field label="Stamp" htmlFor="watermark-text">
+              <Input
+                id="watermark-text"
+                value={options.text}
+                disabled={disabled}
+                onChange={(e) =>
+                  onOptions({ ...options, text: e.target.value })
+                }
+              />
+            </Field>
+          ) : null}
+          <p className="text-sm font-medium text-ink">Position</p>
+          <div className="flex flex-wrap gap-2">
+            {ANNOTATE_POSITIONS.map((position) => (
+              <Button
+                key={position.id}
+                type="button"
+                size="sm"
+                className={OPTION_BUTTON}
+                variant={options.position === position.id ? "default" : "outline"}
+                disabled={disabled}
+                onClick={() =>
+                  onOptions({ ...options, position: position.id })
+                }
+              >
+                {position.title}
+              </Button>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "ocr":
+      return (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-ink">Language</p>
+          <div className="flex flex-wrap gap-2">
+            {OCR_LANGUAGES.map((language) => (
+              <Button
+                key={language.id}
+                type="button"
+                size="sm"
+                className={OPTION_BUTTON}
+                variant={options.language === language.id ? "default" : "outline"}
+                disabled={disabled}
+                onClick={() =>
+                  onOptions({ kind: "ocr", language: language.id })
+                }
+              >
+                {language.title}
+              </Button>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "ask":
+      return (
+        <Field label="Question" htmlFor="ask-question">
+          <Input
+            id="ask-question"
+            value={options.question}
+            disabled={disabled}
+            onChange={(e) =>
+              onOptions({ kind: "ask", question: e.target.value })
+            }
+            placeholder="What is this document about?"
+          />
+        </Field>
+      );
   }
+}
+
+function SignControls({
+  options,
+  onOptions,
+  pageCount,
+  disabled,
+}: {
+  options: Extract<ToolOptions, { kind: "sign" }>;
+  onOptions: (next: ToolOptions) => void;
+  pageCount: number;
+  disabled: boolean;
+}) {
+  const modes: { id: SignMode; title: string }[] = [
+    { id: "draw", title: "Draw" },
+    { id: "type", title: "Type" },
+    { id: "image", title: "Image" },
+  ];
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {modes.map((mode) => (
+          <Button
+            key={mode.id}
+            type="button"
+            size="sm"
+            className={OPTION_BUTTON}
+            variant={options.mode === mode.id ? "default" : "outline"}
+            disabled={disabled}
+            onClick={() => onOptions({ ...options, mode: mode.id })}
+          >
+            {mode.title}
+          </Button>
+        ))}
+      </div>
+      {options.mode === "type" ? (
+        <Field label="Name" htmlFor="sign-text">
+          <Input
+            id="sign-text"
+            value={options.text}
+            disabled={disabled}
+            onChange={(e) => onOptions({ ...options, text: e.target.value })}
+            placeholder="Your name"
+          />
+        </Field>
+      ) : null}
+      {options.mode === "image" ? (
+        <Field label="Signature image" htmlFor="sign-image">
+          <Input
+            id="sign-image"
+            type="file"
+            accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+            disabled={disabled}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => {
+                if (typeof reader.result === "string") {
+                  onOptions({ ...options, dataUrl: reader.result });
+                }
+              };
+              reader.readAsDataURL(file);
+            }}
+          />
+        </Field>
+      ) : null}
+      {options.mode === "draw" ? (
+        <DrawPad
+          disabled={disabled}
+          onInk={(dataUrl) => onOptions({ ...options, dataUrl })}
+        />
+      ) : null}
+      {pageCount > 1 ? (
+        <Field label="Page" htmlFor="sign-page">
+          <Input
+            id="sign-page"
+            type="number"
+            min={1}
+            max={pageCount}
+            value={options.box.pageIndex + 1}
+            disabled={disabled}
+            onChange={(e) => {
+              const page = Number(e.target.value);
+              if (!Number.isInteger(page)) return;
+              onOptions({
+                ...options,
+                box: {
+                  ...options.box,
+                  pageIndex: Math.min(pageCount, Math.max(1, page)) - 1,
+                },
+              });
+            }}
+          />
+        </Field>
+      ) : null}
+    </div>
+  );
+}
+
+function DrawPad({
+  disabled,
+  onInk,
+}: {
+  disabled: boolean;
+  onInk: (dataUrl: string) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
+
+  const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+    };
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-ink">Draw</p>
+      <canvas
+        ref={canvasRef}
+        width={480}
+        height={160}
+        className="h-28 w-full touch-none rounded-xl border border-ink/15 bg-background"
+        onPointerDown={(event) => {
+          if (disabled) return;
+          const canvas = canvasRef.current;
+          const ctx = canvas?.getContext("2d");
+          if (!ctx) return;
+          drawing.current = true;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          const start = point(event);
+          ctx.strokeStyle = "#111827";
+          ctx.lineWidth = 4;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(start.x, start.y);
+        }}
+        onPointerMove={(event) => {
+          if (!drawing.current) return;
+          const ctx = canvasRef.current?.getContext("2d");
+          if (!ctx) return;
+          const next = point(event);
+          ctx.lineTo(next.x, next.y);
+          ctx.stroke();
+        }}
+        onPointerUp={() => {
+          drawing.current = false;
+          const canvas = canvasRef.current;
+          if (canvas) onInk(canvas.toDataURL("image/png"));
+        }}
+      />
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className={OPTION_BUTTON}
+        disabled={disabled}
+        onClick={() => {
+          const canvas = canvasRef.current;
+          const ctx = canvas?.getContext("2d");
+          if (!canvas || !ctx) return;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          onInk("");
+        }}
+      >
+        Clear
+      </Button>
+    </div>
+  );
 }

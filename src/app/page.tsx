@@ -20,14 +20,15 @@ export const metadata: Metadata = {
 
 const POPULAR: ToolId[] = [
   "merge-pdf",
+  "sign-pdf",
+  "crop-pdf",
   "compress-pdf",
   "extract-pages",
   "compress-image",
   "pdf-to-jpg",
   "heic-to-jpg",
   "image-to-pdf",
-  "resize-image",
-  "png-to-jpg",
+  "png-to-pdf",
 ];
 
 const PDF_IDS: ToolId[] = TOOLS.filter((t) => t.kind === "pdf").map((t) => t.id);
