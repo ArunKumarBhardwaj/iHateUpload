@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 
 import { ToolIcon } from "@/components/tool-icon";
 import type { ToolDefinition } from "@/lib/tools";
@@ -16,24 +15,21 @@ export function ToolCard({
     <Link
       href={`/tools/${tool.slug}`}
       className={cn(
-        "group flex items-start gap-3 rounded-2xl border border-ink/8 bg-card p-4 transition-colors hover:border-signal/30 hover:bg-signal/[0.03]",
-        compact && "rounded-xl p-3",
+        "group flex flex-col rounded-2xl border border-ink/8 bg-card p-5 shadow-[0_1px_0_rgba(20,22,28,0.04)] transition-colors hover:border-signal/40 hover:shadow-[0_10px_28px_-18px_rgba(20,22,28,0.45)]",
+        compact && "p-4",
       )}
     >
       <ToolIcon
         id={tool.id}
-        className={compact ? "size-9 rounded-lg" : undefined}
-        iconClassName={compact ? "size-4" : undefined}
+        className={compact ? "size-10 rounded-xl" : "size-12 rounded-2xl"}
+        iconClassName={compact ? "size-5" : "size-6"}
       />
-      <span className="min-w-0 flex-1">
-        <span className="block font-display text-base font-bold text-ink group-hover:text-signal">
-          {tool.title}
-        </span>
-        <span className="mt-1 line-clamp-2 block text-sm leading-snug text-muted-foreground">
-          {tool.description}
-        </span>
+      <span className="mt-4 text-[15px] font-semibold text-ink group-hover:text-signal">
+        {tool.title}
       </span>
-      <ChevronRight className="mt-1 size-4 shrink-0 text-ink/25 transition-transform group-hover:translate-x-0.5 group-hover:text-signal" />
+      <span className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
+        {tool.description}
+      </span>
     </Link>
   );
 }
@@ -48,8 +44,8 @@ export function ToolCardGrid({
   return (
     <div
       className={cn(
-        "grid gap-3 sm:grid-cols-2",
-        compact ? "lg:grid-cols-2" : "lg:grid-cols-3",
+        "grid gap-3 sm:grid-cols-2 md:grid-cols-3",
+        compact ? "lg:grid-cols-3" : "lg:grid-cols-4",
       )}
     >
       {tools.map((tool) => (

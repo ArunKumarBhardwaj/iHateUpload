@@ -5,28 +5,29 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #f5f6f8;
-  --foreground: #111318;
-  --card: #ffffff;
-  --card-foreground: #111318;
-  --popover: #ffffff;
-  --popover-foreground: #111318;
-  --primary: #e11d48;
-  --primary-foreground: #fff5f7;
-  --secondary: #eef0f3;
-  --secondary-foreground: #111318;
-  --muted: #eef0f3;
-  --muted-foreground: #5c6370;
-  --accent: #0f766e;
-  --accent-foreground: #ecfffb;
+  --background: #f3eee6;
+  --foreground: #14161c;
+  --card: #fffcf7;
+  --card-foreground: #14161c;
+  --popover: #fffcf7;
+  --popover-foreground: #14161c;
+  --primary: #d61f3a;
+  --primary-foreground: #fff7f8;
+  --secondary: #e8e1d6;
+  --secondary-foreground: #14161c;
+  --muted: #e8e1d6;
+  --muted-foreground: #5c564c;
+  --accent: #d61f3a;
+  --accent-foreground: #fff7f8;
   --destructive: #be123c;
-  --border: #e4e6eb;
-  --input: #d8dbe2;
-  --ring: #e11d48;
-  --radius: 0.75rem;
-  --ink: #111318;
-  --signal: #e11d48;
+  --border: #d9d0c3;
+  --input: #cfc6b8;
+  --ring: #d61f3a;
+  --radius: 0.85rem;
+  --ink: #14161c;
+  --signal: #d61f3a;
   --lagoon: #0f766e;
+  --chrome: #14161c;
 }
 
 @theme inline {
@@ -51,8 +52,8 @@
   --color-ink: var(--ink);
   --color-signal: var(--signal);
   --color-lagoon: var(--lagoon);
-  --font-sans: var(--font-body);
-  --font-display: var(--font-display);
+  --color-chrome: var(--chrome);
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -70,16 +71,12 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background-color: #f5f6f8;
-    font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+    background-color: #f3eee6;
+    font-family: var(--font-sans);
   }
 }
 
 @layer utilities {
-  .font-display {
-    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
-  }
-
   .noise {
     display: none;
   }
@@ -114,12 +111,12 @@
 
 @keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.3);
+    box-shadow: 0 0 0 0 rgba(214, 31, 58, 0.3);
   }
   70% {
-    box-shadow: 0 0 0 16px rgba(225, 29, 72, 0);
+    box-shadow: 0 0 0 16px rgba(214, 31, 58, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0);
+    box-shadow: 0 0 0 0 rgba(214, 31, 58, 0);
   }
 }

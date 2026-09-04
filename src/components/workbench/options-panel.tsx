@@ -212,7 +212,7 @@ export function OptionsPanel({
                   "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5",
                   selected
                     ? "border-signal bg-signal/5"
-                    : "border-ink/10 bg-background/70",
+                    : "border-ink/10 bg-card",
                   disabled && "cursor-not-allowed opacity-60",
                 )}
               >
@@ -230,7 +230,7 @@ export function OptionsPanel({
                   <span className="text-sm font-medium text-ink">
                     {level.title}
                     {level.recommended ? (
-                      <span className="ml-2 text-xs font-semibold text-lagoon">
+                      <span className="ml-2 text-xs font-semibold text-signal">
                         Recommended
                       </span>
                     ) : null}
@@ -376,7 +376,7 @@ export function OptionsPanel({
             {pageOrder.map((page, index) => (
               <li
                 key={`${page}-${index}`}
-                className="flex flex-col gap-1.5 rounded-lg border border-ink/10 bg-background/70 p-2"
+                className="flex flex-col gap-1.5 rounded-lg border border-ink/10 bg-card p-2"
               >
                 <Thumbnail
                   state={

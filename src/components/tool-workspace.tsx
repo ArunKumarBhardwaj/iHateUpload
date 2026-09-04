@@ -373,11 +373,11 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const SourceIcon = tool.kind === "pdf" ? FileText : FileImage;
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="w-full">
       <div
         className={cn(
           // No `overflow-hidden` here: it would stop the action bar sticking.
-          "relative rounded-2xl border border-ink/8 bg-card p-5 shadow-[0_16px_40px_-28px_rgba(17,19,24,0.35)] sm:p-8",
+          "relative rounded-2xl border border-ink/10 bg-card p-5 shadow-[0_18px_40px_-24px_rgba(20,22,28,0.28)] sm:p-8",
           dragging && "border-signal ring-2 ring-signal/30",
         )}
         onDragEnter={(e) => {
@@ -427,7 +427,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
             <span className="flex size-16 items-center justify-center rounded-full bg-signal/10 text-signal">
               <Upload className="size-7" />
             </span>
-            <span className="inline-flex h-12 items-center rounded-xl bg-primary px-8 font-display text-base font-semibold text-primary-foreground">
+            <span className="inline-flex h-12 items-center rounded-xl bg-primary px-8 text-base font-semibold text-primary-foreground">
               {tool.multiple ? "Select files" : "Select a file"}
             </span>
             <span className="text-sm text-muted-foreground">
@@ -440,8 +440,8 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="min-w-0 space-y-5">
               {optionsInCanvas ? (
-                <div className="flex items-center gap-3 rounded-xl border border-ink/10 bg-background/70 px-3 py-2.5">
-                  <SourceIcon className="size-4 shrink-0 text-lagoon" />
+                <div className="flex items-center gap-3 rounded-xl border border-ink/10 bg-secondary px-3 py-2.5">
+                  <SourceIcon className="size-4 shrink-0 text-signal" />
                   <span
                     className="min-w-0 flex-1 truncate text-sm font-medium text-ink"
                     title={files[0]?.name}
@@ -498,10 +498,10 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
 
             <aside className="space-y-4 lg:border-l lg:border-ink/10 lg:pl-6">
               <div>
-                <h2 className="font-display text-lg font-semibold text-ink">
+                <h2 className="text-lg font-semibold text-ink">
                   {options.kind === "none" ? "Ready to run" : "Settings"}
                 </h2>
-                <div className="mt-2 space-y-2 rounded-lg border border-lagoon/20 bg-lagoon/5 px-3 py-2.5 text-sm text-muted-foreground">
+                <div className="mt-2 space-y-2 rounded-lg border border-ink/10 bg-secondary px-3 py-2.5 text-sm text-muted-foreground">
                   <p>{optionsHint(options, tool.actionLabel)}</p>
                   {largeJob && (
                     <p className="font-medium text-ink">

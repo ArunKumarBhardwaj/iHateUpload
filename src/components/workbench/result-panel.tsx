@@ -32,10 +32,10 @@ export function ResultPanel({
       <div
         role="status"
         aria-live="polite"
-        className="rounded-xl border border-lagoon/25 bg-lagoon/5 px-4 py-3"
+        className="rounded-xl border border-signal/20 bg-signal/5 px-4 py-3"
       >
-        <p className="flex items-center gap-2 font-display text-base font-semibold text-ink">
-          <Check className="size-4 text-lagoon" />
+        <p className="flex items-center gap-2 text-base font-semibold text-ink">
+          <Check className="size-4 text-signal" />
           {answer
             ? "Answer is ready"
             : results.length === 1
@@ -50,7 +50,7 @@ export function ResultPanel({
                 {formatBytes(delta.before)} → {formatBytes(delta.after)}{" "}
                 <span
                   className={
-                    delta.percent > 0 ? "font-medium text-lagoon" : undefined
+                    delta.percent > 0 ? "font-medium text-signal" : undefined
                   }
                 >
                   ({delta.percent > 0 ? "−" : "+"}
@@ -65,7 +65,7 @@ export function ResultPanel({
 
       {answer ? (
         <div className="rounded-2xl border border-ink/8 bg-background px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-lagoon">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal">
             Answer
           </p>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
@@ -78,7 +78,7 @@ export function ResultPanel({
         {results.map((result) => (
           <li
             key={result.id}
-            className="flex items-center gap-3 rounded-lg border border-ink/10 bg-background/70 px-3 py-2.5"
+            className="flex items-center gap-3 rounded-lg border border-ink/10 bg-card px-3 py-2.5"
           >
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-ink" title={result.name}>

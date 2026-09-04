@@ -1,5 +1,6 @@
-const CACHE = "ihateupload-static-v1";
-const STATIC = /\.(?:js|css|woff2?|mjs|png|svg|ico|webmanifest)$/;
+const CACHE = "ihateupload-static-v2";
+const IMMUTABLE = /\.(?:woff2?|png|svg|ico|webmanifest)$/;
+const CODE = /\.(?:js|css|mjs)$/;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
@@ -24,15 +25,34 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (request.mode === "navigate") return;
-  if (!STATIC.test(url.pathname)) return;
 
-  event.respondWith(
-    caches.open(CACHE).then(async (cache) => {
-      const cached = await cache.match(request);
-      if (cached) return cached;
-      const response = await fetch(request);
-      if (response.ok) cache.put(request, response.clone());
-      return response;
-    }),
-  );
+  if (CODE.test(url.pathname)) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  if (!IMMUTABLE.test(url.pathname)) return;
+  event.respondWith(cacheFirst(request));
 });
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE);
+  try {
+    const response = await fetch(request);
+    if (response.ok) await cache.put(request, response.clone());
+    return response;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw new Error("offline");
+  }
+}
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response.ok) await cache.put(request, response.clone());
+  return response;
+}

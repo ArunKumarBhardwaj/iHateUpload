@@ -63,7 +63,7 @@ export function Stepper({
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-medium",
               index === active && "bg-signal/10 text-signal",
-              index < active && "text-lagoon",
+              index < active && "text-ink",
               index > active && "text-muted-foreground/70",
             )}
           >

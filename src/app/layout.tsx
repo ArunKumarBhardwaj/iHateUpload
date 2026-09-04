@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Manrope, Syne } from "next/font/google";
+import { Geist } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -9,16 +9,9 @@ import { ServiceWorkerRegister } from "@/lib/sw-register";
 
 import "./globals.css";
 
-const display = Syne({
-  variable: "--font-display",
+const sans = Geist({
+  variable: "--font-geist",
   subsets: ["latin"],
-  weight: ["600", "700", "800"],
-});
-
-const body = Manrope({
-  variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -55,9 +48,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${display.variable} ${body.variable} h-full`}
+      className={`${sans.variable} ${sans.className} h-full`}
     >
-      <body className="relative flex min-h-full flex-col">
+      <body className="relative flex min-h-full flex-col font-sans">
         <SiteHeader />
         <main className="relative z-10 flex-1">{children}</main>
         <SiteFooter />

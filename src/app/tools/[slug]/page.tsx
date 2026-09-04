@@ -91,10 +91,10 @@ export default async function ToolPage({ params }: ToolPageProps) {
       />
 
       <div className="mb-6 max-w-2xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-lagoon">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-signal">
           Upload-free tool
         </p>
-        <h1 className="mt-2 font-display text-3xl font-bold leading-tight tracking-tight text-ink sm:text-4xl">
+        <h1 className="mt-2 text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-4xl">
           {tool.title}
         </h1>
         <p className="mt-2 text-base text-muted-foreground">
@@ -106,7 +106,7 @@ export default async function ToolPage({ params }: ToolPageProps) {
       <ToolWorkspace key={tool.id} tool={tool} />
 
       <section className="mt-12">
-        <h2 className="font-display text-2xl font-bold text-ink">
+        <h2 className="text-2xl font-semibold text-ink">
           How to {tool.title.toLowerCase()} online
         </h2>
         <ol className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -115,7 +115,7 @@ export default async function ToolPage({ params }: ToolPageProps) {
               key={step}
               className="rounded-2xl border border-ink/8 bg-card p-4"
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-lagoon">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal">
                 Step {index + 1}
               </p>
               <p className="mt-2 text-sm leading-relaxed text-ink">{step}</p>
@@ -129,7 +129,7 @@ export default async function ToolPage({ params }: ToolPageProps) {
 
       {related.length > 0 && (
         <section className="mt-12">
-          <h2 className="font-display text-2xl font-bold text-ink">
+          <h2 className="text-2xl font-semibold text-ink">
             Related {tool.kind === "pdf" ? "PDF" : "image"} tools
           </h2>
           <div className="mt-5">

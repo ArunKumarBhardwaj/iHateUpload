@@ -119,7 +119,7 @@ export function FileList({
           return (
           <li
             key={file.id}
-            className="flex flex-col gap-2 rounded-xl border border-ink/10 bg-background/70 p-2.5"
+            className="flex flex-col gap-2 rounded-xl border border-ink/10 bg-background p-2.5"
           >
             <Thumbnail
               state={preview.thumbnail}
