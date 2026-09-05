@@ -20,8 +20,8 @@ export function SiteFooter() {
               We refuse the upload.
             </p>
           </div>
-          <FooterCol title="PDF tools" tools={PDF_TOOLS.slice(0, 8)} />
           <FooterCol title="Image tools" tools={IMAGE_TOOLS} />
+          <FooterCol title="PDF tools" tools={PDF_TOOLS.slice(0, 8)} />
           <div>
             <p className="text-sm font-semibold tracking-tight text-ink">
               Company

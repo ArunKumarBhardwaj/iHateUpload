@@ -16,28 +16,28 @@ const SECTIONS: {
   tools: ToolDefinition[];
 }[] = [
   {
-    id: "pdf",
-    label: "PDF",
-    href: "/#pdf-tools",
-    tools: TOOLS.filter((tool) => tool.kind === "pdf"),
-  },
-  {
     id: "images",
     label: "Images",
     href: "/#image-tools",
     tools: TOOLS.filter((tool) => tool.kind === "image"),
   },
+  {
+    id: "pdf",
+    label: "PDF",
+    href: "/#pdf-tools",
+    tools: TOOLS.filter((tool) => tool.kind === "pdf"),
+  },
 ];
 
 const POPULAR_SEARCH = [
-  "merge-pdf",
-  "redact-pdf",
-  "compare-pdfs",
-  "sign-pdf",
-  "compress-pdf",
-  "pdf-to-jpg",
   "compress-image",
+  "image-to-pdf",
+  "pdf-to-jpg",
+  "merge-pdf",
   "heic-to-jpg",
+  "organize-pdf",
+  "resize-image",
+  "compress-pdf",
 ] as const;
 
 type OpenSection = "pdf" | "images" | null;
@@ -76,7 +76,7 @@ export function SiteHeader({ className }: { className?: string }) {
 
   const scheduleClose = () => {
     cancelClose();
-    closeTimer.current = window.setTimeout(() => setOpen(null), 80);
+    closeTimer.current = window.setTimeout(() => setOpen(null), 180);
   };
 
   useEffect(() => {
@@ -86,9 +86,7 @@ export function SiteHeader({ className }: { className?: string }) {
   useEffect(() => {
     if (open) {
       setShown(open);
-      const frame = window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => setEntered(true));
-      });
+      const frame = window.requestAnimationFrame(() => setEntered(true));
       return () => window.cancelAnimationFrame(frame);
     }
     setEntered(false);
@@ -130,7 +128,11 @@ export function SiteHeader({ className }: { className?: string }) {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-0.5 font-sans sm:flex">
+        <nav
+          className="hidden h-16 items-center gap-0.5 font-sans sm:flex"
+          onMouseEnter={fineHover ? cancelClose : undefined}
+          onMouseLeave={fineHover ? scheduleClose : undefined}
+        >
           {SECTIONS.map((section) => (
             <NavButton
               key={section.id}
@@ -138,7 +140,6 @@ export function SiteHeader({ className }: { className?: string }) {
               open={open === section.id}
               panelId={panelId}
               onHover={() => openSection(section.id)}
-              onLeave={fineHover ? scheduleClose : undefined}
               onToggle={() => openSection(section.id)}
             />
           ))}
@@ -171,10 +172,10 @@ export function SiteHeader({ className }: { className?: string }) {
           id={panelId}
           role="menu"
           className={cn(
-            "grid bg-background transition-[grid-template-rows,opacity,box-shadow] duration-150 ease-out motion-reduce:transition-none",
+            "absolute inset-x-0 top-full border-t border-ink/10 bg-background shadow-[0_16px_32px_-14px_rgba(20,22,28,0.22)] transition-[opacity,transform] duration-150 ease-out motion-reduce:transition-none",
             entered
-              ? "grid-rows-[1fr] opacity-100 shadow-[0_16px_32px_-14px_rgba(20,22,28,0.22)]"
-              : "grid-rows-[0fr] opacity-0 shadow-none",
+              ? "translate-y-0 opacity-100"
+              : "pointer-events-none -translate-y-1 opacity-0",
           )}
           onMouseEnter={
             fineHover
@@ -190,13 +191,7 @@ export function SiteHeader({ className }: { className?: string }) {
             if (!open) setShown(null);
           }}
         >
-          <div className="min-h-0 overflow-hidden">
-          <div
-            className={cn(
-              "mx-auto max-w-[90rem] border-t border-ink/10 px-6 py-5 transition-transform duration-150 ease-out motion-reduce:transition-none",
-              entered ? "translate-y-0" : "-translate-y-1.5",
-            )}
-          >
+          <div className="mx-auto max-w-[90rem] px-6 py-5">
             <div className="mb-4 flex items-baseline justify-between gap-2">
               <p className="font-sans text-sm font-semibold tracking-tight text-ink">
                 {active.label} tools
@@ -230,7 +225,6 @@ export function SiteHeader({ className }: { className?: string }) {
               ))}
             </div>
           </div>
-          </div>
         </div>
       )}
     </header>
@@ -243,7 +237,6 @@ function NavButton({
   panelId,
   className,
   onHover,
-  onLeave,
   onToggle,
 }: {
   section: (typeof SECTIONS)[number];
@@ -251,7 +244,6 @@ function NavButton({
   panelId: string;
   className?: string;
   onHover?: () => void;
-  onLeave?: () => void;
   onToggle: () => void;
 }) {
   return (
@@ -267,7 +259,6 @@ function NavButton({
       aria-expanded={open}
       aria-controls={panelId}
       onMouseEnter={onHover}
-      onMouseLeave={onLeave}
       onClick={onToggle}
     >
       {section.label}
@@ -277,12 +268,6 @@ function NavButton({
           open ? "rotate-180 text-white/70" : "text-ink/35",
         )}
       />
-      {open && onLeave ? (
-        <span
-          aria-hidden
-          className="pointer-events-auto absolute inset-x-0 top-full h-8"
-        />
-      ) : null}
     </button>
   );
 }
