@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import type { PageBox } from "@/lib/tool-options";
+import type { RatioBox } from "@/lib/tool-options";
 import { cn } from "@/lib/utils";
 
 type DragKind = "move" | "se";
@@ -15,8 +15,8 @@ export function ImageCropOverlay({
   label,
 }: {
   file: File;
-  box: PageBox;
-  onBox: (box: PageBox) => void;
+  box: RatioBox;
+  onBox: (box: RatioBox) => void;
   disabled: boolean;
   label: string;
 }) {
@@ -25,7 +25,7 @@ export function ImageCropOverlay({
     kind: DragKind;
     startX: number;
     startY: number;
-    origin: PageBox;
+    origin: RatioBox;
   } | null>(null);
   const [url, setUrl] = useState<string | null>(null);
 

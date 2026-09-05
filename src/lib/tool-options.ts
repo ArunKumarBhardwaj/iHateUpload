@@ -4,13 +4,16 @@ export type CompressLevel = "light" | "medium" | "heavy";
 
 export type SignMode = "draw" | "type" | "image";
 
-/** Ratios of the page box. Origin is top-left in the UI; processors flip Y. */
-export type PageBox = {
-  pageIndex: number;
+export type RatioBox = {
   x: number;
   y: number;
   w: number;
   h: number;
+};
+
+/** Ratios of the page box. Origin is top-left in the UI; processors flip Y. */
+export type PageBox = RatioBox & {
+  pageIndex: number;
 };
 
 export type AnnotatePosition =
@@ -58,7 +61,7 @@ export type ToolOptions =
   | { kind: "ocr"; language: string }
   | { kind: "ask"; question: string }
   | { kind: "scan" }
-  | { kind: "image-crop"; box: PageBox }
+  | { kind: "image-crop"; box: RatioBox }
   | {
       kind: "image-turn";
       degrees: 0 | 90 | 180 | 270;
@@ -75,12 +78,16 @@ export const DEFAULT_PAGE_BOX: PageBox = {
   h: 0.16,
 };
 
-export const DEFAULT_CROP_BOX: PageBox = {
-  pageIndex: 0,
+export const DEFAULT_RATIO_BOX: RatioBox = {
   x: 0.08,
   y: 0.08,
   w: 0.84,
   h: 0.84,
+};
+
+export const DEFAULT_CROP_BOX: PageBox = {
+  pageIndex: 0,
+  ...DEFAULT_RATIO_BOX,
 };
 
 export const ANNOTATE_POSITIONS: {
@@ -261,7 +268,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "scan":
       return { kind: "scan" };
     case "image-crop":
-      return { kind: "image-crop", box: { ...DEFAULT_CROP_BOX } };
+      return { kind: "image-crop", box: { ...DEFAULT_RATIO_BOX } };
     case "image-turn":
       return { kind: "image-turn", degrees: 90, flipH: false, flipV: false };
     case "target-kb":

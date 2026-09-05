@@ -488,21 +488,23 @@ export async function processCropImage(
   }
 
   const source = await drawFileToCanvas(item.file);
-  const sx = Math.round(options.box.x * source.width);
-  const sy = Math.round(options.box.y * source.height);
-  const sw = Math.max(1, Math.round(options.box.w * source.width));
-  const sh = Math.max(1, Math.round(options.box.h * source.height));
   const cropped = document.createElement("canvas");
-  cropped.width = sw;
-  cropped.height = sh;
-  const ctx = cropped.getContext("2d");
-  if (!ctx) {
-    releaseCanvas(source);
+  try {
+    const sx = Math.round(options.box.x * source.width);
+    const sy = Math.round(options.box.y * source.height);
+    const sw = Math.max(1, Math.round(options.box.w * source.width));
+    const sh = Math.max(1, Math.round(options.box.h * source.height));
+    cropped.width = sw;
+    cropped.height = sh;
+    const ctx = cropped.getContext("2d");
+    if (!ctx) throw new Error("Canvas is not available in this browser.");
+    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+  } catch (error) {
     releaseCanvas(cropped);
-    throw new Error("Canvas is not available in this browser.");
+    throw error;
+  } finally {
+    releaseCanvas(source);
   }
-  ctx.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
-  releaseCanvas(source);
 
   const kind = imageOutKind(item.file);
   const blob = await canvasToKindBlob(cropped, kind);
@@ -539,19 +541,21 @@ export async function processRotateImage(
     const item = files[i];
     const source = await drawFileToCanvas(item.file);
     const out = document.createElement("canvas");
-    out.width = swap ? source.height : source.width;
-    out.height = swap ? source.width : source.height;
-    const ctx = out.getContext("2d");
-    if (!ctx) {
-      releaseCanvas(source);
+    try {
+      out.width = swap ? source.height : source.width;
+      out.height = swap ? source.width : source.height;
+      const ctx = out.getContext("2d");
+      if (!ctx) throw new Error("Canvas is not available in this browser.");
+      ctx.translate(out.width / 2, out.height / 2);
+      ctx.rotate(rad);
+      ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+      ctx.drawImage(source, -source.width / 2, -source.height / 2);
+    } catch (error) {
       releaseCanvas(out);
-      throw new Error("Canvas is not available in this browser.");
+      throw error;
+    } finally {
+      releaseCanvas(source);
     }
-    ctx.translate(out.width / 2, out.height / 2);
-    ctx.rotate(rad);
-    ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
-    ctx.drawImage(source, -source.width / 2, -source.height / 2);
-    releaseCanvas(source);
 
     const kind = imageOutKind(item.file);
     const blob = await canvasToKindBlob(out, kind);
@@ -589,40 +593,34 @@ export async function processCompressToSize(
       item.file.type === "image/jpeg" ||
       item.name.toLowerCase().endsWith(".jpg") ||
       item.name.toLowerCase().endsWith(".jpeg");
-    if (alreadyJpeg && item.size <= maxBytes) {
-      results.push({
-        id: item.id,
-        name: replaceExt(item.name, "jpg"),
-        size: item.size,
-        blob: item.file,
-        originalSize: item.size,
-      });
-      onProgress((i + 1) / files.length);
-      continue;
-    }
-
-    const bitmap = await createImageBitmap(item.file);
-    let maxEdge = Math.max(bitmap.width, bitmap.height);
-    bitmap.close();
-
     let blob: Blob | null = null;
-    while (maxEdge >= 32) {
-      const canvas = await drawFileToCanvas(item.file, {
-        maxEdge,
-        fillWhite: true,
-      });
-      try {
-        blob = await bestJpegUnder(canvas, maxBytes);
-      } finally {
-        releaseCanvas(canvas);
+    let name = `${item.name.replace(/\.[^.]+$/, "")}-${options.maxKb}kb.jpg`;
+    if (alreadyJpeg && item.size <= maxBytes) {
+      blob = item.file;
+      name = replaceExt(item.name, "jpg");
+    } else {
+      const bitmap = await createImageBitmap(item.file);
+      let maxEdge = Math.max(bitmap.width, bitmap.height);
+      bitmap.close();
+
+      while (maxEdge >= 32) {
+        const canvas = await drawFileToCanvas(item.file, {
+          maxEdge,
+          fillWhite: true,
+        });
+        try {
+          blob = await bestJpegUnder(canvas, maxBytes);
+        } finally {
+          releaseCanvas(canvas);
+        }
+        if (blob) break;
+        const next = Math.floor(maxEdge * 0.72);
+        if (next >= maxEdge) break;
+        maxEdge = next;
       }
-      if (blob) break;
-      const next = Math.floor(maxEdge * 0.72);
-      if (next >= maxEdge) break;
-      maxEdge = next;
     }
 
-    if (!blob) {
+    if (!blob || blob.size > maxBytes) {
       throw new Error(
         `Could not get ${item.name} under ${options.maxKb} KB.`,
       );
@@ -630,7 +628,7 @@ export async function processCompressToSize(
 
     results.push({
       id: item.id,
-      name: `${item.name.replace(/\.[^.]+$/, "")}-${options.maxKb}kb.jpg`,
+      name,
       size: blob.size,
       blob,
       originalSize: item.size,
