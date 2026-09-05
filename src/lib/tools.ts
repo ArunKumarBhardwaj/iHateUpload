@@ -12,6 +12,7 @@ export type ToolId =
   | "sign-pdf"
   | "crop-pdf"
   | "redact-pdf"
+  | "compare-pdfs"
   | "watermark-pdf"
   | "page-numbers"
   | "flatten-pdf"
@@ -59,6 +60,7 @@ export type ToolDefinition = {
     | "sign"
     | "crop"
     | "redact"
+    | "compare"
     | "watermark"
     | "page-numbers"
     | "ocr"
@@ -387,6 +389,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "redact",
+  },
+  {
+    id: "compare-pdfs",
+    slug: "compare-pdfs",
+    title: "Compare PDFs",
+    shortTitle: "Compare PDFs",
+    description:
+      "Put two PDFs side by side and read a text-line diff. Stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: true,
+    actionLabel: "Compare PDFs",
+    seoTitle: "Compare PDFs Online Free — No Upload",
+    seoDescription:
+      "Compare two PDFs online free. Synced page previews and a text diff in your browser — no upload.",
+    seoHowTo: [
+      "Choose the two PDFs to compare. First file is the left side.",
+      "Flip pages together, then run the text diff.",
+      "Download the line diff. The files never left this tab.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "compare",
   },
   {
     id: "watermark-pdf",

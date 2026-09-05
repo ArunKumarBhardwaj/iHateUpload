@@ -35,6 +35,7 @@ export type ToolOptions =
   | { kind: "sign"; mode: SignMode; text: string; dataUrl: string; box: PageBox }
   | { kind: "crop"; box: PageBox }
   | { kind: "redact"; boxes: PageBox[] }
+  | { kind: "compare"; pageIndex: number }
   | {
       kind: "annotate";
       variant: "watermark" | "numbers";
@@ -193,6 +194,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "crop", box: { ...DEFAULT_CROP_BOX } };
     case "redact":
       return { kind: "redact", boxes: [] };
+    case "compare":
+      return { kind: "compare", pageIndex: 0 };
     case "watermark":
       return {
         kind: "annotate",
@@ -232,6 +235,7 @@ export function optionsReady(
     case "compress":
     case "crop":
     case "ocr":
+    case "compare":
       return true;
     case "password":
       return options.password.trim().length > 0;

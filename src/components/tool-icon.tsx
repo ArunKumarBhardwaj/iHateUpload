@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Columns2,
   Crop,
   Eraser,
   FileImage,
@@ -63,6 +64,8 @@ function visual(id: ToolId): { Icon: LucideIcon; tone: Tone } {
       return { Icon: Crop, tone: "amber" };
     case "redact-pdf":
       return { Icon: Highlighter, tone: "rose" };
+    case "compare-pdfs":
+      return { Icon: Columns2, tone: "indigo" };
     case "watermark-pdf":
       return { Icon: Stamp, tone: "violet" };
     case "page-numbers":

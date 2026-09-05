@@ -12,6 +12,7 @@ import {
   optionsNeedCanvas,
 } from "@/components/workbench/options-panel";
 import { PageOverlay } from "@/components/workbench/page-overlay";
+import { ComparePreview } from "@/components/workbench/compare-preview";
 import { RedactOverlay } from "@/components/workbench/redact-overlay";
 import { ResultPanel } from "@/components/workbench/result-panel";
 import { Stepper } from "@/components/workbench/stepper";
@@ -42,6 +43,7 @@ import {
   processFlattenPdf,
   processOcrPdf,
   processPngToPdf,
+  processComparePdfs,
   processRedactPdf,
   processSignPdf,
   processStripMetadata,
@@ -66,6 +68,7 @@ import {
   processUnlockPdf,
   processWebpToJpg,
 } from "@/lib/processors";
+import type { FileFacts } from "@/lib/preview";
 import { useFilePreviews, usePagePreviews } from "@/lib/use-previews";
 import { cn, downloadBlob, formatBytes } from "@/lib/utils";
 
@@ -116,6 +119,8 @@ async function runTool(
       return processCropPdf(files, onProgress, options);
     case "redact-pdf":
       return processRedactPdf(files, onProgress, options);
+    case "compare-pdfs":
+      return processComparePdfs(files, onProgress, options);
     case "watermark-pdf":
     case "page-numbers":
       return processAnnotatePdf(files, onProgress, options);
@@ -143,7 +148,7 @@ function downloadLabel(results: ResultItem[]) {
   if (type.includes("png")) return "Download PNG";
   if (type.includes("jpeg") || type.includes("jpg")) return "Download JPG";
   if (type.includes("zip")) return "Download zip";
-  if (type.includes("text")) return "Download answer";
+  if (type.includes("text")) return "Download text";
   return "Download file";
 }
 
@@ -161,7 +166,7 @@ function jobAnnouncement(job: JobState): string {
       return `Working locally, ${job.progress} percent.`;
     case "done":
       return job.results.some((result) => result.previewText)
-        ? "The answer is ready."
+        ? "The text is ready."
         : job.results.length === 1
           ? "1 file is ready to download."
           : `${job.results.length} files are ready to download.`;
@@ -183,6 +188,10 @@ async function downloadAllResults(results: ResultItem[]) {
 
 /** Stable identity so the preview hook does not restart on every render. */
 const NO_FILES: FileItem[] = [];
+
+function pdfPageCount(facts: FileFacts | null | undefined) {
+  return facts?.kind === "pdf" ? facts.pages : 0;
+}
 
 export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const router = useRouter();
@@ -268,17 +277,21 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const settled = job.status === "ready" || job.status === "error";
   const locked = busy || job.status === "done";
   const reorderable = tool.ordered && tool.multiple;
-  const enoughFiles = tool.id !== "merge-pdf" || files.length >= 2;
+  const needsPair = tool.id === "merge-pdf" || tool.id === "compare-pdfs";
+  const enoughFiles = !needsPair || files.length >= 2;
   const canProcess =
     settled && enoughFiles && optionsReady(options, confirmPassword);
 
   const process = useCallback(async () => {
     if (job.status !== "ready" && job.status !== "error") return;
     const current = job.files;
-    if (tool.id === "merge-pdf" && current.length < 2) {
+    if (needsPair && current.length < 2) {
       setJob({
         status: "error",
-        message: "Add at least two PDF files to merge.",
+        message:
+          tool.id === "compare-pdfs"
+            ? "Add two PDFs to compare."
+            : "Add at least two PDF files to merge.",
         files: current,
       });
       return;
@@ -305,7 +318,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
           : "Something went wrong while processing.";
       setJob({ status: "error", message, files: current });
     }
-  }, [job, tool.id, options]);
+  }, [job, tool.id, options, needsPair]);
 
   const reset = () => {
     setJob(idleJob());
@@ -483,6 +496,19 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   }
                 />
               )}
+              {options.kind === "compare" && files[0] && files[1] ? (
+                <ComparePreview
+                  left={files[0].file}
+                  right={files[1].file}
+                  leftPages={pdfPageCount(previews.get(files[0].id)?.facts)}
+                  rightPages={pdfPageCount(previews.get(files[1].id)?.facts)}
+                  pageIndex={options.pageIndex}
+                  onPageIndex={(pageIndex) =>
+                    setOptions({ ...options, pageIndex })
+                  }
+                  disabled={locked}
+                />
+              ) : null}
               {overlayFile && options.kind === "sign" ? (
                 <PageOverlay
                   file={overlayFile}

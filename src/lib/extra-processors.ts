@@ -8,6 +8,7 @@ import {
 import type { FileItem, ResultItem } from "@/lib/job";
 import { loadPdfJs } from "@/lib/pdfjs";
 import { extractPdfText } from "@/lib/pdf-text";
+import { lineDiff } from "@/lib/text-diff";
 import {
   processImageToPdf,
   pdfBlob,
@@ -573,6 +574,44 @@ export async function processExcelToPdf(
     onProgress((i + 1) / files.length);
   }
   return results;
+}
+
+async function pdfTextOrEmpty(file: File) {
+  try {
+    return await extractPdfText(file);
+  } catch {
+    return "";
+  }
+}
+
+export async function processComparePdfs(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "compare") throw new Error("Compare PDFs needs two files.");
+  const left = files[0];
+  const right = files[1];
+  if (!left || !right) throw new Error("Add two PDFs to compare.");
+  onProgress(0.2);
+  const leftText = await pdfTextOrEmpty(left.file);
+  onProgress(0.5);
+  const rightText = await pdfTextOrEmpty(right.file);
+  if (!leftText && !rightText) {
+    throw new Error(
+      "Neither PDF has selectable text. Run OCR PDF first if they are scans.",
+    );
+  }
+  const header = `--- ${left.name}\n+++ ${right.name}\n`;
+  const diff = `${header}${lineDiff(leftText, rightText)}`;
+  onProgress(0.9);
+  const blob = new Blob([diff], { type: "text/plain" });
+  onProgress(1);
+  return [
+    resultFrom(left, blob, "compare-diff.txt", left.size + right.size, {
+      previewText: diff,
+    }),
+  ];
 }
 
 export async function processAskPdf(

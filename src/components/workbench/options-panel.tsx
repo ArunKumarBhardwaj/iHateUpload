@@ -83,6 +83,8 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Drag the box to the area every page should keep.";
     case "redact":
       return "Draw boxes over the text. Those pixels are burned out, not covered.";
+    case "compare":
+      return "Add two PDFs. First is the left file. The text diff is the result.";
     case "annotate":
       return options.variant === "numbers"
         ? "Pick where the page numbers sit."
@@ -469,6 +471,13 @@ export function OptionsPanel({
           {options.boxes.length === 0
             ? "Drag on the page to cover text. Those pixels are destroyed."
             : `${options.boxes.length} box${options.boxes.length === 1 ? "" : "es"} will be burned out.`}
+        </p>
+      );
+
+    case "compare":
+      return (
+        <p className="text-sm text-muted-foreground">
+          Pages stay in lockstep. Compare writes a line diff of the selectable text.
         </p>
       );
 

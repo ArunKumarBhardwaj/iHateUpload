@@ -37,14 +37,14 @@ export function ResultPanel({
         <p className="flex items-center gap-2 text-base font-semibold text-ink">
           <Check className="size-4 text-signal" />
           {answer
-            ? "Answer is ready"
+            ? "Text is ready"
             : results.length === 1
               ? "1 file is ready"
               : `${results.length} files are ready`}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
           {answer
-            ? "The PDF stayed in this tab. Only extracted text was sent."
+            ? "Built on this device. Nothing was uploaded."
             : delta ? (
               <>
                 {formatBytes(delta.before)} → {formatBytes(delta.after)}{" "}
@@ -66,7 +66,7 @@ export function ResultPanel({
       {answer ? (
         <div className="rounded-2xl border border-ink/8 bg-background px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal">
-            Answer
+            Text
           </p>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
             {answer}
