@@ -139,7 +139,14 @@ function visual(id: ToolId): { Icon: LucideIcon; tone: Tone } {
     case "webp-to-jpg":
     case "png-to-jpg":
     case "jpg-to-png":
+    case "jpg-to-webp":
       return { Icon: Image, tone: "rose" };
+    case "crop-image":
+      return { Icon: Crop, tone: "amber" };
+    case "rotate-image":
+      return { Icon: RotateCw, tone: "amber" };
+    case "compress-to-size":
+      return { Icon: Minimize2, tone: "teal" };
   }
 }
 

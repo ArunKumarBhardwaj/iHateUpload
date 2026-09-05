@@ -42,12 +42,16 @@ const CONTINUE_MAP: Partial<Record<ToolId, ToolId[]>> = {
   "strip-metadata": ["protect-pdf", "compress-pdf"],
   "heic-to-jpg": ["compress-image", "resize-image", "image-to-pdf"],
   "heic-to-pdf": ["compress-pdf", "protect-pdf", "merge-pdf"],
-  "compress-image": ["resize-image", "image-to-pdf"],
-  "resize-image": ["compress-image", "image-to-pdf"],
+  "compress-image": ["resize-image", "crop-image", "image-to-pdf"],
+  "resize-image": ["compress-image", "crop-image", "image-to-pdf"],
   "pdf-to-jpg": ["compress-image", "resize-image"],
   "webp-to-jpg": ["compress-image", "resize-image", "image-to-pdf"],
   "png-to-jpg": ["compress-image", "resize-image", "image-to-pdf"],
   "jpg-to-png": ["compress-image", "resize-image", "image-to-pdf"],
+  "jpg-to-webp": ["compress-image", "resize-image", "image-to-pdf"],
+  "crop-image": ["compress-image", "rotate-image", "image-to-pdf"],
+  "rotate-image": ["crop-image", "compress-image", "image-to-pdf"],
+  "compress-to-size": ["image-to-pdf", "resize-image"],
   "split-pdf": ["merge-pdf", "compress-pdf"],
 };
 

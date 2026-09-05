@@ -37,6 +37,8 @@ const POPULAR_SEARCH = [
   "heic-to-jpg",
   "organize-pdf",
   "resize-image",
+  "compress-to-size",
+  "crop-image",
   "compress-pdf",
 ] as const;
 
