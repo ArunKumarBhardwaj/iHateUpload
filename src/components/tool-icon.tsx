@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowDownUp,
+  Camera,
   Columns2,
   Contrast,
   Crop,
@@ -8,6 +9,8 @@ import {
   FileImage,
   FileOutput,
   FilePlus,
+  FileCode,
+  FileSpreadsheet,
   FileType,
   FileX,
   Hash,
@@ -110,6 +113,16 @@ function visual(id: ToolId): { Icon: LucideIcon; tone: Tone } {
       return { Icon: FileType, tone: "indigo" };
     case "excel-to-pdf":
       return { Icon: Table, tone: "teal" };
+    case "pptx-to-pdf":
+      return { Icon: LayoutGrid, tone: "amber" };
+    case "markdown-to-pdf":
+      return { Icon: FileCode, tone: "indigo" };
+    case "csv-to-pdf":
+      return { Icon: FileSpreadsheet, tone: "teal" };
+    case "html-to-pdf":
+      return { Icon: FileCode, tone: "rose" };
+    case "scan-to-pdf":
+      return { Icon: Camera, tone: "violet" };
     case "pdf-to-jpg":
       return { Icon: Image, tone: "amber" };
     case "png-to-pdf":

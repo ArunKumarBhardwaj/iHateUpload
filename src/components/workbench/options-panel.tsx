@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { ArrowDown, ArrowUp, FileText, RotateCcw, X } from "lucide-react";
 
+import { ScanCapture } from "@/components/workbench/scan-capture";
 import { Thumbnail } from "@/components/workbench/thumbnail";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,6 +104,8 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "This is slow. Tesseract reads each page on this device.";
     case "ask":
       return "The PDF stays here. Only extracted text is sent with your question.";
+    case "scan":
+      return "Use the camera or drop a photo. Each capture becomes a page.";
   }
 }
 
@@ -119,6 +122,7 @@ export function OptionsPanel({
   pageCount,
   disabled,
   estimateLabel,
+  onAddFiles,
 }: {
   options: ToolOptions;
   onOptions: (next: ToolOptions) => void;
@@ -128,6 +132,7 @@ export function OptionsPanel({
   pageCount: number;
   disabled: boolean;
   estimateLabel?: string;
+  onAddFiles?: (files: File[]) => void;
 }) {
   switch (options.kind) {
     case "none":
@@ -778,6 +783,13 @@ export function OptionsPanel({
         </div>
       );
     }
+    case "scan":
+      return (
+        <ScanCapture
+          disabled={disabled}
+          onCapture={(file) => onAddFiles?.([file])}
+        />
+      );
   }
 }
 

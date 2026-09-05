@@ -39,7 +39,12 @@ import {
   processAnnotatePdf,
   processAskPdf,
   processCropPdf,
+  processCsvToPdf,
   processExcelToPdf,
+  processHtmlToPdf,
+  processMarkdownToPdf,
+  processPptxToPdf,
+  processScanToPdf,
   processFlattenPdf,
   processOcrPdf,
   processPngToPdf,
@@ -164,6 +169,16 @@ async function runTool(
       return processWordToPdf(files, onProgress);
     case "excel-to-pdf":
       return processExcelToPdf(files, onProgress);
+    case "pptx-to-pdf":
+      return processPptxToPdf(files, onProgress);
+    case "markdown-to-pdf":
+      return processMarkdownToPdf(files, onProgress);
+    case "csv-to-pdf":
+      return processCsvToPdf(files, onProgress);
+    case "html-to-pdf":
+      return processHtmlToPdf(files, onProgress);
+    case "scan-to-pdf":
+      return processScanToPdf(files, onProgress);
     case "strip-metadata":
       return processStripMetadata(files, onProgress);
     case "ask-pdf":
@@ -187,6 +202,11 @@ function dropLabel(tool: ToolDefinition) {
   if (tool.accept.includes("xlsx") || tool.accept.includes(".xls")) {
     return "spreadsheets";
   }
+  if (tool.accept.includes("pptx")) return "PowerPoint files";
+  if (tool.accept.includes(".md")) return "Markdown files";
+  if (tool.accept.includes(".csv")) return "CSV files";
+  if (tool.accept.includes(".html")) return "HTML files";
+  if (tool.id === "scan-to-pdf") return "photos";
   return tool.kind === "pdf" ? "PDFs" : "images";
 }
 
@@ -419,6 +439,10 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       pageCount={pageCount}
       disabled={locked}
       estimateLabel={estimateLabel}
+      onAddFiles={(next) => {
+        const items = createFileItems(next);
+        setFiles(tool.multiple ? [...files, ...items] : items.slice(0, 1));
+      }}
     />
   );
 
@@ -471,21 +495,35 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
         />
 
         {job.status === "idle" && (
-          <button
-            type="button"
-            className="flex w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-ink/15 bg-background px-4 py-16 text-center transition-colors hover:border-signal/40 hover:bg-signal/[0.03] sm:py-20"
-            onClick={() => inputRef.current?.click()}
+          <div
+            className={
+              options.kind === "scan"
+                ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]"
+                : undefined
+            }
           >
-            <span className="flex size-16 items-center justify-center rounded-full bg-signal/10 text-signal">
-              <Upload className="size-7" />
-            </span>
-            <span className="inline-flex h-12 items-center rounded-xl bg-primary px-8 text-base font-semibold text-primary-foreground">
-              {tool.multiple ? "Select files" : "Select a file"}
-            </span>
-            <span className="text-sm text-muted-foreground">
-              or drop {dropLabel(tool)} here
-            </span>
-          </button>
+            <button
+              type="button"
+              className="flex w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-ink/15 bg-background px-4 py-16 text-center transition-colors hover:border-signal/40 hover:bg-signal/[0.03] sm:py-20"
+              onClick={() => inputRef.current?.click()}
+            >
+              <span className="flex size-16 items-center justify-center rounded-full bg-signal/10 text-signal">
+                <Upload className="size-7" />
+              </span>
+              <span className="inline-flex h-12 items-center rounded-xl bg-primary px-8 text-base font-semibold text-primary-foreground">
+                {tool.multiple ? "Select files" : "Select a file"}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                or drop {dropLabel(tool)} here
+              </span>
+            </button>
+            {options.kind === "scan" ? (
+              <aside className="space-y-4 lg:border-l lg:border-ink/10 lg:pl-6">
+                <h2 className="text-lg font-semibold text-ink">Camera</h2>
+                {optionsPanel}
+              </aside>
+            ) : null}
+          </div>
         )}
 
         {(settled || busy) && (
