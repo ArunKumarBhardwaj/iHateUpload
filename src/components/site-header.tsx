@@ -31,6 +31,7 @@ const SECTIONS: {
 
 const POPULAR_SEARCH = [
   "merge-pdf",
+  "redact-pdf",
   "sign-pdf",
   "compress-pdf",
   "pdf-to-jpg",

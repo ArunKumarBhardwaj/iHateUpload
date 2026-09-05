@@ -16,6 +16,7 @@ import {
 import {
   pageBoxToPdf,
   type AnnotatePosition,
+  type PageBox,
   type ToolOptions,
 } from "@/lib/tool-options";
 
@@ -120,6 +121,100 @@ export async function processSignPdf(
       item,
       blob,
       replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-signed.pdf"),
+      item.size,
+    ),
+  ];
+}
+
+export async function processRedactPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "redact") throw new Error("Redact PDF needs boxes.");
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to redact.");
+  const boxes = options.boxes.filter((box) => box.w > 0.04 && box.h > 0.04);
+  if (boxes.length === 0) throw new Error("Draw at least one redaction box.");
+
+  const source = await loadPdf(item.file);
+  const out = await PDFDocument.create();
+  const boxed = new Map<number, PageBox[]>();
+  for (const box of boxes) {
+    const list = boxed.get(box.pageIndex) ?? [];
+    list.push(box);
+    boxed.set(box.pageIndex, list);
+  }
+
+  const { getDocument } = await loadPdfJs();
+  const data = new Uint8Array(await item.file.arrayBuffer());
+  const src = boxed.size > 0 ? await getDocument({ data: data.slice() }).promise : null;
+  try {
+    const pageCount = source.getPageCount();
+    for (let index = 0; index < pageCount; index++) {
+      const marks = boxed.get(index);
+      if (!marks || marks.length === 0) {
+        const [copied] = await out.copyPages(source, [index]);
+        out.addPage(copied);
+      } else {
+        if (!src) throw new Error("Could not read the PDF page.");
+        const page = await src.getPage(index + 1);
+        const viewport = page.getViewport({ scale: 1.6 });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.floor(viewport.width));
+        canvas.height = Math.max(1, Math.floor(viewport.height));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas is not available in this browser.");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+        // UI origin is top-left. pageBoxToPdf flips Y for pdf-lib; canvas does not.
+        ctx.fillStyle = "#000000";
+        for (const box of marks) {
+          ctx.fillRect(
+            box.x * canvas.width,
+            box.y * canvas.height,
+            box.w * canvas.width,
+            box.h * canvas.height,
+          );
+        }
+        const jpeg = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob(
+            (blob) =>
+              blob
+                ? resolve(blob)
+                : reject(new Error("Could not encode the page.")),
+            "image/jpeg",
+            0.82,
+          );
+        });
+        canvas.width = 0;
+        canvas.height = 0;
+        page.cleanup();
+        const image = await out.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
+        const size = source.getPage(index).getSize();
+        const pdfPage = out.addPage([size.width, size.height]);
+        pdfPage.drawImage(image, {
+          x: 0,
+          y: 0,
+          width: size.width,
+          height: size.height,
+        });
+      }
+      onProgress((index + 1) / pageCount);
+    }
+  } finally {
+    if (src) await src.loadingTask.destroy();
+  }
+
+  stripPdfMetadata(out);
+  const blob = pdfBlob(await out.save({ useObjectStreams: true }));
+  onProgress(1);
+  return [
+    resultFrom(
+      item,
+      blob,
+      replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-redacted.pdf"),
       item.size,
     ),
   ];

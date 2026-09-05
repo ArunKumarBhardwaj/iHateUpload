@@ -19,6 +19,7 @@ export const metadata: Metadata = {
 
 const POPULAR: ToolId[] = [
   "merge-pdf",
+  "redact-pdf",
   "sign-pdf",
   "crop-pdf",
   "compress-pdf",

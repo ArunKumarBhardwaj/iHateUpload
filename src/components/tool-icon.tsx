@@ -6,6 +6,7 @@ import {
   FileOutput,
   FileType,
   Hash,
+  Highlighter,
   Image,
   Images,
   Layers,
@@ -60,6 +61,8 @@ function visual(id: ToolId): { Icon: LucideIcon; tone: Tone } {
       return { Icon: PenLine, tone: "rose" };
     case "crop-pdf":
       return { Icon: Crop, tone: "amber" };
+    case "redact-pdf":
+      return { Icon: Highlighter, tone: "rose" };
     case "watermark-pdf":
       return { Icon: Stamp, tone: "violet" };
     case "page-numbers":

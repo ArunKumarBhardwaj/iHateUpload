@@ -34,6 +34,7 @@ export type ToolOptions =
   | { kind: "extract"; range: string; pageCount: number }
   | { kind: "sign"; mode: SignMode; text: string; dataUrl: string; box: PageBox }
   | { kind: "crop"; box: PageBox }
+  | { kind: "redact"; boxes: PageBox[] }
   | {
       kind: "annotate";
       variant: "watermark" | "numbers";
@@ -190,6 +191,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       };
     case "crop":
       return { kind: "crop", box: { ...DEFAULT_CROP_BOX } };
+    case "redact":
+      return { kind: "redact", boxes: [] };
     case "watermark":
       return {
         kind: "annotate",
@@ -254,6 +257,8 @@ export function optionsReady(
           : options.dataUrl.startsWith("data:");
       return ink && options.box.w > 0.04 && options.box.h > 0.04;
     }
+    case "redact":
+      return options.boxes.some((box) => box.w > 0.04 && box.h > 0.04);
     case "annotate":
       return options.variant === "numbers" || options.text.trim().length > 0;
     case "ask":

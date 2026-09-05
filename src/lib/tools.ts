@@ -11,6 +11,7 @@ export type ToolId =
   | "organize-pdf"
   | "sign-pdf"
   | "crop-pdf"
+  | "redact-pdf"
   | "watermark-pdf"
   | "page-numbers"
   | "flatten-pdf"
@@ -57,6 +58,7 @@ export type ToolDefinition = {
     | "extract"
     | "sign"
     | "crop"
+    | "redact"
     | "watermark"
     | "page-numbers"
     | "ocr"
@@ -362,6 +364,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "crop",
+  },
+  {
+    id: "redact-pdf",
+    slug: "redact-pdf",
+    title: "Redact PDF",
+    shortTitle: "Redact PDF",
+    description:
+      "Black out text and images. The covered pixels are destroyed in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Redact PDF",
+    seoTitle: "Redact PDF Online Free — No Upload",
+    seoDescription:
+      "Redact a PDF online free. Draw boxes that destroy the pixels in your browser — no upload.",
+    seoHowTo: [
+      "Choose the PDF you need to redact.",
+      "Draw boxes over the text or images that must disappear.",
+      "Download the redacted PDF. The covered content is gone.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "redact",
   },
   {
     id: "watermark-pdf",

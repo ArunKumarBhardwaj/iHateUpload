@@ -53,7 +53,8 @@ export function optionsNeedCanvas(options: ToolOptions): boolean {
   return (
     options.kind === "organize" ||
     options.kind === "sign" ||
-    options.kind === "crop"
+    options.kind === "crop" ||
+    options.kind === "redact"
   );
 }
 
@@ -80,6 +81,8 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Draw, type, or stamp a signature, then drag it onto the page.";
     case "crop":
       return "Drag the box to the area every page should keep.";
+    case "redact":
+      return "Draw boxes over the text. Those pixels are burned out, not covered.";
     case "annotate":
       return options.variant === "numbers"
         ? "Pick where the page numbers sit."
@@ -457,6 +460,15 @@ export function OptionsPanel({
       return (
         <p className="text-sm text-muted-foreground">
           The same crop applies to every page. Drag the box on the page.
+        </p>
+      );
+
+    case "redact":
+      return (
+        <p className="text-sm text-muted-foreground">
+          {options.boxes.length === 0
+            ? "Drag on the page to cover text. Those pixels are destroyed."
+            : `${options.boxes.length} box${options.boxes.length === 1 ? "" : "es"} will be burned out.`}
         </p>
       );
 

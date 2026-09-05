@@ -12,6 +12,7 @@ import {
   optionsNeedCanvas,
 } from "@/components/workbench/options-panel";
 import { PageOverlay } from "@/components/workbench/page-overlay";
+import { RedactOverlay } from "@/components/workbench/redact-overlay";
 import { ResultPanel } from "@/components/workbench/result-panel";
 import { Stepper } from "@/components/workbench/stepper";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ import {
   processFlattenPdf,
   processOcrPdf,
   processPngToPdf,
+  processRedactPdf,
   processSignPdf,
   processStripMetadata,
   processWordToPdf,
@@ -112,6 +114,8 @@ async function runTool(
       return processSignPdf(files, onProgress, options);
     case "crop-pdf":
       return processCropPdf(files, onProgress, options);
+    case "redact-pdf":
+      return processRedactPdf(files, onProgress, options);
     case "watermark-pdf":
     case "page-numbers":
       return processAnnotatePdf(files, onProgress, options);
@@ -198,7 +202,8 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     options.kind === "organize" ||
     options.kind === "extract" ||
     options.kind === "sign" ||
-    options.kind === "crop"
+    options.kind === "crop" ||
+    options.kind === "redact"
       ? files[0]
       : undefined;
   const pagedFacts = pagedFile ? previews.get(pagedFile.id)?.facts : undefined;
@@ -353,7 +358,10 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const largeJob = shouldWarnLargeJob(totalBytes, pageCount);
 
   const overlayFile =
-    (options.kind === "sign" || options.kind === "crop") && pagedFile
+    (options.kind === "sign" ||
+      options.kind === "crop" ||
+      options.kind === "redact") &&
+    pagedFile
       ? pagedFile.file
       : undefined;
 
@@ -491,6 +499,15 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   onBox={(box) => setOptions({ ...options, box })}
                   disabled={locked}
                   label="Keep this area"
+                />
+              ) : null}
+              {overlayFile && options.kind === "redact" ? (
+                <RedactOverlay
+                  file={overlayFile}
+                  boxes={options.boxes}
+                  onBoxes={(boxes) => setOptions({ ...options, boxes })}
+                  pageCount={pageCount}
+                  disabled={locked}
                 />
               ) : null}
               {optionsInCanvas && optionsPanel}
