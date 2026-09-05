@@ -1,7 +1,4 @@
-import type { ReactNode } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Lock, ShieldCheck, Sparkles } from "lucide-react";
 
 import { ToolCardGrid } from "@/components/tool-card";
 import { TOOLS, type ToolId } from "@/lib/tools";
@@ -42,43 +39,18 @@ function toolsById(ids: readonly ToolId[]) {
 
 export default function HomePage() {
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6">
-      <section className="py-10 sm:py-12">
-        <h1 className="max-w-3xl text-4xl font-semibold leading-[1.1] tracking-tight text-ink sm:text-5xl">
-          Tools that never leave this tab.
+    <div className="mx-auto max-w-[90rem] px-6">
+      <section className="pt-10 pb-6 sm:pt-12 sm:pb-8">
+        <h1 className="max-w-4xl text-4xl font-semibold leading-[1.1] tracking-tight text-ink sm:text-5xl">
+          PDF and image tools that never leave this tab.
         </h1>
-        <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          Compress, merge, convert, sign, and crop on this device. No account.
+        <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+          Merge, compress, convert, sign, and crop on this device. No account.
           No watermark. No daily cap.
         </p>
-        <div className="mt-7">
-          <Link
-            href="/#tools"
-            className="inline-flex h-12 items-center rounded-full bg-signal px-7 text-base font-semibold text-white"
-          >
-            Explore tools
-          </Link>
-        </div>
-        <ul className="mt-8 grid gap-3 sm:grid-cols-3">
-          <Trust
-            icon={<Lock className="size-4" />}
-            title="No upload"
-            text="Processing never leaves this browser tab."
-          />
-          <Trust
-            icon={<ShieldCheck className="size-4" />}
-            title="No account"
-            text="Open a tool, pick a file, download."
-          />
-          <Trust
-            icon={<Sparkles className="size-4" />}
-            title="No watermark"
-            text="The file you get is the file you made."
-          />
-        </ul>
       </section>
 
-      <section id="tools" className="scroll-mt-24 border-t border-ink/8 py-10 sm:py-12">
+      <section id="tools" className="scroll-mt-24 pb-10 sm:pb-12">
         <SectionHead
           eyebrow="Popular"
           title="Most used tools"
@@ -139,25 +111,5 @@ function SectionHead({
       </h2>
       <p className="mt-2 text-sm text-muted-foreground sm:text-base">{copy}</p>
     </div>
-  );
-}
-
-function Trust({
-  icon,
-  title,
-  text,
-}: {
-  icon: ReactNode;
-  title: string;
-  text: string;
-}) {
-  return (
-    <li className="rounded-2xl border border-ink/8 bg-card px-4 py-4">
-      <p className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
-        <span className="text-signal">{icon}</span>
-        {title}
-      </p>
-      <p className="mt-1 text-sm text-muted-foreground">{text}</p>
-    </li>
   );
 }

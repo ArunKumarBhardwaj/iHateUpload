@@ -40,10 +40,57 @@ const POPULAR_SEARCH = [
 
 type OpenSection = "pdf" | "images" | null;
 
+function useFineHover() {
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const sync = () => setEnabled(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  return enabled;
+}
+
 export function SiteHeader({ className }: { className?: string }) {
   const [open, setOpen] = useState<OpenSection>(null);
+  const [shown, setShown] = useState<OpenSection>(null);
+  const [entered, setEntered] = useState(false);
   const panelId = useId();
   const rootRef = useRef<HTMLElement>(null);
+  const closeTimer = useRef<number>(0);
+  const fineHover = useFineHover();
+
+  const cancelClose = () => {
+    window.clearTimeout(closeTimer.current);
+  };
+
+  const openSection = (id: OpenSection) => {
+    cancelClose();
+    setOpen(id);
+  };
+
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = window.setTimeout(() => setOpen(null), 80);
+  };
+
+  useEffect(() => {
+    return () => window.clearTimeout(closeTimer.current);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setShown(open);
+      const frame = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => setEntered(true));
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
+    setEntered(false);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -61,7 +108,7 @@ export function SiteHeader({ className }: { className?: string }) {
     };
   }, [open]);
 
-  const active = SECTIONS.find((section) => section.id === open);
+  const active = SECTIONS.find((section) => section.id === (open ?? shown));
 
   return (
     <header
@@ -71,7 +118,7 @@ export function SiteHeader({ className }: { className?: string }) {
         className,
       )}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:gap-8 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-[90rem] items-center gap-4 px-6 sm:gap-8">
         <Link href="/" className="flex shrink-0 items-baseline font-sans">
           <span className="text-[1.65rem] font-semibold leading-none tracking-tight text-ink">
             iHate
@@ -88,11 +135,9 @@ export function SiteHeader({ className }: { className?: string }) {
               section={section}
               open={open === section.id}
               panelId={panelId}
-              onToggle={() =>
-                setOpen((current) =>
-                  current === section.id ? null : section.id,
-                )
-              }
+              onHover={() => openSection(section.id)}
+              onLeave={fineHover ? scheduleClose : undefined}
+              onToggle={() => openSection(section.id)}
             />
           ))}
         </nav>
@@ -101,7 +146,7 @@ export function SiteHeader({ className }: { className?: string }) {
       </div>
 
       <nav className="flex border-t border-ink/10 sm:hidden">
-        <div className="mx-auto flex w-full max-w-6xl gap-1 px-3 py-2">
+        <div className="mx-auto flex w-full max-w-[90rem] gap-1 px-5 py-2">
           {SECTIONS.map((section) => (
             <NavButton
               key={section.id}
@@ -123,9 +168,33 @@ export function SiteHeader({ className }: { className?: string }) {
         <div
           id={panelId}
           role="menu"
-          className="border-t border-ink/10 bg-background"
+          className={cn(
+            "grid bg-background transition-[grid-template-rows,opacity,box-shadow] duration-150 ease-out motion-reduce:transition-none",
+            entered
+              ? "grid-rows-[1fr] opacity-100 shadow-[0_16px_32px_-14px_rgba(20,22,28,0.22)]"
+              : "grid-rows-[0fr] opacity-0 shadow-none",
+          )}
+          onMouseEnter={
+            fineHover
+              ? () => {
+                  cancelClose();
+                  if (shown) openSection(shown);
+                }
+              : undefined
+          }
+          onMouseLeave={fineHover ? scheduleClose : undefined}
+          onTransitionEnd={(event) => {
+            if (event.target !== event.currentTarget) return;
+            if (!open) setShown(null);
+          }}
         >
-          <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6">
+          <div className="min-h-0 overflow-hidden">
+          <div
+            className={cn(
+              "mx-auto max-w-[90rem] border-t border-ink/10 px-6 py-5 transition-transform duration-150 ease-out motion-reduce:transition-none",
+              entered ? "translate-y-0" : "-translate-y-1.5",
+            )}
+          >
             <div className="mb-4 flex items-baseline justify-between gap-2">
               <p className="font-sans text-sm font-semibold tracking-tight text-ink">
                 {active.label} tools
@@ -133,7 +202,7 @@ export function SiteHeader({ className }: { className?: string }) {
               <Link
                 href={active.href}
                 className="font-sans text-sm font-semibold text-signal hover:underline"
-                onClick={() => setOpen(null)}
+                onClick={() => queueMicrotask(() => setOpen(null))}
               >
                 See all
               </Link>
@@ -145,7 +214,7 @@ export function SiteHeader({ className }: { className?: string }) {
                   role="menuitem"
                   href={`/tools/${tool.slug}`}
                   className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-signal/5"
-                  onClick={() => setOpen(null)}
+                  onClick={() => queueMicrotask(() => setOpen(null))}
                 >
                   <ToolIcon
                     id={tool.id}
@@ -159,6 +228,7 @@ export function SiteHeader({ className }: { className?: string }) {
               ))}
             </div>
           </div>
+          </div>
         </div>
       )}
     </header>
@@ -170,19 +240,23 @@ function NavButton({
   open,
   panelId,
   className,
+  onHover,
+  onLeave,
   onToggle,
 }: {
   section: (typeof SECTIONS)[number];
   open: boolean;
   panelId: string;
   className?: string;
+  onHover?: () => void;
+  onLeave?: () => void;
   onToggle: () => void;
 }) {
   return (
     <button
       type="button"
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium tracking-tight transition-colors",
+        "relative inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 font-sans text-[13px] font-semibold tracking-[0.12em] uppercase transition-colors",
         open
           ? "bg-ink text-white"
           : "text-ink/70 hover:bg-secondary hover:text-ink",
@@ -190,6 +264,8 @@ function NavButton({
       )}
       aria-expanded={open}
       aria-controls={panelId}
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
       onClick={onToggle}
     >
       {section.label}
@@ -199,6 +275,12 @@ function NavButton({
           open ? "rotate-180 text-white/70" : "text-ink/35",
         )}
       />
+      {open && onLeave ? (
+        <span
+          aria-hidden
+          className="pointer-events-auto absolute inset-x-0 top-full h-8"
+        />
+      ) : null}
     </button>
   );
 }

@@ -11,7 +11,7 @@ export function SiteFooter() {
   return (
     <footer className="relative z-10 mt-auto font-sans">
       <div className="border-t border-ink/10 bg-background">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
+        <div className="mx-auto grid max-w-[90rem] gap-10 px-6 py-14 md:grid-cols-4">
           <div>
             <p className="text-xl font-semibold tracking-tight text-ink">
               iHate<span className="text-signal">Upload</span>
@@ -42,7 +42,7 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="bg-secondary">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="mx-auto flex max-w-[90rem] flex-col gap-3 px-6 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>© 2026 iHateUpload. Made for people who hate the upload.</p>
           <nav className="flex flex-wrap gap-x-5 gap-y-1">
             <Link href="/privacy" className="hover:text-ink">
