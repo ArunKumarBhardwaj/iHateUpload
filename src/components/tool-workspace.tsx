@@ -11,6 +11,7 @@ import {
   optionsHint,
   optionsNeedCanvas,
 } from "@/components/workbench/options-panel";
+import { ImageCropOverlay } from "@/components/workbench/image-crop-overlay";
 import { PageOverlay } from "@/components/workbench/page-overlay";
 import { ComparePreview } from "@/components/workbench/compare-preview";
 import { RedactOverlay } from "@/components/workbench/redact-overlay";
@@ -70,7 +71,10 @@ import {
   processHeicToJpg,
   processHeicToPdf,
   processImageToPdf,
+  processCompressToSize,
+  processCropImage,
   processJpgToPng,
+  processJpgToWebp,
   processMergePdf,
   processOrganizePdf,
   processPdfToJpg,
@@ -78,6 +82,7 @@ import {
   processPngToJpg,
   processProtectPdf,
   processResizeImage,
+  processRotateImage,
   processRotatePdf,
   processSplitPdf,
   processUnlockPdf,
@@ -108,6 +113,14 @@ async function runTool(
       return processPngToJpg(files, onProgress);
     case "jpg-to-png":
       return processJpgToPng(files, onProgress);
+    case "jpg-to-webp":
+      return processJpgToWebp(files, onProgress);
+    case "crop-image":
+      return processCropImage(files, onProgress, options);
+    case "rotate-image":
+      return processRotateImage(files, onProgress, options);
+    case "compress-to-size":
+      return processCompressToSize(files, onProgress, options);
     case "image-to-pdf":
       return processImageToPdf(files, onProgress);
     case "merge-pdf":
@@ -603,6 +616,15 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   onBoxes={(boxes) => setOptions({ ...options, boxes })}
                   pageCount={pageCount}
                   disabled={locked}
+                />
+              ) : null}
+              {options.kind === "image-crop" && files[0] ? (
+                <ImageCropOverlay
+                  file={files[0].file}
+                  box={options.box}
+                  onBox={(box) => setOptions({ ...options, box })}
+                  disabled={locked}
+                  label="Keep this area"
                 />
               ) : null}
               {optionsInCanvas && optionsPanel}

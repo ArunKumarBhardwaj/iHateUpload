@@ -4,13 +4,16 @@ export type CompressLevel = "light" | "medium" | "heavy";
 
 export type SignMode = "draw" | "type" | "image";
 
-/** Ratios of the page box. Origin is top-left in the UI; processors flip Y. */
-export type PageBox = {
-  pageIndex: number;
+export type RatioBox = {
   x: number;
   y: number;
   w: number;
   h: number;
+};
+
+/** Ratios of the page box. Origin is top-left in the UI; processors flip Y. */
+export type PageBox = RatioBox & {
+  pageIndex: number;
 };
 
 export type AnnotatePosition =
@@ -57,7 +60,15 @@ export type ToolOptions =
     }
   | { kind: "ocr"; language: string }
   | { kind: "ask"; question: string }
-  | { kind: "scan" };
+  | { kind: "scan" }
+  | { kind: "image-crop"; box: RatioBox }
+  | {
+      kind: "image-turn";
+      degrees: 0 | 90 | 180 | 270;
+      flipH: boolean;
+      flipV: boolean;
+    }
+  | { kind: "target-kb"; maxKb: number };
 
 export const DEFAULT_PAGE_BOX: PageBox = {
   pageIndex: 0,
@@ -67,12 +78,16 @@ export const DEFAULT_PAGE_BOX: PageBox = {
   h: 0.16,
 };
 
-export const DEFAULT_CROP_BOX: PageBox = {
-  pageIndex: 0,
+export const DEFAULT_RATIO_BOX: RatioBox = {
   x: 0.08,
   y: 0.08,
   w: 0.84,
   h: 0.84,
+};
+
+export const DEFAULT_CROP_BOX: PageBox = {
+  pageIndex: 0,
+  ...DEFAULT_RATIO_BOX,
 };
 
 export const ANNOTATE_POSITIONS: {
@@ -113,6 +128,10 @@ export const OCR_LANGUAGES = [
 export const RESIZE_PRESETS = [1920, 1280, 800, 640] as const;
 export const RESIZE_MIN = 16;
 export const RESIZE_MAX = 10000;
+
+export const TARGET_KB_PRESETS = [50, 100, 200, 500, 1024] as const;
+export const TARGET_KB_MIN = 20;
+export const TARGET_KB_MAX = 8192;
 
 export const COMPRESS_LEVELS: {
   id: CompressLevel;
@@ -248,6 +267,12 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "ask", question: "" };
     case "scan":
       return { kind: "scan" };
+    case "image-crop":
+      return { kind: "image-crop", box: { ...DEFAULT_RATIO_BOX } };
+    case "image-turn":
+      return { kind: "image-turn", degrees: 90, flipH: false, flipV: false };
+    case "target-kb":
+      return { kind: "target-kb", maxKb: 200 };
   }
 }
 
@@ -271,6 +296,16 @@ export function optionsReady(
     case "page-size":
     case "scan":
       return true;
+    case "image-turn":
+      return options.degrees !== 0 || options.flipH || options.flipV;
+    case "image-crop":
+      return options.box.w > 0.04 && options.box.h > 0.04;
+    case "target-kb":
+      return (
+        Number.isFinite(options.maxKb) &&
+        options.maxKb >= TARGET_KB_MIN &&
+        options.maxKb <= TARGET_KB_MAX
+      );
     case "insert-blank":
       return Number.isInteger(options.afterPage) && options.afterPage >= 0;
     case "header-footer":

@@ -88,16 +88,24 @@ async function sniffImageKind(
   return "unknown";
 }
 
+async function encodeCanvasBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality?: number,
+): Promise<Blob> {
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, type, quality);
+  });
+  if (!blob) throw new Error(`Could not encode ${type}.`);
+  return blob;
+}
+
 async function canvasToJpegBlob(
   canvas: HTMLCanvasElement,
   quality: number,
 ): Promise<Blob> {
   try {
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/jpeg", quality);
-    });
-    if (!blob) throw new Error("Could not encode JPEG.");
-    return blob;
+    return await encodeCanvasBlob(canvas, "image/jpeg", quality);
   } finally {
     releaseCanvas(canvas);
   }
@@ -105,14 +113,67 @@ async function canvasToJpegBlob(
 
 async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   try {
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/png");
-    });
-    if (!blob) throw new Error("Could not encode PNG.");
+    return await encodeCanvasBlob(canvas, "image/png");
+  } finally {
+    releaseCanvas(canvas);
+  }
+}
+
+async function canvasToWebpBlob(
+  canvas: HTMLCanvasElement,
+  quality = 0.86,
+): Promise<Blob> {
+  try {
+    const blob = await encodeCanvasBlob(canvas, "image/webp", quality);
+    if (blob.type !== "image/webp") {
+      throw new Error("This browser cannot write WebP.");
+    }
     return blob;
   } finally {
     releaseCanvas(canvas);
   }
+}
+
+function imageOutKind(file: File): "jpeg" | "png" | "webp" {
+  const name = file.name.toLowerCase();
+  if (file.type === "image/png" || name.endsWith(".png")) return "png";
+  if (file.type === "image/webp" || name.endsWith(".webp")) return "webp";
+  return "jpeg";
+}
+
+async function canvasToKindBlob(
+  canvas: HTMLCanvasElement,
+  kind: "jpeg" | "png" | "webp",
+): Promise<Blob> {
+  if (kind === "png") return canvasToPngBlob(canvas);
+  if (kind === "webp") return canvasToWebpBlob(canvas);
+  return canvasToJpegBlob(canvas, 0.92);
+}
+
+function extForKind(kind: "jpeg" | "png" | "webp"): string {
+  if (kind === "png") return "png";
+  if (kind === "webp") return "webp";
+  return "jpg";
+}
+
+async function bestJpegUnder(
+  canvas: HTMLCanvasElement,
+  maxBytes: number,
+): Promise<Blob | null> {
+  let low = 0.12;
+  let high = 0.92;
+  let best: Blob | null = null;
+  for (let i = 0; i < 8; i++) {
+    const quality = (low + high) / 2;
+    const blob = await encodeCanvasBlob(canvas, "image/jpeg", quality);
+    if (blob.size <= maxBytes) {
+      best = blob;
+      low = quality;
+    } else {
+      high = quality;
+    }
+  }
+  return best;
 }
 
 async function drawFileToCanvas(
@@ -376,6 +437,198 @@ export async function processJpgToPng(
     results.push({
       id: item.id,
       name: replaceExt(item.name, "png"),
+      size: blob.size,
+      blob,
+      originalSize: item.size,
+    });
+    onProgress((i + 1) / files.length);
+  }
+
+  return results;
+}
+
+export async function processJpgToWebp(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const results: ResultItem[] = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const kind = imageOutKind(item.file);
+    const canvas = await drawFileToCanvas(item.file, {
+      fillWhite: kind !== "png",
+    });
+    const blob = await canvasToWebpBlob(canvas);
+    results.push({
+      id: item.id,
+      name: replaceExt(item.name, "webp"),
+      size: blob.size,
+      blob,
+      originalSize: item.size,
+    });
+    onProgress((i + 1) / files.length);
+  }
+
+  return results;
+}
+
+export async function processCropImage(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "image-crop") {
+    throw new Error("Crop Image needs a crop box.");
+  }
+  const item = files[0];
+  if (!item) throw new Error("Add a photo to crop.");
+  if (options.box.w <= 0.04 || options.box.h <= 0.04) {
+    throw new Error("Draw a larger crop box.");
+  }
+
+  const source = await drawFileToCanvas(item.file);
+  const cropped = document.createElement("canvas");
+  try {
+    const sx = Math.round(options.box.x * source.width);
+    const sy = Math.round(options.box.y * source.height);
+    const sw = Math.max(1, Math.round(options.box.w * source.width));
+    const sh = Math.max(1, Math.round(options.box.h * source.height));
+    cropped.width = sw;
+    cropped.height = sh;
+    const ctx = cropped.getContext("2d");
+    if (!ctx) throw new Error("Canvas is not available in this browser.");
+    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+  } catch (error) {
+    releaseCanvas(cropped);
+    throw error;
+  } finally {
+    releaseCanvas(source);
+  }
+
+  const kind = imageOutKind(item.file);
+  const blob = await canvasToKindBlob(cropped, kind);
+  onProgress(1);
+  return [
+    {
+      id: item.id,
+      name: `${item.name.replace(/\.[^.]+$/, "")}-cropped.${extForKind(kind)}`,
+      size: blob.size,
+      blob,
+      originalSize: item.size,
+    },
+  ];
+}
+
+export async function processRotateImage(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "image-turn") {
+    throw new Error("Rotate Image needs a turn.");
+  }
+  const { degrees: turn, flipH, flipV } = options;
+  if (turn === 0 && !flipH && !flipV) {
+    throw new Error("Pick a turn or a flip.");
+  }
+
+  const results: ResultItem[] = [];
+  const rad = (turn * Math.PI) / 180;
+  const swap = turn === 90 || turn === 270;
+
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const source = await drawFileToCanvas(item.file);
+    const out = document.createElement("canvas");
+    try {
+      out.width = swap ? source.height : source.width;
+      out.height = swap ? source.width : source.height;
+      const ctx = out.getContext("2d");
+      if (!ctx) throw new Error("Canvas is not available in this browser.");
+      ctx.translate(out.width / 2, out.height / 2);
+      ctx.rotate(rad);
+      ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+      ctx.drawImage(source, -source.width / 2, -source.height / 2);
+    } catch (error) {
+      releaseCanvas(out);
+      throw error;
+    } finally {
+      releaseCanvas(source);
+    }
+
+    const kind = imageOutKind(item.file);
+    const blob = await canvasToKindBlob(out, kind);
+    results.push({
+      id: item.id,
+      name: `${item.name.replace(/\.[^.]+$/, "")}-rotated.${extForKind(kind)}`,
+      size: blob.size,
+      blob,
+      originalSize: item.size,
+    });
+    onProgress((i + 1) / files.length);
+  }
+
+  return results;
+}
+
+export async function processCompressToSize(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "target-kb") {
+    throw new Error("Compress to Size needs a KB target.");
+  }
+  const maxBytes = Math.floor(options.maxKb * 1024);
+  if (!Number.isFinite(maxBytes) || maxBytes < 20 * 1024) {
+    throw new Error("Pick a target of at least 20 KB.");
+  }
+
+  const results: ResultItem[] = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const alreadyJpeg =
+      item.file.type === "image/jpeg" ||
+      item.name.toLowerCase().endsWith(".jpg") ||
+      item.name.toLowerCase().endsWith(".jpeg");
+    let blob: Blob | null = null;
+    let name = `${item.name.replace(/\.[^.]+$/, "")}-${options.maxKb}kb.jpg`;
+    if (alreadyJpeg && item.size <= maxBytes) {
+      blob = item.file;
+      name = replaceExt(item.name, "jpg");
+    } else {
+      const bitmap = await createImageBitmap(item.file);
+      let maxEdge = Math.max(bitmap.width, bitmap.height);
+      bitmap.close();
+
+      while (maxEdge >= 32) {
+        const canvas = await drawFileToCanvas(item.file, {
+          maxEdge,
+          fillWhite: true,
+        });
+        try {
+          blob = await bestJpegUnder(canvas, maxBytes);
+        } finally {
+          releaseCanvas(canvas);
+        }
+        if (blob) break;
+        const next = Math.floor(maxEdge * 0.72);
+        if (next >= maxEdge) break;
+        maxEdge = next;
+      }
+    }
+
+    if (!blob || blob.size > maxBytes) {
+      throw new Error(
+        `Could not get ${item.name} under ${options.maxKb} KB.`,
+      );
+    }
+
+    results.push({
+      id: item.id,
+      name,
       size: blob.size,
       blob,
       originalSize: item.size,

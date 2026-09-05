@@ -43,7 +43,11 @@ export type ToolId =
   | "resize-image"
   | "webp-to-jpg"
   | "png-to-jpg"
-  | "jpg-to-png";
+  | "jpg-to-png"
+  | "jpg-to-webp"
+  | "crop-image"
+  | "rotate-image"
+  | "compress-to-size";
 
 export type ToolDefinition = {
   id: ToolId;
@@ -85,7 +89,10 @@ export type ToolDefinition = {
     | "page-numbers"
     | "ocr"
     | "ask"
-    | "scan";
+    | "scan"
+    | "image-crop"
+    | "image-turn"
+    | "target-kb";
 };
 
 export const TOOLS: ToolDefinition[] = [
@@ -1126,6 +1133,98 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "image",
     ui: "none",
+  },
+  {
+    id: "jpg-to-webp",
+    slug: "jpg-to-webp",
+    title: "JPG to WebP",
+    shortTitle: "JPG → WebP",
+    description:
+      "Turn a JPG or PNG into WebP in this tab. Smaller files for the web.",
+    accept: "image/jpeg,image/png,.jpg,.jpeg,.png",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Convert to WebP",
+    seoTitle: "JPG to WebP Converter Free — No Upload",
+    seoDescription:
+      "Convert JPG or PNG to WebP in your browser. No upload. Smaller files for pages and chats.",
+    seoHowTo: [
+      "Add JPG or PNG images.",
+      "Click Convert to WebP.",
+      "Download the WebP files.",
+    ],
+    showInNav: true,
+    kind: "image",
+    ui: "none",
+  },
+  {
+    id: "crop-image",
+    slug: "crop-image",
+    title: "Crop Image",
+    shortTitle: "Crop",
+    description:
+      "Drag a box on the photo. The rest stays in this tab and never uploads.",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Crop image",
+    seoTitle: "Crop Image Online Free — No Upload",
+    seoDescription:
+      "Crop a JPG, PNG, or WebP in your browser. No upload. Download the cut photo.",
+    seoHowTo: [
+      "Add a photo.",
+      "Drag the crop box.",
+      "Click Crop image and download.",
+    ],
+    showInNav: true,
+    kind: "image",
+    ui: "image-crop",
+  },
+  {
+    id: "rotate-image",
+    slug: "rotate-image",
+    title: "Rotate Image",
+    shortTitle: "Rotate",
+    description:
+      "Turn a photo 90 degrees or flip it. The file stays in this tab.",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Rotate images",
+    seoTitle: "Rotate Image Online Free — No Upload",
+    seoDescription:
+      "Rotate or flip JPG, PNG, or WebP in your browser. No upload. Download the turned photos.",
+    seoHowTo: [
+      "Add photos.",
+      "Pick a turn or flip.",
+      "Click Rotate images and download.",
+    ],
+    showInNav: true,
+    kind: "image",
+    ui: "image-turn",
+  },
+  {
+    id: "compress-to-size",
+    slug: "compress-to-size",
+    title: "Compress Image to Size",
+    shortTitle: "To size",
+    description:
+      "Shrink a photo to 50, 100, 200, or 500 KB for a form. Nothing leaves this tab.",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Compress to size",
+    seoTitle: "Compress Image to 100KB or 200KB — No Upload",
+    seoDescription:
+      "Compress a photo to a KB target in your browser. Hit 50, 100, 200, or 500 KB. No upload.",
+    seoHowTo: [
+      "Add photos.",
+      "Pick a KB target.",
+      "Click Compress to size and download.",
+    ],
+    showInNav: true,
+    kind: "image",
+    ui: "target-kb",
   },
 ];
 

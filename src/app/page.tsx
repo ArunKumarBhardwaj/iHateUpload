@@ -18,16 +18,16 @@ export const metadata: Metadata = {
 };
 
 const POPULAR: ToolId[] = [
-  "merge-pdf",
-  "redact-pdf",
-  "compare-pdfs",
-  "sign-pdf",
-  "crop-pdf",
-  "compress-pdf",
-  "extract-pages",
   "compress-image",
+  "image-to-pdf",
   "pdf-to-jpg",
+  "merge-pdf",
   "heic-to-jpg",
+  "organize-pdf",
+  "resize-image",
+  "compress-to-size",
+  "crop-image",
+  "compress-pdf",
 ];
 
 const PDF_TOOLS = TOOLS.filter((tool) => tool.kind === "pdf");
@@ -44,11 +44,11 @@ export default function HomePage() {
     <div className="mx-auto max-w-[90rem] px-6">
       <section className="pt-10 pb-6 sm:pt-12 sm:pb-8">
         <h1 className="max-w-4xl text-4xl font-semibold leading-[1.1] tracking-tight text-ink sm:text-5xl">
-          PDF and image tools that never leave this tab.
+          Compress a photo or merge a PDF. Nothing leaves this tab.
         </h1>
         <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          Merge, compress, convert, sign, and crop on this device. No account.
-          No watermark. No daily cap.
+          Image and PDF jobs run on this device. No account. No watermark. No
+          daily cap.
         </p>
       </section>
 
@@ -64,6 +64,20 @@ export default function HomePage() {
       </section>
 
       <section
+        id="image-tools"
+        className="scroll-mt-24 border-t border-ink/8 py-10 sm:py-12"
+      >
+        <SectionHead
+          eyebrow="Images"
+          title="Image tools"
+          copy="Compress, resize, and convert JPG, PNG, WebP, and HEIC for email or WhatsApp."
+        />
+        <div className="mt-6">
+          <ToolCardGrid tools={IMAGE_TOOLS} />
+        </div>
+      </section>
+
+      <section
         id="pdf-tools"
         className="scroll-mt-24 border-t border-ink/8 py-10 sm:py-12"
       >
@@ -74,20 +88,6 @@ export default function HomePage() {
         />
         <div className="mt-6">
           <ToolCardGrid tools={PDF_TOOLS} />
-        </div>
-      </section>
-
-      <section
-        id="image-tools"
-        className="scroll-mt-24 border-t border-ink/8 py-10 sm:py-12"
-      >
-        <SectionHead
-          eyebrow="Images"
-          title="Image tools"
-          copy="Compress, resize, and convert JPG, PNG, WebP, and HEIC."
-        />
-        <div className="mt-6">
-          <ToolCardGrid tools={IMAGE_TOOLS} />
         </div>
       </section>
     </div>

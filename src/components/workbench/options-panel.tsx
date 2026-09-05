@@ -20,6 +20,9 @@ import {
   RESIZE_MAX,
   RESIZE_MIN,
   RESIZE_PRESETS,
+  TARGET_KB_MAX,
+  TARGET_KB_MIN,
+  TARGET_KB_PRESETS,
   type SignMode,
   type ToolOptions,
 } from "@/lib/tool-options";
@@ -55,6 +58,7 @@ export function optionsNeedCanvas(options: ToolOptions): boolean {
     options.kind === "organize" ||
     options.kind === "sign" ||
     options.kind === "crop" ||
+    options.kind === "image-crop" ||
     options.kind === "redact"
   );
 }
@@ -106,6 +110,12 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "The PDF stays here. Only extracted text is sent with your question.";
     case "scan":
       return "Use the camera or drop a photo. Each capture becomes a page.";
+    case "image-crop":
+      return "Drag the box on the photo. Only that area is kept.";
+    case "image-turn":
+      return "Turn the photo or flip it. The file stays in this tab.";
+    case "target-kb":
+      return "Pick a KB cap. The result is a JPEG at or under that size.";
   }
 }
 
@@ -789,6 +799,100 @@ export function OptionsPanel({
           disabled={disabled}
           onCapture={(file) => onAddFiles?.([file])}
         />
+      );
+
+    case "image-crop":
+      return (
+        <p className="text-sm text-muted-foreground">
+          Drag the box on the photo. Only that area is kept.
+        </p>
+      );
+
+    case "image-turn":
+      return (
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Turn</p>
+            <div className="flex flex-wrap gap-2">
+              {([0, 90, 180, 270] as const).map((degrees) => (
+                <Button
+                  key={degrees}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.degrees === degrees ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, degrees })}
+                >
+                  {degrees}°
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Flip</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className={OPTION_BUTTON}
+                variant={options.flipH ? "default" : "outline"}
+                disabled={disabled}
+                onClick={() => onOptions({ ...options, flipH: !options.flipH })}
+              >
+                Horizontal
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className={OPTION_BUTTON}
+                variant={options.flipV ? "default" : "outline"}
+                disabled={disabled}
+                onClick={() => onOptions({ ...options, flipV: !options.flipV })}
+              >
+                Vertical
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+
+    case "target-kb":
+      return (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-ink">Max size</p>
+          <div className="flex flex-wrap gap-2">
+            {TARGET_KB_PRESETS.map((maxKb) => (
+              <Button
+                key={maxKb}
+                type="button"
+                size="sm"
+                className={OPTION_BUTTON}
+                variant={options.maxKb === maxKb ? "default" : "outline"}
+                disabled={disabled}
+                onClick={() => onOptions({ kind: "target-kb", maxKb })}
+              >
+                {maxKb >= 1024 ? `${maxKb / 1024} MB` : `${maxKb} KB`}
+              </Button>
+            ))}
+          </div>
+          <Field label="Custom KB" htmlFor="target-kb">
+            <Input
+              id="target-kb"
+              type="number"
+              min={TARGET_KB_MIN}
+              max={TARGET_KB_MAX}
+              value={options.maxKb}
+              disabled={disabled}
+              onChange={(e) =>
+                onOptions({
+                  kind: "target-kb",
+                  maxKb: Number(e.target.value),
+                })
+              }
+            />
+          </Field>
+        </div>
       );
   }
 }
