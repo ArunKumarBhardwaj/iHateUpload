@@ -13,6 +13,16 @@ export type ToolId =
   | "crop-pdf"
   | "redact-pdf"
   | "compare-pdfs"
+  | "extract-text"
+  | "extract-images"
+  | "header-footer"
+  | "reverse-pages"
+  | "delete-blank"
+  | "insert-blank"
+  | "invert-pdf"
+  | "n-up"
+  | "page-size"
+  | "pdf-to-png"
   | "watermark-pdf"
   | "page-numbers"
   | "flatten-pdf"
@@ -61,6 +71,11 @@ export type ToolDefinition = {
     | "crop"
     | "redact"
     | "compare"
+    | "header-footer"
+    | "insert-blank"
+    | "invert"
+    | "nup"
+    | "page-size"
     | "watermark"
     | "page-numbers"
     | "ocr"
@@ -155,6 +170,29 @@ export const TOOLS: ToolDefinition[] = [
       "Drop a PDF file into the workspace.",
       "Click Convert to JPG to render each page locally.",
       "Download the JPG images (or zip when there are many).",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "pdf-to-png",
+    slug: "pdf-to-png",
+    title: "PDF to PNG",
+    shortTitle: "PDF → PNG",
+    description:
+      "Export every PDF page as a PNG image. Stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Convert to PNG",
+    seoTitle: "PDF to PNG Converter Free — No Upload",
+    seoDescription:
+      "Convert PDF to PNG online free. Export every page as a PNG in your browser — no upload.",
+    seoHowTo: [
+      "Drop a PDF file into the workspace.",
+      "Click Convert to PNG to render each page locally.",
+      "Download the PNG images (or zip when there are many).",
     ],
     showInNav: true,
     kind: "pdf",
@@ -412,6 +450,213 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "compare",
+  },
+  {
+    id: "extract-text",
+    slug: "extract-text",
+    title: "Extract Text",
+    shortTitle: "Extract text",
+    description:
+      "Copy the selectable text out of a PDF into a .txt file. Stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Extract text",
+    seoTitle: "Extract Text from PDF Free — No Upload",
+    seoDescription:
+      "Extract text from a PDF online free. Copy selectable words in your browser — no upload.",
+    seoHowTo: [
+      "Choose a PDF with selectable text.",
+      "Click Extract text. The words stay on this device.",
+      "Download the .txt file.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "extract-images",
+    slug: "extract-images",
+    title: "Extract Images",
+    shortTitle: "Extract images",
+    description:
+      "Pull embedded images out of a PDF at their native size. Stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Extract images",
+    seoTitle: "Extract Images from PDF Free — No Upload",
+    seoDescription:
+      "Extract images from a PDF online free. Pull embedded pictures in your browser — no upload.",
+    seoHowTo: [
+      "Choose a PDF that contains images.",
+      "Click Extract images. Each picture is saved at its own size.",
+      "Download the image, or a zip if there are several.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "header-footer",
+    slug: "header-footer",
+    title: "Headers and Footers",
+    shortTitle: "Headers",
+    description:
+      "Add left, center, and right headers or footers. {page} {pages} {date} stay in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Add headers",
+    seoTitle: "Add Headers and Footers to PDF Free — No Upload",
+    seoDescription:
+      "Add headers and footers to a PDF online free. Left, center, and right text in your browser — no upload.",
+    seoHowTo: [
+      "Choose the PDF that needs a header or footer.",
+      "Type left, center, and right text. Use {page}, {pages}, or {date}.",
+      "Download the stamped PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "header-footer",
+  },
+  {
+    id: "reverse-pages",
+    slug: "reverse-pages",
+    title: "Reverse Pages",
+    shortTitle: "Reverse pages",
+    description:
+      "Flip the page order of a PDF. Last page becomes first. Stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Reverse pages",
+    seoTitle: "Reverse PDF Page Order Free — No Upload",
+    seoDescription:
+      "Reverse PDF pages online free. Flip the page order in your browser — no upload.",
+    seoHowTo: [
+      "Choose the PDF to reverse.",
+      "Click Reverse pages. The last page becomes the first.",
+      "Download the reversed PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "delete-blank",
+    slug: "delete-blank",
+    title: "Delete Blank Pages",
+    shortTitle: "Delete blanks",
+    description:
+      "Drop near-white pages from a PDF. The scan stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Delete blanks",
+    seoTitle: "Delete Blank PDF Pages Free — No Upload",
+    seoDescription:
+      "Delete blank PDF pages online free. Drop empty pages in your browser — no upload.",
+    seoHowTo: [
+      "Choose a PDF that has empty pages.",
+      "Click Delete blanks. Near-white pages are dropped.",
+      "Download the tighter PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "insert-blank",
+    slug: "insert-blank",
+    title: "Insert Blank Pages",
+    shortTitle: "Insert blank",
+    description:
+      "Insert a blank page after a page you pick. Stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Insert blank",
+    seoTitle: "Insert Blank PDF Pages Free — No Upload",
+    seoDescription:
+      "Insert a blank page into a PDF online free. Add empty pages in your browser — no upload.",
+    seoHowTo: [
+      "Choose the PDF.",
+      "Pick the page to insert after. Use 0 to insert at the start.",
+      "Download the PDF with the new blank page.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "insert-blank",
+  },
+  {
+    id: "invert-pdf",
+    slug: "invert-pdf",
+    title: "Invert / Grayscale",
+    shortTitle: "Invert",
+    description:
+      "Invert colors or convert pages to grayscale. Pages are redrawn in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Apply",
+    seoTitle: "Invert or Grayscale PDF Free — No Upload",
+    seoDescription:
+      "Invert a PDF or convert it to grayscale online free. Pages are redrawn in your browser — no upload.",
+    seoHowTo: [
+      "Choose the PDF.",
+      "Pick invert or grayscale.",
+      "Download the redrawn PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "invert",
+  },
+  {
+    id: "n-up",
+    slug: "n-up",
+    title: "N-up",
+    shortTitle: "N-up",
+    description:
+      "Put 2, 4, or 9 pages on each sheet. Stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Make n-up",
+    seoTitle: "N-up PDF Pages Free — No Upload",
+    seoDescription:
+      "Put 2, 4, or 9 PDF pages on one sheet online free. N-up in your browser — no upload.",
+    seoHowTo: [
+      "Choose the PDF.",
+      "Pick 2, 4, or 9 pages per sheet.",
+      "Download the n-up PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "nup",
+  },
+  {
+    id: "page-size",
+    slug: "page-size",
+    title: "Page Size",
+    shortTitle: "Page size",
+    description:
+      "Fit or letterbox every page to A4 or Letter. Stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Resize pages",
+    seoTitle: "Change PDF Page Size to A4 or Letter Free — No Upload",
+    seoDescription:
+      "Resize PDF pages to A4 or Letter online free. Fit or letterbox in your browser — no upload.",
+    seoHowTo: [
+      "Choose the PDF.",
+      "Pick A4 or Letter, then fit or letterbox.",
+      "Download the resized PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "page-size",
   },
   {
     id: "watermark-pdf",

@@ -1,9 +1,12 @@
 import {
   PDFDocument,
+  PageSizes,
   StandardFonts,
   degrees,
   rgb,
 } from "@cantoo/pdf-lib";
+
+import type { PDFPageProxy } from "pdfjs-dist";
 
 import type { FileItem, ResultItem } from "@/lib/job";
 import { loadPdfJs } from "@/lib/pdfjs";
@@ -614,6 +617,175 @@ export async function processComparePdfs(
   ];
 }
 
+export async function processExtractText(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const results: ResultItem[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const text = await extractPdfText(item.file);
+    const blob = new Blob([text], { type: "text/plain" });
+    results.push(
+      resultFrom(item, blob, replaceExt(item.name, "txt"), item.size, {
+        previewText: text,
+      }),
+    );
+    onProgress((i + 1) / files.length);
+  }
+  return results;
+}
+
+export async function processExtractImages(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to pull images from.");
+  const pdfjs = await loadPdfJs();
+  const data = new Uint8Array(await item.file.arrayBuffer());
+  const src = await pdfjs.getDocument({ data }).promise;
+  const images: { name: string; blob: Blob }[] = [];
+  try {
+    for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
+      const page = await src.getPage(pageNum);
+      const ops = await page.getOperatorList();
+      const seen = new Set<string>();
+      for (let i = 0; i < ops.fnArray.length; i++) {
+        const fn = ops.fnArray[i];
+        if (
+          fn !== pdfjs.OPS.paintImageXObject &&
+          fn !== pdfjs.OPS.paintImageXObjectRepeat &&
+          fn !== pdfjs.OPS.paintInlineImageXObject
+        ) {
+          continue;
+        }
+        const arg0 = ops.argsArray[i]?.[0];
+        const img =
+          fn === pdfjs.OPS.paintInlineImageXObject && arg0 && typeof arg0 === "object"
+            ? (arg0 as PdfImage)
+            : typeof arg0 === "string"
+              ? await imageObject(page, arg0)
+              : null;
+        if (!img) continue;
+        const key =
+          typeof arg0 === "string"
+            ? arg0
+            : `${img.width}x${img.height}:${img.data?.length ?? "bitmap"}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const blob = await rasterToPng(img);
+        images.push({
+          name: `${item.name.replace(/\.[^.]+$/, "")}-p${pageNum}-${images.length + 1}.png`,
+          blob,
+        });
+      }
+      page.cleanup();
+      onProgress(pageNum / (src.numPages + 1));
+    }
+  } finally {
+    await src.loadingTask.destroy();
+  }
+  if (images.length === 0) {
+    throw new Error("This PDF has no embedded images to extract.");
+  }
+  onProgress(1);
+  return images.map((image) =>
+    resultFrom(item, image.blob, image.name, item.size),
+  );
+}
+
+type PdfImage = {
+  width: number;
+  height: number;
+  data?: Uint8Array | Uint8ClampedArray | null;
+  kind?: number;
+  bitmap?: CanvasImageSource | ImageData | null;
+};
+
+async function imageObject(
+  page: {
+    objs: { get: (name: string, cb?: (v: unknown) => void) => unknown };
+    commonObjs: { get: (name: string, cb?: (v: unknown) => void) => unknown };
+  },
+  name: string,
+): Promise<PdfImage | null> {
+  const raw =
+    (await resolveObj(page.objs, name)) ??
+    (await resolveObj(page.commonObjs, name));
+  if (!raw || typeof raw !== "object") return null;
+  const img = raw as PdfImage;
+  if (!img.width || !img.height) return null;
+  if (!img.data && !img.bitmap) return null;
+  return img;
+}
+
+function resolveObj(
+  objs: { get: (name: string, cb?: (v: unknown) => void) => unknown },
+  name: string,
+): Promise<unknown> {
+  return new Promise((resolve) => {
+    try {
+      const value = objs.get(name, resolve);
+      if (value) resolve(value);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+function rasterToPng(img: PdfImage): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas is not available in this browser.");
+  if (img.bitmap && typeof img.bitmap === "object") {
+    if (img.bitmap instanceof ImageData) {
+      ctx.putImageData(img.bitmap, 0, 0);
+    } else {
+      ctx.drawImage(img.bitmap, 0, 0);
+    }
+  } else {
+    const src = img.data;
+    if (!src) throw new Error("Could not read an embedded image.");
+    const out = ctx.createImageData(img.width, img.height);
+    const kind = img.kind ?? 3;
+    let si = 0;
+    for (let i = 0; i < out.data.length; i += 4) {
+      if (kind === 1) {
+        const v = src[si++] ?? 0;
+        out.data[i] = v;
+        out.data[i + 1] = v;
+        out.data[i + 2] = v;
+        out.data[i + 3] = 255;
+      } else if (kind === 2) {
+        out.data[i] = src[si++] ?? 0;
+        out.data[i + 1] = src[si++] ?? 0;
+        out.data[i + 2] = src[si++] ?? 0;
+        out.data[i + 3] = 255;
+      } else {
+        out.data[i] = src[si++] ?? 0;
+        out.data[i + 1] = src[si++] ?? 0;
+        out.data[i + 2] = src[si++] ?? 0;
+        out.data[i + 3] = src[si++] ?? 255;
+      }
+    }
+    ctx.putImageData(out, 0, 0);
+  }
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      canvas.width = 0;
+      canvas.height = 0;
+      if (!blob) {
+        reject(new Error("Could not encode an extracted image."));
+        return;
+      }
+      resolve(blob);
+    }, "image/png");
+  });
+}
+
 export async function processAskPdf(
   files: FileItem[],
   onProgress: ProgressFn,
@@ -646,4 +818,402 @@ export async function processAskPdf(
       previewText: payload.answer,
     }),
   ];
+}
+
+function expandStamp(template: string, page: number, pages: number, date: string) {
+  return template
+    .replaceAll("{page}", String(page))
+    .replaceAll("{pages}", String(pages))
+    .replaceAll("{date}", date);
+}
+
+export async function processHeaderFooter(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "header-footer") {
+    throw new Error("Headers and footers need text.");
+  }
+  const date = new Date().toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+  const results: ResultItem[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const doc = await loadPdf(item.file);
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const pages = doc.getPages();
+    const size = 10;
+    pages.forEach((page, index) => {
+      const { width, height } = page.getSize();
+      const left = expandStamp(options.left, index + 1, pages.length, date);
+      const center = expandStamp(options.center, index + 1, pages.length, date);
+      const right = expandStamp(options.right, index + 1, pages.length, date);
+      const draw = (y: number) => {
+        if (left.trim()) {
+          page.drawText(left, { x: 28, y, size, font, color: rgb(0.2, 0.2, 0.22) });
+        }
+        if (center.trim()) {
+          const textWidth = font.widthOfTextAtSize(center, size);
+          page.drawText(center, {
+            x: (width - textWidth) / 2,
+            y,
+            size,
+            font,
+            color: rgb(0.2, 0.2, 0.22),
+          });
+        }
+        if (right.trim()) {
+          const textWidth = font.widthOfTextAtSize(right, size);
+          page.drawText(right, {
+            x: width - 28 - textWidth,
+            y,
+            size,
+            font,
+            color: rgb(0.2, 0.2, 0.22),
+          });
+        }
+      };
+      if (options.band !== "footer") draw(height - size - 18);
+      if (options.band !== "header") draw(18);
+    });
+    stripPdfMetadata(doc);
+    const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
+    results.push(
+      resultFrom(
+        item,
+        blob,
+        replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-headed.pdf"),
+        item.size,
+      ),
+    );
+    onProgress((i + 1) / files.length);
+  }
+  return results;
+}
+
+export async function processReversePages(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to reverse.");
+  const source = await loadPdf(item.file);
+  const count = source.getPageCount();
+  const out = await PDFDocument.create();
+  const order = Array.from({ length: count }, (_, index) => count - 1 - index);
+  const copied = await out.copyPages(source, order);
+  for (const page of copied) out.addPage(page);
+  stripPdfMetadata(out);
+  onProgress(1);
+  return [
+    resultFrom(
+      item,
+      pdfBlob(await out.save({ useObjectStreams: true })),
+      replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-reversed.pdf"),
+      item.size,
+    ),
+  ];
+}
+
+export async function processDeleteBlank(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to strip blank pages from.");
+  const source = await loadPdf(item.file);
+  const { getDocument } = await loadPdfJs();
+  const data = new Uint8Array(await item.file.arrayBuffer());
+  const src = await getDocument({ data }).promise;
+  const keep: number[] = [];
+  try {
+    for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
+      const page = await src.getPage(pageNum);
+      const { canvas, ctx } = await renderPageCanvas(page, 0.35);
+      if (!isNearWhite(ctx, canvas.width, canvas.height)) keep.push(pageNum - 1);
+      canvas.width = 0;
+      canvas.height = 0;
+      page.cleanup();
+      onProgress(pageNum / (src.numPages + 1));
+    }
+  } finally {
+    await src.loadingTask.destroy();
+  }
+  if (keep.length === 0) {
+    throw new Error("Every page looks blank. Nothing to keep.");
+  }
+  if (keep.length === source.getPageCount()) {
+    throw new Error("No blank pages were found.");
+  }
+  const out = await PDFDocument.create();
+  const copied = await out.copyPages(source, keep);
+  for (const page of copied) out.addPage(page);
+  stripPdfMetadata(out);
+  onProgress(1);
+  return [
+    resultFrom(
+      item,
+      pdfBlob(await out.save({ useObjectStreams: true })),
+      replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-noblank.pdf"),
+      item.size,
+    ),
+  ];
+}
+
+export async function processInsertBlank(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "insert-blank") {
+    throw new Error("Insert blank needs a page number.");
+  }
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to insert a page into.");
+  const source = await loadPdf(item.file);
+  const count = source.getPageCount();
+  const after = Math.min(count, Math.max(0, options.afterPage));
+  const template = source.getPage(after === 0 ? 0 : after - 1).getSize();
+  const out = await PDFDocument.create();
+  if (after === 0) out.addPage([template.width, template.height]);
+  for (let index = 0; index < count; index++) {
+    const [copied] = await out.copyPages(source, [index]);
+    out.addPage(copied);
+    if (index + 1 === after) out.addPage([template.width, template.height]);
+    onProgress((index + 1) / (count + 1));
+  }
+  stripPdfMetadata(out);
+  onProgress(1);
+  return [
+    resultFrom(
+      item,
+      pdfBlob(await out.save({ useObjectStreams: true })),
+      replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-blank.pdf"),
+      item.size,
+    ),
+  ];
+}
+
+export async function processInvertPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "invert") throw new Error("Invert needs a mode.");
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to invert.");
+  const source = await loadPdf(item.file);
+  const { getDocument } = await loadPdfJs();
+  const data = new Uint8Array(await item.file.arrayBuffer());
+  const src = await getDocument({ data }).promise;
+  const out = await PDFDocument.create();
+  try {
+    for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
+      const page = await src.getPage(pageNum);
+      const { canvas, ctx } = await renderPageCanvas(page, 1.6);
+      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const buf = pixels.data;
+      if (options.mode === "invert") {
+        for (let i = 0; i < buf.length; i += 4) {
+          buf[i] = 255 - (buf[i] ?? 0);
+          buf[i + 1] = 255 - (buf[i + 1] ?? 0);
+          buf[i + 2] = 255 - (buf[i + 2] ?? 0);
+        }
+      } else {
+        for (let i = 0; i < buf.length; i += 4) {
+          const gray = Math.round(
+            0.2126 * (buf[i] ?? 0) +
+              0.7152 * (buf[i + 1] ?? 0) +
+              0.0722 * (buf[i + 2] ?? 0),
+          );
+          buf[i] = gray;
+          buf[i + 1] = gray;
+          buf[i + 2] = gray;
+        }
+      }
+      ctx.putImageData(pixels, 0, 0);
+      const jpeg = await canvasToJpeg(canvas, 0.86);
+      page.cleanup();
+      const image = await out.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
+      const size = source.getPage(pageNum - 1).getSize();
+      const pdfPage = out.addPage([size.width, size.height]);
+      pdfPage.drawImage(image, {
+        x: 0,
+        y: 0,
+        width: size.width,
+        height: size.height,
+      });
+      onProgress(pageNum / src.numPages);
+    }
+  } finally {
+    await src.loadingTask.destroy();
+  }
+  stripPdfMetadata(out);
+  const suffix = options.mode === "invert" ? "-inverted.pdf" : "-gray.pdf";
+  return [
+    resultFrom(
+      item,
+      pdfBlob(await out.save({ useObjectStreams: true })),
+      replaceExt(item.name, "pdf").replace(/\.pdf$/i, suffix),
+      item.size,
+    ),
+  ];
+}
+
+export async function processNup(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "nup") throw new Error("N-up needs a layout.");
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to n-up.");
+  const source = await loadPdf(item.file);
+  const count = source.getPageCount();
+  const cols = options.n === 9 ? 3 : 2;
+  const rows = options.n === 2 ? 1 : options.n === 4 ? 2 : 3;
+  ensurePageContents(source);
+  const first = source.getPage(0).getSize();
+  const sheet =
+    options.n === 2
+      ? { width: Math.max(first.width, first.height), height: Math.min(first.width, first.height) }
+      : { width: first.width, height: first.height };
+  const gutter = 10;
+  const cellW = (sheet.width - gutter * (cols + 1)) / cols;
+  const cellH = (sheet.height - gutter * (rows + 1)) / rows;
+  const out = await PDFDocument.create();
+  const sheets = Math.ceil(count / options.n);
+  for (let sheetIndex = 0; sheetIndex < sheets; sheetIndex++) {
+    const page = out.addPage([sheet.width, sheet.height]);
+    for (let slot = 0; slot < options.n; slot++) {
+      const srcIndex = sheetIndex * options.n + slot;
+      if (srcIndex >= count) break;
+      const embedded = await out.embedPage(source.getPage(srcIndex));
+      const col = slot % cols;
+      const row = Math.floor(slot / cols);
+      const scale = Math.min(cellW / embedded.width, cellH / embedded.height);
+      const w = embedded.width * scale;
+      const h = embedded.height * scale;
+      const x = gutter + col * (cellW + gutter) + (cellW - w) / 2;
+      const y =
+        sheet.height -
+        gutter -
+        (row + 1) * cellH -
+        row * gutter +
+        (cellH - h) / 2;
+      page.drawPage(embedded, { x, y, width: w, height: h });
+    }
+    onProgress((sheetIndex + 1) / sheets);
+  }
+  stripPdfMetadata(out);
+  return [
+    resultFrom(
+      item,
+      pdfBlob(await out.save({ useObjectStreams: true })),
+      replaceExt(item.name, "pdf").replace(/\.pdf$/i, `-${options.n}up.pdf`),
+      item.size,
+    ),
+  ];
+}
+
+export async function processPageSize(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "page-size") throw new Error("Page size needs a sheet.");
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to resize.");
+  const source = await loadPdf(item.file);
+  ensurePageContents(source);
+  const target = options.size === "a4" ? PageSizes.A4 : PageSizes.Letter;
+  const out = await PDFDocument.create();
+  const count = source.getPageCount();
+  for (let index = 0; index < count; index++) {
+    const embedded = await out.embedPage(source.getPage(index));
+    const page = out.addPage(target);
+    const scale =
+      options.fit === "fit"
+        ? Math.max(target[0] / embedded.width, target[1] / embedded.height)
+        : Math.min(target[0] / embedded.width, target[1] / embedded.height);
+    const width = embedded.width * scale;
+    const height = embedded.height * scale;
+    page.drawPage(embedded, {
+      x: (target[0] - width) / 2,
+      y: (target[1] - height) / 2,
+      width,
+      height,
+    });
+    onProgress((index + 1) / count);
+  }
+  stripPdfMetadata(out);
+  const tag = options.size === "a4" ? "a4" : "letter";
+  return [
+    resultFrom(
+      item,
+      pdfBlob(await out.save({ useObjectStreams: true })),
+      replaceExt(item.name, "pdf").replace(/\.pdf$/i, `-${tag}.pdf`),
+      item.size,
+    ),
+  ];
+}
+
+function ensurePageContents(doc: PDFDocument) {
+  for (const page of doc.getPages()) {
+    page.drawRectangle({
+      x: 0,
+      y: 0,
+      width: 0.01,
+      height: 0.01,
+      opacity: 0,
+      borderOpacity: 0,
+    });
+  }
+}
+
+async function renderPageCanvas(page: PDFPageProxy, scale: number) {
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.floor(viewport.width));
+  canvas.height = Math.max(1, Math.floor(viewport.height));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas is not available in this browser.");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+  return { canvas, ctx };
+}
+
+function isNearWhite(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+) {
+  const data = ctx.getImageData(0, 0, width, height).data;
+  const step = 16;
+  let dark = 0;
+  for (let i = 0; i < data.length; i += step) {
+    if ((data[i] ?? 255) < 248 || (data[i + 1] ?? 255) < 248 || (data[i + 2] ?? 255) < 248) {
+      dark += 1;
+    }
+  }
+  return dark < 20;
+}
+
+function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      canvas.width = 0;
+      canvas.height = 0;
+      if (!blob) {
+        reject(new Error("Could not encode the page."));
+        return;
+      }
+      resolve(blob);
+    }, "image/jpeg", quality);
+  });
 }

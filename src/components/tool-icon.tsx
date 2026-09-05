@@ -1,21 +1,29 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  ArrowDownUp,
   Columns2,
+  Contrast,
   Crop,
   Eraser,
   FileImage,
   FileOutput,
+  FilePlus,
   FileType,
+  FileX,
   Hash,
   Highlighter,
   Image,
+  ImageDown,
   Images,
   Layers,
   Layers2,
+  LayoutGrid,
   Lock,
   MessageCircleQuestionMark,
   Minimize2,
+  PanelTop,
   PenLine,
+  Proportions,
   RotateCw,
   Scaling,
   ScanText,
@@ -66,6 +74,26 @@ function visual(id: ToolId): { Icon: LucideIcon; tone: Tone } {
       return { Icon: Highlighter, tone: "rose" };
     case "compare-pdfs":
       return { Icon: Columns2, tone: "indigo" };
+    case "extract-text":
+      return { Icon: FileType, tone: "teal" };
+    case "extract-images":
+      return { Icon: ImageDown, tone: "amber" };
+    case "header-footer":
+      return { Icon: PanelTop, tone: "slate" };
+    case "reverse-pages":
+      return { Icon: ArrowDownUp, tone: "indigo" };
+    case "delete-blank":
+      return { Icon: FileX, tone: "amber" };
+    case "insert-blank":
+      return { Icon: FilePlus, tone: "teal" };
+    case "invert-pdf":
+      return { Icon: Contrast, tone: "violet" };
+    case "n-up":
+      return { Icon: LayoutGrid, tone: "indigo" };
+    case "page-size":
+      return { Icon: Proportions, tone: "amber" };
+    case "pdf-to-png":
+      return { Icon: FileImage, tone: "amber" };
     case "watermark-pdf":
       return { Icon: Stamp, tone: "violet" };
     case "page-numbers":

@@ -570,6 +570,64 @@ export async function processPdfToJpg(
   return results;
 }
 
+export async function processPdfToPng(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to convert.");
+
+  const { getDocument } = await loadPdfJs();
+  const data = new Uint8Array(await item.file.arrayBuffer());
+  const pdf = await getDocument({ data }).promise;
+  const base = item.name.replace(/\.[^.]+$/, "");
+  const results: ResultItem[] = [];
+
+  try {
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const blob = await renderPdfPageToPng(page, 2);
+      results.push({
+        id: crypto.randomUUID(),
+        name: `${base}-page-${pageNum}.png`,
+        size: blob.size,
+        blob,
+        originalSize: item.size,
+      });
+      onProgress(pageNum / pdf.numPages);
+    }
+  } finally {
+    await pdf.loadingTask.destroy();
+  }
+
+  return results;
+}
+
+async function renderPdfPageToPng(
+  page: PDFPageProxy,
+  scale: number,
+): Promise<Blob> {
+  const preferred = page.getViewport({ scale });
+  const box = clampCanvasSize(preferred.width, preferred.height);
+  const viewport = page.getViewport({
+    scale: scale * (box.width / Math.max(preferred.width, 1)),
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = box.width;
+  canvas.height = box.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    releaseCanvas(canvas);
+    throw new Error("Canvas is not available in this browser.");
+  }
+  try {
+    await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+    return await canvasToPngBlob(canvas);
+  } finally {
+    page.cleanup();
+  }
+}
+
 const COMPRESS_RASTER: Record<
   Exclude<CompressLevel, "light">,
   { scale: number; quality: number }

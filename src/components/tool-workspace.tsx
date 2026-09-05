@@ -44,7 +44,16 @@ import {
   processOcrPdf,
   processPngToPdf,
   processComparePdfs,
+  processDeleteBlank,
+  processExtractImages,
+  processExtractText,
+  processHeaderFooter,
+  processInsertBlank,
+  processInvertPdf,
+  processNup,
+  processPageSize,
   processRedactPdf,
+  processReversePages,
   processSignPdf,
   processStripMetadata,
   processWordToPdf,
@@ -60,6 +69,7 @@ import {
   processMergePdf,
   processOrganizePdf,
   processPdfToJpg,
+  processPdfToPng,
   processPngToJpg,
   processProtectPdf,
   processResizeImage,
@@ -121,6 +131,26 @@ async function runTool(
       return processRedactPdf(files, onProgress, options);
     case "compare-pdfs":
       return processComparePdfs(files, onProgress, options);
+    case "extract-text":
+      return processExtractText(files, onProgress);
+    case "extract-images":
+      return processExtractImages(files, onProgress);
+    case "header-footer":
+      return processHeaderFooter(files, onProgress, options);
+    case "reverse-pages":
+      return processReversePages(files, onProgress);
+    case "delete-blank":
+      return processDeleteBlank(files, onProgress);
+    case "insert-blank":
+      return processInsertBlank(files, onProgress, options);
+    case "invert-pdf":
+      return processInvertPdf(files, onProgress, options);
+    case "n-up":
+      return processNup(files, onProgress, options);
+    case "page-size":
+      return processPageSize(files, onProgress, options);
+    case "pdf-to-png":
+      return processPdfToPng(files, onProgress);
     case "watermark-pdf":
     case "page-numbers":
       return processAnnotatePdf(files, onProgress, options);
@@ -212,7 +242,8 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     options.kind === "extract" ||
     options.kind === "sign" ||
     options.kind === "crop" ||
-    options.kind === "redact"
+    options.kind === "redact" ||
+    options.kind === "insert-blank"
       ? files[0]
       : undefined;
   const pagedFacts = pagedFile ? previews.get(pagedFile.id)?.facts : undefined;

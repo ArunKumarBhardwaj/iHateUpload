@@ -85,6 +85,16 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Draw boxes over the text. Those pixels are burned out, not covered.";
     case "compare":
       return "Add two PDFs. First is the left file. The text diff is the result.";
+    case "header-footer":
+      return "Left, center, and right. {page} {pages} {date} expand on each page.";
+    case "insert-blank":
+      return "Insert one blank page after the page number you type. 0 puts it first.";
+    case "invert":
+      return "Invert flips every pixel. Grayscale keeps the layout, drops the color.";
+    case "nup":
+      return "How many pages to print on each sheet.";
+    case "page-size":
+      return "Fit fills the sheet and may clip. Letterbox keeps the whole page.";
     case "annotate":
       return options.variant === "numbers"
         ? "Pick where the page numbers sit."
@@ -479,6 +489,191 @@ export function OptionsPanel({
         <p className="text-sm text-muted-foreground">
           Pages stay in lockstep. Compare writes a line diff of the selectable text.
         </p>
+      );
+
+    case "header-footer":
+      return (
+        <div className="space-y-3">
+          <Field label="Left" htmlFor="hf-left">
+            <Input
+              id="hf-left"
+              value={options.left}
+              disabled={disabled}
+              onChange={(e) =>
+                onOptions({ ...options, left: e.target.value })
+              }
+              placeholder="Name"
+            />
+          </Field>
+          <Field label="Center" htmlFor="hf-center">
+            <Input
+              id="hf-center"
+              value={options.center}
+              disabled={disabled}
+              onChange={(e) =>
+                onOptions({ ...options, center: e.target.value })
+              }
+              placeholder="{page} / {pages}"
+            />
+          </Field>
+          <Field label="Right" htmlFor="hf-right">
+            <Input
+              id="hf-right"
+              value={options.right}
+              disabled={disabled}
+              onChange={(e) =>
+                onOptions({ ...options, right: e.target.value })
+              }
+              placeholder="{date}"
+            />
+          </Field>
+          <p className="text-sm font-medium text-ink">Place on</p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["header", "Header"],
+                ["footer", "Footer"],
+                ["both", "Both"],
+              ] as const
+            ).map(([band, title]) => (
+              <Button
+                key={band}
+                type="button"
+                size="sm"
+                className={OPTION_BUTTON}
+                variant={options.band === band ? "default" : "outline"}
+                disabled={disabled}
+                onClick={() => onOptions({ ...options, band })}
+              >
+                {title}
+              </Button>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "insert-blank":
+      return (
+        <Field label="Insert after page" htmlFor="insert-after">
+          <Input
+            id="insert-after"
+            type="number"
+            min={0}
+            max={pageCount > 0 ? pageCount : undefined}
+            value={options.afterPage}
+            disabled={disabled}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              if (!Number.isFinite(next)) return;
+              onOptions({
+                kind: "insert-blank",
+                afterPage: Math.max(0, Math.round(next)),
+              });
+            }}
+          />
+          <p className="pt-1 text-xs text-muted-foreground">
+            {pageCount > 0
+              ? `This PDF has ${pageCount} pages. 0 inserts at the start.`
+              : "0 inserts at the start."}
+          </p>
+        </Field>
+      );
+
+    case "invert":
+      return (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-ink">Mode</p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["invert", "Invert"],
+                ["grayscale", "Grayscale"],
+              ] as const
+            ).map(([mode, title]) => (
+              <Button
+                key={mode}
+                type="button"
+                size="sm"
+                className={OPTION_BUTTON}
+                variant={options.mode === mode ? "default" : "outline"}
+                disabled={disabled}
+                onClick={() => onOptions({ kind: "invert", mode })}
+              >
+                {title}
+              </Button>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "nup":
+      return (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-ink">Pages per sheet</p>
+          <div className="flex flex-wrap gap-2">
+            {([2, 4, 9] as const).map((n) => (
+              <Button
+                key={n}
+                type="button"
+                size="sm"
+                className={OPTION_BUTTON}
+                variant={options.n === n ? "default" : "outline"}
+                disabled={disabled}
+                onClick={() => onOptions({ kind: "nup", n })}
+              >
+                {n}-up
+              </Button>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "page-size":
+      return (
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-ink">Sheet</p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["a4", "A4"],
+                ["letter", "Letter"],
+              ] as const
+            ).map(([size, title]) => (
+              <Button
+                key={size}
+                type="button"
+                size="sm"
+                className={OPTION_BUTTON}
+                variant={options.size === size ? "default" : "outline"}
+                disabled={disabled}
+                onClick={() => onOptions({ ...options, size })}
+              >
+                {title}
+              </Button>
+            ))}
+          </div>
+          <p className="text-sm font-medium text-ink">How to fit</p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["letterbox", "Letterbox"],
+                ["fit", "Fit"],
+              ] as const
+            ).map(([fit, title]) => (
+              <Button
+                key={fit}
+                type="button"
+                size="sm"
+                className={OPTION_BUTTON}
+                variant={options.fit === fit ? "default" : "outline"}
+                disabled={disabled}
+                onClick={() => onOptions({ ...options, fit })}
+              >
+                {title}
+              </Button>
+            ))}
+          </div>
+        </div>
       );
 
     case "annotate":

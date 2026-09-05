@@ -37,6 +37,17 @@ export type ToolOptions =
   | { kind: "redact"; boxes: PageBox[] }
   | { kind: "compare"; pageIndex: number }
   | {
+      kind: "header-footer";
+      left: string;
+      center: string;
+      right: string;
+      band: "header" | "footer" | "both";
+    }
+  | { kind: "insert-blank"; afterPage: number }
+  | { kind: "invert"; mode: "invert" | "grayscale" }
+  | { kind: "nup"; n: 2 | 4 | 9 }
+  | { kind: "page-size"; size: "a4" | "letter"; fit: "fit" | "letterbox" }
+  | {
       kind: "annotate";
       variant: "watermark" | "numbers";
       text: string;
@@ -196,6 +207,22 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "redact", boxes: [] };
     case "compare":
       return { kind: "compare", pageIndex: 0 };
+    case "header-footer":
+      return {
+        kind: "header-footer",
+        left: "",
+        center: "{page} / {pages}",
+        right: "",
+        band: "both",
+      };
+    case "insert-blank":
+      return { kind: "insert-blank", afterPage: 1 };
+    case "invert":
+      return { kind: "invert", mode: "invert" };
+    case "nup":
+      return { kind: "nup", n: 2 };
+    case "page-size":
+      return { kind: "page-size", size: "a4", fit: "letterbox" };
     case "watermark":
       return {
         kind: "annotate",
@@ -236,7 +263,18 @@ export function optionsReady(
     case "crop":
     case "ocr":
     case "compare":
+    case "invert":
+    case "nup":
+    case "page-size":
       return true;
+    case "insert-blank":
+      return Number.isInteger(options.afterPage) && options.afterPage >= 0;
+    case "header-footer":
+      return (
+        options.left.trim().length > 0 ||
+        options.center.trim().length > 0 ||
+        options.right.trim().length > 0
+      );
     case "password":
       return options.password.trim().length > 0;
     case "password-confirm":
