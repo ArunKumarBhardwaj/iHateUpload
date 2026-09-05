@@ -579,6 +579,276 @@ export async function processExcelToPdf(
   return results;
 }
 
+function pdfSafe(text: string): string {
+  return text.replace(/[^\u0009\u000a\u000d\u0020-\u007e]/g, "?");
+}
+
+type DrawnLine = { text: string; size: number };
+
+async function linesToPdf(lines: DrawnLine[]): Promise<Blob> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const pageSize: [number, number] = [595.28, 841.89];
+  let page = doc.addPage(pageSize);
+  let y = pageSize[1] - 56;
+  const drawn = lines.length > 0 ? lines : [{ text: "(empty file)", size: 11 }];
+  for (const line of drawn) {
+    const step = line.size + 5;
+    if (y < 56) {
+      page = doc.addPage(pageSize);
+      y = pageSize[1] - 56;
+    }
+    page.drawText(line.text || " ", {
+      x: 56,
+      y,
+      size: line.size,
+      font,
+      color: rgb(0.1, 0.1, 0.12),
+    });
+    y -= step;
+  }
+  return pdfBlob(await doc.save({ useObjectStreams: true }));
+}
+
+function markdownToLines(source: string): DrawnLine[] {
+  const lines: DrawnLine[] = [];
+  let inCode = false;
+  for (const raw of source.replace(/\r\n/g, "\n").split("\n")) {
+    if (raw.trim().startsWith("```")) {
+      inCode = !inCode;
+      continue;
+    }
+    const row = pdfSafe(
+      raw
+        .replace(/\*\*([^*]+)\*\*/g, "$1")
+        .replace(/\*([^*]+)\*/g, "$1")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"),
+    );
+    if (inCode) {
+      lines.push({ text: row.slice(0, 96) || " ", size: 9 });
+      continue;
+    }
+    if (/^###\s+/.test(row)) {
+      for (const line of wrapLines(row.replace(/^###\s+/, ""), 72)) {
+        lines.push({ text: line, size: 13 });
+      }
+    } else if (/^##\s+/.test(row)) {
+      for (const line of wrapLines(row.replace(/^##\s+/, ""), 64)) {
+        lines.push({ text: line, size: 16 });
+      }
+    } else if (/^#\s+/.test(row)) {
+      for (const line of wrapLines(row.replace(/^#\s+/, ""), 56)) {
+        lines.push({ text: line, size: 20 });
+      }
+    } else if (/^\s*[-*]\s+/.test(row)) {
+      for (const line of wrapLines(`- ${row.replace(/^\s*[-*]\s+/, "")}`, 86)) {
+        lines.push({ text: line, size: 11 });
+      }
+    } else if (/^\s*\d+\.\s+/.test(row)) {
+      for (const line of wrapLines(row.trim(), 86)) {
+        lines.push({ text: line, size: 11 });
+      }
+    } else if (row.trim() === "") {
+      lines.push({ text: " ", size: 8 });
+    } else {
+      for (const line of wrapLines(row.trim(), 88)) {
+        lines.push({ text: line, size: 11 });
+      }
+    }
+  }
+  return lines;
+}
+
+function htmlToLines(html: string): DrawnLine[] {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const lines: DrawnLine[] = [];
+  const walk = (node: Node) => {
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as HTMLElement;
+    const tag = el.tagName.toLowerCase();
+    if (tag === "script" || tag === "style" || tag === "noscript") return;
+    const size =
+      tag === "h1" ? 20 : tag === "h2" ? 16 : tag === "h3" ? 13 : tag === "pre" ? 9 : 11;
+    if (["h1", "h2", "h3", "p", "li", "pre", "blockquote"].includes(tag)) {
+      const text = pdfSafe((el.textContent ?? "").replace(/\s+/g, " ").trim());
+      if (text) {
+        for (const line of wrapLines(text, tag === "pre" ? 96 : 88)) {
+          lines.push({ text: line, size });
+        }
+      }
+      return;
+    }
+    if (tag === "tr") {
+      const cells = [...el.querySelectorAll("th,td")]
+        .map((cell) => pdfSafe((cell.textContent ?? "").replace(/\s+/g, " ").trim()))
+        .filter(Boolean);
+      if (cells.length) {
+        for (const line of wrapLines(cells.join("  |  "), 88)) {
+          lines.push({ text: line, size: 10 });
+        }
+      }
+      return;
+    }
+    for (const child of Array.from(el.childNodes)) walk(child);
+  };
+  walk(doc.body);
+  if (lines.length === 0) {
+    const text = pdfSafe((doc.body?.textContent ?? "").replace(/\s+/g, " ").trim());
+    if (text) {
+      for (const line of wrapLines(text, 88)) {
+        lines.push({ text: line, size: 11 });
+      }
+    }
+  }
+  return lines;
+}
+
+function extractPptxSlideTexts(xml: string): string[] {
+  const texts: string[] = [];
+  const tagged = xml.matchAll(/<a:t(?:\s[^>]*)?>([^<]*)<\/a:t>/g);
+  for (const match of tagged) {
+    const value = pdfSafe(match[1] ?? "").trim();
+    if (value) texts.push(value);
+  }
+  return texts;
+}
+
+async function rowsToPdf(
+  rows: (string | number | boolean | null)[][],
+): Promise<Blob> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const pageSize: [number, number] = [841.89, 595.28];
+  let page = doc.addPage(pageSize);
+  let y = pageSize[1] - 40;
+  const colWidth = 110;
+  const drawn = rows.length > 0 ? rows : [["(empty table)"]];
+  for (const row of drawn.slice(0, 200)) {
+    if (y < 36) {
+      page = doc.addPage(pageSize);
+      y = pageSize[1] - 40;
+    }
+    (row ?? []).slice(0, 7).forEach((cell, col) => {
+      const text = pdfSafe(cell == null ? "" : String(cell).slice(0, 22));
+      if (!text) return;
+      page.drawText(text, {
+        x: 28 + col * colWidth,
+        y,
+        size: 9,
+        font,
+        color: rgb(0.12, 0.12, 0.14),
+      });
+    });
+    y -= 14;
+  }
+  return pdfBlob(await doc.save({ useObjectStreams: true }));
+}
+
+export async function processMarkdownToPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const results: ResultItem[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const blob = await linesToPdf(markdownToLines(await item.file.text()));
+    results.push(resultFrom(item, blob, replaceExt(item.name, "pdf"), item.size));
+    onProgress((i + 1) / files.length);
+  }
+  return results;
+}
+
+export async function processCsvToPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const XLSX = await import("xlsx");
+  const results: ResultItem[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const workbook = XLSX.read(await item.file.text(), { type: "string" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = (sheet
+      ? (XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][])
+      : []) as (string | number | boolean | null)[][];
+    const blob = await rowsToPdf(rows);
+    results.push(resultFrom(item, blob, replaceExt(item.name, "pdf"), item.size));
+    onProgress((i + 1) / files.length);
+  }
+  return results;
+}
+
+export async function processHtmlToPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const results: ResultItem[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const blob = await linesToPdf(htmlToLines(await item.file.text()));
+    results.push(resultFrom(item, blob, replaceExt(item.name, "pdf"), item.size));
+    onProgress((i + 1) / files.length);
+  }
+  return results;
+}
+
+export async function processPptxToPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const { default: JSZip } = await import("jszip");
+  const results: ResultItem[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const zip = await JSZip.loadAsync(await item.file.arrayBuffer());
+    const names = Object.keys(zip.files)
+      .filter((name) => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
+      .sort((a, b) => {
+        const left = Number(a.match(/slide(\d+)/i)?.[1] ?? 0);
+        const right = Number(b.match(/slide(\d+)/i)?.[1] ?? 0);
+        return left - right;
+      });
+    if (names.length === 0) {
+      throw new Error("This PowerPoint file has no slides.");
+    }
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    for (const name of names) {
+      const xml = await zip.files[name].async("string");
+      const texts = extractPptxSlideTexts(xml);
+      const page = doc.addPage([720, 540]);
+      let y = 500;
+      const drawn = texts.length > 0 ? texts : ["(empty slide)"];
+      drawn.forEach((text, index) => {
+        const size = index === 0 ? 18 : 12;
+        for (const line of wrapLines(text, index === 0 ? 48 : 72)) {
+          if (y < 36) return;
+          page.drawText(line, {
+            x: 40,
+            y,
+            size,
+            font,
+            color: rgb(0.1, 0.1, 0.12),
+          });
+          y -= size + 8;
+        }
+      });
+    }
+    const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
+    results.push(resultFrom(item, blob, replaceExt(item.name, "pdf"), item.size));
+    onProgress((i + 1) / files.length);
+  }
+  return results;
+}
+
+export async function processScanToPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  return processImageToPdf(files, onProgress);
+}
+
 async function pdfTextOrEmpty(file: File) {
   try {
     return await extractPdfText(file);

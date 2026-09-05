@@ -30,6 +30,11 @@ export type ToolId =
   | "ocr-pdf"
   | "word-to-pdf"
   | "excel-to-pdf"
+  | "pptx-to-pdf"
+  | "markdown-to-pdf"
+  | "csv-to-pdf"
+  | "html-to-pdf"
+  | "scan-to-pdf"
   | "strip-metadata"
   | "ask-pdf"
   | "heic-to-jpg"
@@ -79,7 +84,8 @@ export type ToolDefinition = {
     | "watermark"
     | "page-numbers"
     | "ocr"
-    | "ask";
+    | "ask"
+    | "scan";
 };
 
 export const TOOLS: ToolDefinition[] = [
@@ -843,6 +849,122 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: false,
     kind: "pdf",
     ui: "none",
+  },
+  {
+    id: "pptx-to-pdf",
+    slug: "pptx-to-pdf",
+    title: "PowerPoint to PDF",
+    shortTitle: "PPTX → PDF",
+    description:
+      "Turn slides into a PDF. Text is kept. Fancy layout is not. Stays in this tab.",
+    accept:
+      ".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    multiple: true,
+    ordered: true,
+    actionLabel: "Create PDF",
+    seoTitle: "PowerPoint to PDF Converter Free — No Upload",
+    seoDescription:
+      "Convert PPTX to PDF online free. Slides stay in your browser — no upload.",
+    seoHowTo: [
+      "Choose one or more .pptx files.",
+      "Click Create PDF. Each slide becomes a page.",
+      "Download the PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "markdown-to-pdf",
+    slug: "markdown-to-pdf",
+    title: "Markdown to PDF",
+    shortTitle: "Markdown → PDF",
+    description:
+      "Turn a .md file into a PDF. Headings, lists, and code stay in this tab.",
+    accept: ".md,.markdown,text/markdown,text/plain",
+    multiple: true,
+    ordered: true,
+    actionLabel: "Create PDF",
+    seoTitle: "Markdown to PDF Converter Free — No Upload",
+    seoDescription:
+      "Convert Markdown to PDF online free. The .md file stays in your browser — no upload.",
+    seoHowTo: [
+      "Choose a Markdown file.",
+      "Click Create PDF. Headings and lists are drawn locally.",
+      "Download the PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "csv-to-pdf",
+    slug: "csv-to-pdf",
+    title: "CSV to PDF",
+    shortTitle: "CSV → PDF",
+    description:
+      "Turn a CSV into a simple PDF table. Stays in this tab.",
+    accept: ".csv,text/csv,text/plain",
+    multiple: true,
+    ordered: true,
+    actionLabel: "Create PDF",
+    seoTitle: "CSV to PDF Converter Free — No Upload",
+    seoDescription:
+      "Convert a CSV to a PDF table online free. The file stays in your browser — no upload.",
+    seoHowTo: [
+      "Choose a CSV file.",
+      "Click Create PDF. Columns are drawn as a table.",
+      "Download the PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "html-to-pdf",
+    slug: "html-to-pdf",
+    title: "HTML to PDF",
+    shortTitle: "HTML → PDF",
+    description:
+      "Turn a local HTML file into a PDF. Text and headings stay. Scripts do not run.",
+    accept: ".html,.htm,text/html",
+    multiple: true,
+    ordered: true,
+    actionLabel: "Create PDF",
+    seoTitle: "HTML to PDF Converter Free — No Upload",
+    seoDescription:
+      "Convert a local HTML file to PDF online free. The file stays in your browser — no upload.",
+    seoHowTo: [
+      "Choose an .html file from this device.",
+      "Click Create PDF. The page is read locally.",
+      "Download the PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "none",
+  },
+  {
+    id: "scan-to-pdf",
+    slug: "scan-to-pdf",
+    title: "Scan to PDF",
+    shortTitle: "Scan to PDF",
+    description:
+      "Snap a page with the camera, or drop a photo. The PDF stays in this tab.",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
+    multiple: true,
+    ordered: true,
+    actionLabel: "Make PDF",
+    seoTitle: "Scan Document to PDF Free — No Upload",
+    seoDescription:
+      "Scan a document to PDF online free. Use the camera or a photo. Nothing is uploaded.",
+    seoHowTo: [
+      "Allow the camera, or drop a photo of the page.",
+      "Capture each page you need.",
+      "Download the PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "scan",
   },
   {
     id: "heic-to-jpg",

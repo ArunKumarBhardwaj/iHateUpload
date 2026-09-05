@@ -56,7 +56,8 @@ export type ToolOptions =
       position: AnnotatePosition;
     }
   | { kind: "ocr"; language: string }
-  | { kind: "ask"; question: string };
+  | { kind: "ask"; question: string }
+  | { kind: "scan" };
 
 export const DEFAULT_PAGE_BOX: PageBox = {
   pageIndex: 0,
@@ -245,6 +246,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "ocr", language: "eng" };
     case "ask":
       return { kind: "ask", question: "" };
+    case "scan":
+      return { kind: "scan" };
   }
 }
 
@@ -266,6 +269,7 @@ export function optionsReady(
     case "invert":
     case "nup":
     case "page-size":
+    case "scan":
       return true;
     case "insert-blank":
       return Number.isInteger(options.afterPage) && options.afterPage >= 0;
