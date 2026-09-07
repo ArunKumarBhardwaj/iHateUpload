@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { ToolCardGrid } from "@/components/tool-card";
 import { ToolWorkspace } from "@/components/tool-workspace";
+import { siteUrl } from "@/lib/site";
 import { getTool, TOOLS } from "@/lib/tools";
 
 type ToolPageProps = PageProps<"/tools/[slug]">;
@@ -58,7 +59,7 @@ export default async function ToolPage({ params }: ToolPageProps) {
       priceCurrency: "USD",
     },
     description: tool.seoDescription,
-    url: `https://ihateupload.com/tools/${tool.slug}`,
+    url: siteUrl(`/tools/${tool.slug}`),
     featureList: [
       "No file upload",
       "Runs in the browser",

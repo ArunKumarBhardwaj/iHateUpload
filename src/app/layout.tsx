@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { SITE_ORIGIN } from "@/lib/site";
 import { ServiceWorkerRegister } from "@/lib/sw-register";
 
 import "./globals.css";
@@ -21,13 +22,13 @@ export const metadata: Metadata = {
   },
   description:
     "Compress image, merge PDF, convert PDF to JPG, HEIC to JPG, and more — free in your browser. No upload, no signup, no watermark.",
-  metadataBase: new URL("https://ihateupload.com"),
+  metadataBase: new URL(SITE_ORIGIN),
   openGraph: {
     title: "Free Online PDF & Image Tools — No Upload",
     description:
       "Compress image, merge PDF, convert PDF, HEIC to JPG, and more. Files stay on your device.",
     type: "website",
-    url: "https://ihateupload.com",
+    url: SITE_ORIGIN,
     siteName: "iHateUpload",
   },
   twitter: {

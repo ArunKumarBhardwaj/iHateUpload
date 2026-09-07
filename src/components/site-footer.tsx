@@ -28,7 +28,7 @@ export function SiteFooter() {
             </p>
             <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
               <li>
-                <Link href="/#tools" className="hover:text-ink">
+                <Link href="/tools" className="hover:text-ink">
                   All tools
                 </Link>
               </li>
@@ -48,7 +48,7 @@ export function SiteFooter() {
             <Link href="/privacy" className="hover:text-ink">
               Privacy
             </Link>
-            <Link href="/#tools" className="hover:text-ink">
+            <Link href="/tools" className="hover:text-ink">
               All tools
             </Link>
           </nav>

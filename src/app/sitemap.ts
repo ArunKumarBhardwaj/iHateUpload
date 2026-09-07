@@ -1,26 +1,32 @@
 import type { MetadataRoute } from "next";
 
+import { SITE_ORIGIN, siteUrl } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = "https://ihateupload.com";
   const now = new Date();
 
   return [
     {
-      url: base,
+      url: SITE_ORIGIN + "/",
       lastModified: now,
       changeFrequency: "weekly",
       priority: 1,
     },
     {
-      url: `${base}/privacy`,
+      url: siteUrl("/tools"),
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: siteUrl("/privacy"),
       lastModified: now,
       changeFrequency: "yearly",
       priority: 0.2,
     },
     ...TOOLS.map((tool) => ({
-      url: `${base}/tools/${tool.slug}`,
+      url: siteUrl(`/tools/${tool.slug}`),
       lastModified: now,
       changeFrequency: "weekly" as const,
       priority: 0.9,

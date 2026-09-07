@@ -4,6 +4,7 @@ export const metadata: Metadata = {
   title: "Privacy",
   description:
     "iHateUpload refuses the upload. Tools run in your tab with zero cloud hops for your files.",
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {
