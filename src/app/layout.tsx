@@ -42,6 +42,9 @@ export const metadata: Metadata = {
     follow: true,
   },
   manifest: "/manifest.webmanifest",
+  other: {
+    "directree-verify": "1cd267693e324fad8ce81cc4d613668c",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
