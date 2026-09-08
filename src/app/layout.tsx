@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.webmanifest",
   other: {
-    "directree-verify": "1cd267693e324fad8ce81cc4d613668c",
+    "directree-verify": "directree-verify=1cd267693e324fad8ce81cc4d613668c",
   },
 };
 
