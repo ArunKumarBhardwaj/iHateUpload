@@ -8,8 +8,10 @@
     "build": "next build",
     "start": "next start --port 43127",
     "lint": "eslint",
+    "test": "bun test src/lib/sw-cache.test.ts",
     "sync-pdf-worker": "cp node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs public/pdf.worker.min.mjs",
-    "prebuild": "bun run sync-pdf-worker"
+    "build-sw": "bun build src/sw.ts --outfile public/sw.js --target browser --format iife",
+    "prebuild": "bun run sync-pdf-worker && bun run build-sw"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "^2.9.1",
