@@ -18,6 +18,12 @@ import {
   stripPdfMetadata,
 } from "@/lib/processors";
 import {
+  ghostTextPlacement,
+  OCR_RECOGNIZE_OUTPUT,
+  printablePdfText,
+  wordsFromOcrBlocks,
+} from "@/lib/ocr-words";
+import {
   pageBoxToPdf,
   type AnnotatePosition,
   type PageBox,
@@ -125,6 +131,46 @@ export async function processSignPdf(
       item,
       blob,
       replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-signed.pdf"),
+      item.size,
+    ),
+  ];
+}
+
+export async function processEditPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "edit") throw new Error("Edit PDF needs text to place.");
+  const text = printablePdfText(options.text).trim();
+  if (!text) throw new Error("Type text the PDF font can draw.");
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to edit.");
+  const doc = await loadPdf(item.file);
+  const page = doc.getPage(options.box.pageIndex);
+  if (!page) throw new Error("That page is not in this PDF.");
+  onProgress(0.3);
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const size = page.getSize();
+  const box = pageBoxToPdf(options.box, size.width, size.height);
+  const fontSize = Math.max(8, Math.min(box.height * 0.72, 64));
+  page.drawText(text, {
+    x: box.x,
+    y: box.y + Math.max(0, (box.height - fontSize) * 0.2),
+    size: fontSize,
+    font,
+    color: rgb(0.1, 0.1, 0.12),
+    maxWidth: Math.max(8, box.width),
+  });
+  onProgress(0.8);
+  stripPdfMetadata(doc);
+  const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
+  onProgress(1);
+  return [
+    resultFrom(
+      item,
+      blob,
+      replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-edited.pdf"),
       item.size,
     ),
   ];
@@ -408,6 +454,7 @@ export async function processOcrPdf(
     for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
       const page = await src.getPage(pageNum);
       const viewport = page.getViewport({ scale: 1.6 });
+      const pointViewport = page.getViewport({ scale: 1 });
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(1, Math.floor(viewport.width));
       canvas.height = Math.max(1, Math.floor(viewport.height));
@@ -424,40 +471,41 @@ export async function processOcrPdf(
           0.82,
         );
       });
-      const recognized = await worker.recognize(canvas);
+      const recognized = await worker.recognize(
+        canvas,
+        {},
+        OCR_RECOGNIZE_OUTPUT,
+      );
       canvas.width = 0;
       canvas.height = 0;
       page.cleanup();
       const image = await out.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
-      const pdfPage = out.addPage([image.width, image.height]);
+      const pdfPage = out.addPage([pointViewport.width, pointViewport.height]);
       pdfPage.drawImage(image, {
         x: 0,
         y: 0,
-        width: image.width,
-        height: image.height,
+        width: pointViewport.width,
+        height: pointViewport.height,
       });
-      const scaleX = image.width / viewport.width;
-      const scaleY = image.height / viewport.height;
-      const words =
-        recognized.data.blocks?.flatMap((block) =>
-          block.paragraphs.flatMap((paragraph) =>
-            paragraph.lines.flatMap((line) => line.words),
-          ),
-        ) ?? [];
+      const words = wordsFromOcrBlocks(recognized.data.blocks);
       for (const word of words) {
-        const text = word.text?.trim();
+        const text = printablePdfText(word.text).trim();
         if (!text) continue;
-        const box = word.bbox;
-        const width = Math.max(8, (box.x1 - box.x0) * scaleX);
-        const size = Math.max(6, (box.y1 - box.y0) * scaleY * 0.85);
+        const place = ghostTextPlacement(
+          word.bbox,
+          pointViewport.width,
+          pointViewport.height,
+          viewport.width,
+          viewport.height,
+        );
         pdfPage.drawText(text, {
-          x: box.x0 * scaleX,
-          y: image.height - box.y1 * scaleY,
-          size,
+          x: place.x,
+          y: place.y,
+          size: place.size,
           font,
           color: rgb(0, 0, 0),
           opacity: 0.01,
-          maxWidth: width,
+          maxWidth: place.maxWidth,
         });
       }
       onProgress(pageNum / src.numPages);

@@ -61,6 +61,7 @@ import {
   processRedactPdf,
   processReversePages,
   processSignPdf,
+  processEditPdf,
   processStripMetadata,
   processWordToPdf,
 } from "@/lib/extra-processors";
@@ -143,6 +144,8 @@ async function runTool(
       return processOrganizePdf(files, onProgress, options);
     case "sign-pdf":
       return processSignPdf(files, onProgress, options);
+    case "edit-pdf":
+      return processEditPdf(files, onProgress, options);
     case "crop-pdf":
       return processCropPdf(files, onProgress, options);
     case "redact-pdf":
@@ -274,9 +277,11 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     options.kind === "organize" ||
     options.kind === "extract" ||
     options.kind === "sign" ||
+    options.kind === "edit" ||
     options.kind === "crop" ||
     options.kind === "redact" ||
-    options.kind === "insert-blank"
+    options.kind === "insert-blank" ||
+    options.kind === "ocr"
       ? files[0]
       : undefined;
   const pagedFacts = pagedFile ? previews.get(pagedFile.id)?.facts : undefined;
@@ -436,6 +441,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
 
   const overlayFile =
     (options.kind === "sign" ||
+      options.kind === "edit" ||
       options.kind === "crop" ||
       options.kind === "redact") &&
     pagedFile
@@ -598,6 +604,15 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   onBox={(box) => setOptions({ ...options, box })}
                   disabled={locked}
                   label="Place the signature"
+                />
+              ) : null}
+              {overlayFile && options.kind === "edit" ? (
+                <PageOverlay
+                  file={overlayFile}
+                  box={options.box}
+                  onBox={(box) => setOptions({ ...options, box })}
+                  disabled={locked}
+                  label="Place the text"
                 />
               ) : null}
               {overlayFile && options.kind === "crop" ? (

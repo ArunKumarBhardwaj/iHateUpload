@@ -57,6 +57,7 @@ export function optionsNeedCanvas(options: ToolOptions): boolean {
   return (
     options.kind === "organize" ||
     options.kind === "sign" ||
+    options.kind === "edit" ||
     options.kind === "crop" ||
     options.kind === "image-crop" ||
     options.kind === "redact"
@@ -84,6 +85,8 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Type the pages to keep. The new file is only those pages, in that order.";
     case "sign":
       return "Draw, type, or stamp a signature, then drag it onto the page.";
+    case "edit":
+      return "Type the new words and drag the box onto the page. Existing text is not rewritten.";
     case "crop":
       return "Drag the box to the area every page should keep.";
     case "redact":
@@ -481,6 +484,48 @@ export function OptionsPanel({
           pageCount={pageCount}
           disabled={disabled}
         />
+      );
+
+    case "edit":
+      return (
+        <div className="space-y-3">
+          <Field label="Text" htmlFor="edit-text">
+            <textarea
+              id="edit-text"
+              rows={4}
+              value={options.text}
+              disabled={disabled}
+              onChange={(e) =>
+                onOptions({ ...options, text: e.target.value })
+              }
+              placeholder="Text to place on the page"
+              className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </Field>
+          {pageCount > 1 ? (
+            <Field label="Page" htmlFor="edit-page">
+              <Input
+                id="edit-page"
+                type="number"
+                min={1}
+                max={pageCount}
+                value={options.box.pageIndex + 1}
+                disabled={disabled}
+                onChange={(e) => {
+                  const page = Number(e.target.value);
+                  if (!Number.isInteger(page)) return;
+                  onOptions({
+                    ...options,
+                    box: {
+                      ...options.box,
+                      pageIndex: Math.min(pageCount, Math.max(1, page)) - 1,
+                    },
+                  });
+                }}
+              />
+            </Field>
+          ) : null}
+        </div>
       );
 
     case "crop":

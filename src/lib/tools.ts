@@ -10,6 +10,7 @@ export type ToolId =
   | "rotate-pdf"
   | "organize-pdf"
   | "sign-pdf"
+  | "edit-pdf"
   | "crop-pdf"
   | "redact-pdf"
   | "compare-pdfs"
@@ -77,6 +78,7 @@ export type ToolDefinition = {
     | "compress"
     | "extract"
     | "sign"
+    | "edit"
     | "crop"
     | "redact"
     | "compare"
@@ -394,6 +396,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "sign",
+  },
+  {
+    id: "edit-pdf",
+    slug: "edit-pdf",
+    title: "Edit PDF",
+    shortTitle: "Add text",
+    description:
+      "Place new text on a page. Existing words stay as they are. Runs on this device.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Add text",
+    seoTitle: "Add Text to PDF Online Free — No Upload",
+    seoDescription:
+      "Add text to a PDF online free. Place a text box in your browser. Existing text is not rewritten — no upload.",
+    seoHowTo: [
+      "Choose the PDF you want to add text to.",
+      "Type the words and drag the box onto the page.",
+      "Download the PDF. Original text is unchanged.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "edit",
   },
   {
     id: "crop-pdf",
