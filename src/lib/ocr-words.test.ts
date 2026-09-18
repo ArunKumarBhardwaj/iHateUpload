@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 
 import {
   ghostTextPlacement,
-  printablePdfText,
+  keepHelveticaWinAnsi,
   wordsFromOcrBlocks,
 } from "./ocr-words";
 
@@ -36,9 +36,9 @@ test("nested Tesseract blocks flatten to trimmed words", () => {
   ]);
 });
 
-test("printablePdfText keeps Latin letters and drops Devanagari", () => {
-  expect(printablePdfText("café")).toBe("café");
-  expect(printablePdfText("Hello नमस्ते")).toBe("Hello ");
+test("keepHelveticaWinAnsi keeps Latin letters and drops Devanagari", () => {
+  expect(keepHelveticaWinAnsi("café")).toBe("café");
+  expect(keepHelveticaWinAnsi("Hello नमस्ते")).toBe("Hello ");
 });
 
 test("ghost text sits at the page-space word box", () => {

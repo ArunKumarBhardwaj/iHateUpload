@@ -20,7 +20,7 @@ import {
 import {
   ghostTextPlacement,
   OCR_RECOGNIZE_OUTPUT,
-  printablePdfText,
+  keepHelveticaWinAnsi,
   wordsFromOcrBlocks,
 } from "@/lib/ocr-words";
 import {
@@ -142,7 +142,7 @@ export async function processEditPdf(
   options: ToolOptions,
 ): Promise<ResultItem[]> {
   if (options.kind !== "edit") throw new Error("Edit PDF needs text to place.");
-  const text = printablePdfText(options.text).trim();
+  const text = keepHelveticaWinAnsi(options.text).trim();
   if (!text) throw new Error("Type text the PDF font can draw.");
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to edit.");
@@ -489,7 +489,7 @@ export async function processOcrPdf(
       });
       const words = wordsFromOcrBlocks(recognized.data.blocks);
       for (const word of words) {
-        const text = printablePdfText(word.text).trim();
+        const text = keepHelveticaWinAnsi(word.text).trim();
         if (!text) continue;
         const place = ghostTextPlacement(
           word.bbox,

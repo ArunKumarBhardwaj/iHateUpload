@@ -38,8 +38,7 @@ export function wordsFromOcrBlocks(
   return words;
 }
 
-/** Helvetica WinAnsi. Drop scripts the standard font cannot draw. */
-export function printablePdfText(text: string): string {
+export function keepHelveticaWinAnsi(text: string): string {
   return text.replace(
     /[^\u0009\u000a\u000d\u0020-\u007e\u00a0-\u00ff]/g,
     "",
