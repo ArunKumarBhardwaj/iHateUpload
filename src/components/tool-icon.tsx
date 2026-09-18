@@ -34,6 +34,7 @@ import {
   Smartphone,
   Stamp,
   Table,
+  Type,
   Unlock,
 } from "lucide-react";
 
@@ -71,6 +72,8 @@ function visual(id: ToolId): { Icon: LucideIcon; tone: Tone } {
       return { Icon: Layers2, tone: "indigo" };
     case "sign-pdf":
       return { Icon: PenLine, tone: "rose" };
+    case "edit-pdf":
+      return { Icon: Type, tone: "indigo" };
     case "crop-pdf":
       return { Icon: Crop, tone: "amber" };
     case "redact-pdf":

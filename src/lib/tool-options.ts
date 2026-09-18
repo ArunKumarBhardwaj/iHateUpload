@@ -36,6 +36,7 @@ export type ToolOptions =
   | { kind: "compress"; level: CompressLevel }
   | { kind: "extract"; range: string; pageCount: number }
   | { kind: "sign"; mode: SignMode; text: string; dataUrl: string; box: PageBox }
+  | { kind: "edit"; text: string; box: PageBox }
   | { kind: "crop"; box: PageBox }
   | { kind: "redact"; boxes: PageBox[] }
   | { kind: "compare"; pageIndex: number }
@@ -88,6 +89,14 @@ export const DEFAULT_RATIO_BOX: RatioBox = {
 export const DEFAULT_CROP_BOX: PageBox = {
   pageIndex: 0,
   ...DEFAULT_RATIO_BOX,
+};
+
+export const DEFAULT_EDIT_BOX: PageBox = {
+  pageIndex: 0,
+  x: 0.12,
+  y: 0.18,
+  w: 0.55,
+  h: 0.08,
 };
 
 export const ANNOTATE_POSITIONS: {
@@ -221,6 +230,12 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         dataUrl: "",
         box: { ...DEFAULT_PAGE_BOX },
       };
+    case "edit":
+      return {
+        kind: "edit",
+        text: "",
+        box: { ...DEFAULT_EDIT_BOX },
+      };
     case "crop":
       return { kind: "crop", box: { ...DEFAULT_CROP_BOX } };
     case "redact":
@@ -338,6 +353,8 @@ export function optionsReady(
           : options.dataUrl.startsWith("data:");
       return ink && options.box.w > 0.04 && options.box.h > 0.04;
     }
+    case "edit":
+      return options.text.trim().length > 0 && options.box.w > 0.04 && options.box.h > 0.04;
     case "redact":
       return options.boxes.some((box) => box.w > 0.04 && box.h > 0.04);
     case "annotate":
