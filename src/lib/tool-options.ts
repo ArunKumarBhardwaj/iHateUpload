@@ -16,6 +16,26 @@ export type PageBox = RatioBox & {
   pageIndex: number;
 };
 
+export type EditMarkKind = "text" | "image" | "highlight" | "rect";
+
+type EditMarkBase = PageBox & {
+  id: string;
+};
+
+export type EditMark =
+  | (EditMarkBase & {
+      kind: "text";
+      text: string;
+      /** Fraction of page height. */
+      fontSize: number;
+      color: string;
+      /** White-out the original glyphs, then draw this text. */
+      cover: boolean;
+    })
+  | (EditMarkBase & { kind: "image"; dataUrl: string })
+  | (EditMarkBase & { kind: "highlight"; color: string })
+  | (EditMarkBase & { kind: "rect"; color: string; fill: boolean });
+
 export type AnnotatePosition =
   | "center"
   | "diagonal"
@@ -36,7 +56,7 @@ export type ToolOptions =
   | { kind: "compress"; level: CompressLevel }
   | { kind: "extract"; range: string; pageCount: number }
   | { kind: "sign"; mode: SignMode; text: string; dataUrl: string; box: PageBox }
-  | { kind: "edit"; text: string; box: PageBox }
+  | { kind: "edit"; marks: EditMark[] }
   | { kind: "crop"; box: PageBox }
   | { kind: "redact"; boxes: PageBox[] }
   | { kind: "compare"; pageIndex: number }
@@ -59,7 +79,7 @@ export type ToolOptions =
       rotation: number;
       position: AnnotatePosition;
     }
-  | { kind: "ocr"; language: string }
+  | { kind: "ocr"; language: string; output: OcrOutput; skipTextPages: boolean }
   | { kind: "ask"; question: string }
   | { kind: "scan" }
   | { kind: "image-crop"; box: RatioBox }
@@ -95,9 +115,93 @@ export const DEFAULT_EDIT_BOX: PageBox = {
   pageIndex: 0,
   x: 0.12,
   y: 0.18,
-  w: 0.55,
-  h: 0.08,
+  w: 0.34,
+  h: 0.038,
 };
+
+export const EDIT_FONT_SM = 0.018;
+export const EDIT_FONT_MD = 0.028;
+export const EDIT_FONT_LG = 0.044;
+
+export const EDIT_INK = [
+  "#14161c",
+  "#d61f3a",
+  "#0f766e",
+  "#1d4ed8",
+  "#ffffff",
+] as const;
+
+export const EDIT_HIGHLIGHT = [
+  "#f5d76e",
+  "#86efac",
+  "#7dd3fc",
+  "#f9a8d4",
+] as const;
+
+export function newEditId() {
+  return crypto.randomUUID();
+}
+
+export function newTextMark(
+  pageIndex: number,
+  x = DEFAULT_EDIT_BOX.x,
+  y = DEFAULT_EDIT_BOX.y,
+  extra?: {
+    w?: number;
+    h?: number;
+    text?: string;
+    fontSize?: number;
+    cover?: boolean;
+  },
+): EditMark {
+  return {
+    id: newEditId(),
+    kind: "text",
+    pageIndex,
+    x,
+    y,
+    w: extra?.w ?? DEFAULT_EDIT_BOX.w,
+    h: extra?.h ?? DEFAULT_EDIT_BOX.h,
+    text: extra?.text ?? "",
+    fontSize: extra?.fontSize ?? EDIT_FONT_MD,
+    color: EDIT_INK[0],
+    cover: extra?.cover ?? false,
+  };
+}
+
+export function newImageMark(
+  pageIndex: number,
+  dataUrl: string,
+): EditMark {
+  return {
+    id: newEditId(),
+    kind: "image",
+    pageIndex,
+    x: 0.14,
+    y: 0.16,
+    w: 0.32,
+    h: 0.22,
+    dataUrl,
+  };
+}
+
+export function newHighlightMark(box: PageBox, color = EDIT_HIGHLIGHT[0]): EditMark {
+  return { id: newEditId(), kind: "highlight", color, ...box };
+}
+
+export function newRectMark(box: PageBox, color = EDIT_INK[0]): EditMark {
+  return { id: newEditId(), kind: "rect", color, fill: false, ...box };
+}
+
+export function editMarkReady(mark: EditMark): boolean {
+  if (mark.kind === "text") {
+    if (mark.w <= 0.02 || mark.h <= 0.012) return false;
+    return mark.cover || mark.text.trim().length > 0;
+  }
+  if (mark.w <= 0.04 || mark.h <= 0.04) return false;
+  if (mark.kind === "image") return mark.dataUrl.startsWith("data:");
+  return true;
+}
 
 export const ANNOTATE_POSITIONS: {
   id: AnnotatePosition;
@@ -126,13 +230,27 @@ export function pageBoxToPdf(
   };
 }
 
+export type OcrOutput = "pdf" | "text" | "both";
+
 export const OCR_LANGUAGES = [
   { id: "eng", title: "English" },
+  { id: "hin", title: "Hindi" },
+  { id: "eng+hin", title: "English + Hindi" },
   { id: "spa", title: "Spanish" },
   { id: "fra", title: "French" },
   { id: "deu", title: "German" },
-  { id: "hin", title: "Hindi" },
+  { id: "por", title: "Portuguese" },
+  { id: "ita", title: "Italian" },
+  { id: "ara", title: "Arabic" },
+  { id: "ben", title: "Bengali" },
+  { id: "chi_sim", title: "Chinese" },
 ] as const;
+
+export const OCR_OUTPUTS: { id: OcrOutput; title: string }[] = [
+  { id: "pdf", title: "Searchable PDF" },
+  { id: "text", title: "Text file" },
+  { id: "both", title: "PDF + text" },
+];
 
 export const RESIZE_PRESETS = [1920, 1280, 800, 640] as const;
 export const RESIZE_MIN = 16;
@@ -231,11 +349,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         box: { ...DEFAULT_PAGE_BOX },
       };
     case "edit":
-      return {
-        kind: "edit",
-        text: "",
-        box: { ...DEFAULT_EDIT_BOX },
-      };
+      return { kind: "edit", marks: [] };
     case "crop":
       return { kind: "crop", box: { ...DEFAULT_CROP_BOX } };
     case "redact":
@@ -277,7 +391,12 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         position: "footer",
       };
     case "ocr":
-      return { kind: "ocr", language: "eng" };
+      return {
+        kind: "ocr",
+        language: "eng",
+        output: "pdf",
+        skipTextPages: true,
+      };
     case "ask":
       return { kind: "ask", question: "" };
     case "scan":
@@ -354,7 +473,7 @@ export function optionsReady(
       return ink && options.box.w > 0.04 && options.box.h > 0.04;
     }
     case "edit":
-      return options.text.trim().length > 0 && options.box.w > 0.04 && options.box.h > 0.04;
+      return options.marks.some(editMarkReady);
     case "redact":
       return options.boxes.some((box) => box.w > 0.04 && box.h > 0.04);
     case "annotate":

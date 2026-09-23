@@ -3,6 +3,7 @@ import { expect, test } from "bun:test";
 import {
   ghostTextPlacement,
   keepHelveticaWinAnsi,
+  tessPdfBytes,
   wordsFromOcrBlocks,
 } from "./ocr-words";
 
@@ -56,4 +57,12 @@ test("ghost text sits at the page-space word box", () => {
     size: 17,
     maxWidth: 40,
   });
+});
+
+test("tessPdfBytes ignores empty Tesseract PDF payloads", () => {
+  expect(tessPdfBytes(null)).toBeNull();
+  expect(tessPdfBytes([])).toBeNull();
+  const bytes = tessPdfBytes([37, 80, 68, 70, 45, 49, 46, 52, 10]);
+  expect(bytes).toBeInstanceOf(Uint8Array);
+  expect(Array.from(bytes ?? [])).toEqual([37, 80, 68, 70, 45, 49, 46, 52, 10]);
 });
