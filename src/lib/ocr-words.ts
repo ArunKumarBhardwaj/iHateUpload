@@ -1,5 +1,6 @@
 export const OCR_RECOGNIZE_OUTPUT = {
   text: true,
+  pdf: true,
   blocks: true,
 } as const;
 
@@ -62,4 +63,12 @@ export function ghostTextPlacement(
     size,
     maxWidth: width,
   };
+}
+
+/** Tesseract returns PDF bytes as a number list. Empty means no PDF. */
+export function tessPdfBytes(
+  pdf: number[] | Uint8Array | null | undefined,
+): Uint8Array | null {
+  if (!pdf || pdf.length < 8) return null;
+  return pdf instanceof Uint8Array ? pdf : Uint8Array.from(pdf);
 }

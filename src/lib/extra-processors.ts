@@ -21,13 +21,16 @@ import {
   ghostTextPlacement,
   OCR_RECOGNIZE_OUTPUT,
   keepHelveticaWinAnsi,
+  tessPdfBytes,
   wordsFromOcrBlocks,
 } from "@/lib/ocr-words";
 import {
   pageBoxToPdf,
   type AnnotatePosition,
+  type EditMark,
   type PageBox,
   type ToolOptions,
+  editMarkReady,
 } from "@/lib/tool-options";
 
 type ProgressFn = (ratio: number) => void;
@@ -141,28 +144,25 @@ export async function processEditPdf(
   onProgress: ProgressFn,
   options: ToolOptions,
 ): Promise<ResultItem[]> {
-  if (options.kind !== "edit") throw new Error("Edit PDF needs text to place.");
-  const text = keepHelveticaWinAnsi(options.text).trim();
-  if (!text) throw new Error("Type text the PDF font can draw.");
+  if (options.kind !== "edit") throw new Error("Edit PDF needs marks to place.");
+  const marks = [...options.marks.filter(editMarkReady)].sort(editDrawOrder);
+  if (marks.length === 0) {
+    throw new Error("Add text, an image, or a highlight first.");
+  }
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to edit.");
   const doc = await loadPdf(item.file);
-  const page = doc.getPage(options.box.pageIndex);
-  if (!page) throw new Error("That page is not in this PDF.");
-  onProgress(0.3);
   const font = await doc.embedFont(StandardFonts.Helvetica);
-  const size = page.getSize();
-  const box = pageBoxToPdf(options.box, size.width, size.height);
-  const fontSize = Math.max(8, Math.min(box.height * 0.72, 64));
-  page.drawText(text, {
-    x: box.x,
-    y: box.y + Math.max(0, (box.height - fontSize) * 0.2),
-    size: fontSize,
-    font,
-    color: rgb(0.1, 0.1, 0.12),
-    maxWidth: Math.max(8, box.width),
-  });
-  onProgress(0.8);
+  onProgress(0.15);
+  for (let index = 0; index < marks.length; index++) {
+    const mark = marks[index];
+    const page = doc.getPage(mark.pageIndex);
+    if (!page) continue;
+    const size = page.getSize();
+    const box = pageBoxToPdf(mark, size.width, size.height);
+    await drawEditMark(doc, page, font, mark, box, size.height);
+    onProgress(0.15 + (0.75 * (index + 1)) / marks.length);
+  }
   stripPdfMetadata(doc);
   const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
   onProgress(1);
@@ -174,6 +174,105 @@ export async function processEditPdf(
       item.size,
     ),
   ];
+}
+
+function editDrawOrder(a: EditMark, b: EditMark) {
+  const rank = { highlight: 0, rect: 1, image: 2, text: 3 };
+  return rank[a.kind] - rank[b.kind];
+}
+
+function hexRgb(hex: string) {
+  const raw = hex.replace("#", "");
+  const full =
+    raw.length === 3
+      ? raw
+          .split("")
+          .map((bit) => bit + bit)
+          .join("")
+      : raw;
+  const value = Number.parseInt(full, 16);
+  if (!Number.isFinite(value)) return rgb(0.08, 0.09, 0.11);
+  return rgb(
+    ((value >> 16) & 255) / 255,
+    ((value >> 8) & 255) / 255,
+    (value & 255) / 255,
+  );
+}
+
+function dataUrlBytes(raw: string) {
+  const comma = raw.indexOf(",");
+  const binary = atob(comma >= 0 ? raw.slice(comma + 1) : raw);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function drawEditMark(
+  doc: PDFDocument,
+  page: ReturnType<PDFDocument["getPage"]>,
+  font: Awaited<ReturnType<PDFDocument["embedFont"]>>,
+  mark: EditMark,
+  box: { x: number; y: number; width: number; height: number },
+  pageHeight: number,
+) {
+  switch (mark.kind) {
+    case "highlight":
+      page.drawRectangle({
+        ...box,
+        color: hexRgb(mark.color),
+        opacity: 0.38,
+        borderWidth: 0,
+      });
+      return;
+    case "rect":
+      if (mark.fill) {
+        page.drawRectangle({
+          ...box,
+          color: hexRgb(mark.color),
+          opacity: 0.22,
+          borderColor: hexRgb(mark.color),
+          borderWidth: 1.2,
+        });
+        return;
+      }
+      page.drawRectangle({
+        ...box,
+        borderColor: hexRgb(mark.color),
+        borderWidth: 1.5,
+      });
+      return;
+    case "image": {
+      const bytes = dataUrlBytes(mark.dataUrl);
+      const image = mark.dataUrl.includes("image/png")
+        ? await doc.embedPng(bytes)
+        : await doc.embedJpg(bytes);
+      page.drawImage(image, box);
+      return;
+    }
+    case "text": {
+      if (mark.cover) {
+        page.drawRectangle({
+          x: box.x - 0.6,
+          y: box.y - 0.6,
+          width: box.width + 1.2,
+          height: box.height + 1.2,
+          color: hexRgb("#ffffff"),
+          borderWidth: 0,
+        });
+      }
+      const text = keepHelveticaWinAnsi(mark.text).trim();
+      if (!text) return;
+      const fontSize = Math.max(6, Math.min(mark.fontSize * pageHeight, 72));
+      page.drawText(text, {
+        x: box.x + 0.4,
+        y: box.y + Math.max(0, (box.height - fontSize) / 2),
+        size: fontSize,
+        font,
+        color: hexRgb(mark.color),
+        maxWidth: Math.max(8, box.width),
+      });
+    }
+  }
 }
 
 export async function processRedactPdf(
@@ -443,17 +542,51 @@ export async function processOcrPdf(
   if (options.kind !== "ocr") throw new Error("OCR needs a language.");
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to make searchable.");
-  const { createWorker } = await import("tesseract.js");
+  const wantPdf = options.output !== "text";
+  const wantText = options.output !== "pdf";
+  const scale = 2;
+  const { createWorker, PSM } = await import("tesseract.js");
   const { getDocument } = await loadPdfJs();
   const data = new Uint8Array(await item.file.arrayBuffer());
   const src = await getDocument({ data: data.slice() }).promise;
-  const out = await PDFDocument.create();
-  const font = await out.embedFont(StandardFonts.Helvetica);
-  const worker = await createWorker(options.language);
+  const sourcePdf = wantPdf ? await loadPdf(item.file) : null;
+  const out = wantPdf ? await PDFDocument.create() : null;
+  let ghostFont: Awaited<ReturnType<PDFDocument["embedFont"]>> | null = null;
+  let pageCursor = 0;
+  const texts: string[] = [];
+  const worker = await createWorker(options.language, 1, {
+    logger: (message) => {
+      if (message.status !== "recognizing text") return;
+      onProgress(
+        Math.min(0.96, (pageCursor + message.progress) / src.numPages),
+      );
+    },
+  });
+  await worker.setParameters({
+    user_defined_dpi: String(Math.round(72 * scale)),
+    tessedit_pageseg_mode: PSM.AUTO,
+  });
   try {
     for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
+      pageCursor = pageNum - 1;
       const page = await src.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 1.6 });
+      if (options.skipTextPages) {
+        const existing = await page.getTextContent();
+        const already = selectableLength(existing);
+        if (already > 40) {
+          if (out && sourcePdf) {
+            const [copied] = await out.copyPages(sourcePdf, [pageNum - 1]);
+            out.addPage(copied);
+          }
+          if (wantText) {
+            texts.push(existingText(existing));
+          }
+          page.cleanup();
+          onProgress(pageNum / src.numPages);
+          continue;
+        }
+      }
+      const viewport = page.getViewport({ scale });
       const pointViewport = page.getViewport({ scale: 1 });
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(1, Math.floor(viewport.width));
@@ -463,68 +596,137 @@ export async function processOcrPdf(
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-      const jpeg = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (blob) =>
-            blob ? resolve(blob) : reject(new Error("Could not encode the page.")),
-          "image/jpeg",
-          0.82,
-        );
-      });
       const recognized = await worker.recognize(
         canvas,
-        {},
+        { pdfTitle: item.name.replace(/\.[^.]+$/, "") },
         OCR_RECOGNIZE_OUTPUT,
       );
+      if (wantText) texts.push((recognized.data.text ?? "").trim());
+      if (out) {
+        const native = tessPdfBytes(recognized.data.pdf);
+        let placed = false;
+        if (native) {
+          try {
+            const tess = await PDFDocument.load(native, {
+              ignoreEncryption: true,
+            });
+            if (tess.getPageCount() > 0) {
+              const [copied] = await out.copyPages(tess, [0]);
+              out.addPage(copied);
+              placed = true;
+            }
+          } catch {
+            placed = false;
+          }
+        }
+        if (!placed) {
+          if (!ghostFont) {
+            ghostFont = await out.embedFont(StandardFonts.Helvetica);
+          }
+          const jpeg = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob(
+              (blob) =>
+                blob
+                  ? resolve(blob)
+                  : reject(new Error("Could not encode the page.")),
+              "image/jpeg",
+              0.86,
+            );
+          });
+          const image = await out.embedJpg(
+            new Uint8Array(await jpeg.arrayBuffer()),
+          );
+          const pdfPage = out.addPage([
+            pointViewport.width,
+            pointViewport.height,
+          ]);
+          pdfPage.drawImage(image, {
+            x: 0,
+            y: 0,
+            width: pointViewport.width,
+            height: pointViewport.height,
+          });
+          for (const word of wordsFromOcrBlocks(recognized.data.blocks)) {
+            const text = keepHelveticaWinAnsi(word.text).trim();
+            if (!text) continue;
+            const place = ghostTextPlacement(
+              word.bbox,
+              pointViewport.width,
+              pointViewport.height,
+              viewport.width,
+              viewport.height,
+            );
+            pdfPage.drawText(text, {
+              x: place.x,
+              y: place.y,
+              size: place.size,
+              font: ghostFont,
+              color: rgb(0, 0, 0),
+              opacity: 0.01,
+              maxWidth: place.maxWidth,
+            });
+          }
+        }
+      }
       canvas.width = 0;
       canvas.height = 0;
       page.cleanup();
-      const image = await out.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
-      const pdfPage = out.addPage([pointViewport.width, pointViewport.height]);
-      pdfPage.drawImage(image, {
-        x: 0,
-        y: 0,
-        width: pointViewport.width,
-        height: pointViewport.height,
-      });
-      const words = wordsFromOcrBlocks(recognized.data.blocks);
-      for (const word of words) {
-        const text = keepHelveticaWinAnsi(word.text).trim();
-        if (!text) continue;
-        const place = ghostTextPlacement(
-          word.bbox,
-          pointViewport.width,
-          pointViewport.height,
-          viewport.width,
-          viewport.height,
-        );
-        pdfPage.drawText(text, {
-          x: place.x,
-          y: place.y,
-          size: place.size,
-          font,
-          color: rgb(0, 0, 0),
-          opacity: 0.01,
-          maxWidth: place.maxWidth,
-        });
-      }
       onProgress(pageNum / src.numPages);
     }
   } finally {
     await worker.terminate();
     await src.loadingTask.destroy();
   }
-  stripPdfMetadata(out);
-  const blob = pdfBlob(await out.save({ useObjectStreams: true }));
+  const results: ResultItem[] = [];
+  if (out) {
+    if (out.getPageCount() < 1) {
+      throw new Error("OCR produced no pages.");
+    }
+    stripPdfMetadata(out);
+    const blob = pdfBlob(await out.save({ useObjectStreams: true }));
+    results.push(
+      resultFrom(
+        item,
+        blob,
+        replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-ocr.pdf"),
+        item.size,
+      ),
+    );
+  }
+  if (wantText) {
+    const body = texts.filter(Boolean).join("\n\n");
+    const blob = new Blob([body], { type: "text/plain" });
+    results.push(
+      resultFrom(
+        item,
+        blob,
+        replaceExt(item.name, "txt").replace(/\.txt$/i, "-ocr.txt"),
+        item.size,
+        { previewText: body.slice(0, 4000) },
+      ),
+    );
+  }
   onProgress(1);
-  return [
-    resultFrom(
-      item,
-      blob,
-      replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-ocr.pdf"),
-      item.size,
-    ),
-  ];
+  return results;
+}
+
+function selectableLength(content: { items: unknown[] }) {
+  let count = 0;
+  for (const item of content.items) {
+    if (!item || typeof item !== "object" || !("str" in item)) continue;
+    count += String(item.str).trim().length;
+  }
+  return count;
+}
+
+function existingText(content: { items: unknown[] }) {
+  const parts: string[] = [];
+  for (const item of content.items) {
+    if (!item || typeof item !== "object" || !("str" in item)) continue;
+    const str = String(item.str);
+    if (str) parts.push(str);
+  }
+  return parts.join(" ").replace(/\s+/g, " ").trim();
 }
 
 function wrapLines(text: string, width: number): string[] {

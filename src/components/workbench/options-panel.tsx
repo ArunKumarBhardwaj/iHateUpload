@@ -16,6 +16,7 @@ import {
   ANNOTATE_POSITIONS,
   COMPRESS_LEVELS,
   OCR_LANGUAGES,
+  OCR_OUTPUTS,
   parsePageRange,
   RESIZE_MAX,
   RESIZE_MIN,
@@ -86,7 +87,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "sign":
       return "Draw, type, or stamp a signature, then drag it onto the page.";
     case "edit":
-      return "Type the new words and drag the box onto the page. Existing text is not rewritten.";
+      return "Click a line to change it. Scans are read with OCR. Old letters are covered, not rewritten.";
     case "crop":
       return "Drag the box to the area every page should keep.";
     case "redact":
@@ -108,7 +109,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
         ? "Pick where the page numbers sit."
         : "Type the stamp. It is drawn on every page in this tab.";
     case "ocr":
-      return "This is slow. Tesseract reads each page on this device.";
+      return "Tesseract reads each page in this tab. Hindi keeps its letters. Pages that already have words can be copied as-is. Slow on long scans.";
     case "ask":
       return "The PDF stays here. Only extracted text is sent with your question.";
     case "scan":
@@ -487,46 +488,7 @@ export function OptionsPanel({
       );
 
     case "edit":
-      return (
-        <div className="space-y-3">
-          <Field label="Text" htmlFor="edit-text">
-            <textarea
-              id="edit-text"
-              rows={4}
-              value={options.text}
-              disabled={disabled}
-              onChange={(e) =>
-                onOptions({ ...options, text: e.target.value })
-              }
-              placeholder="Text to place on the page"
-              className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </Field>
-          {pageCount > 1 ? (
-            <Field label="Page" htmlFor="edit-page">
-              <Input
-                id="edit-page"
-                type="number"
-                min={1}
-                max={pageCount}
-                value={options.box.pageIndex + 1}
-                disabled={disabled}
-                onChange={(e) => {
-                  const page = Number(e.target.value);
-                  if (!Number.isInteger(page)) return;
-                  onOptions({
-                    ...options,
-                    box: {
-                      ...options.box,
-                      pageIndex: Math.min(pageCount, Math.max(1, page)) - 1,
-                    },
-                  });
-                }}
-              />
-            </Field>
-          ) : null}
-        </div>
-      );
+      return null;
 
     case "crop":
       return (
@@ -774,25 +736,60 @@ export function OptionsPanel({
 
     case "ocr":
       return (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-ink">Language</p>
-          <div className="flex flex-wrap gap-2">
-            {OCR_LANGUAGES.map((language) => (
-              <Button
-                key={language.id}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.language === language.id ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() =>
-                  onOptions({ kind: "ocr", language: language.id })
-                }
-              >
-                {language.title}
-              </Button>
-            ))}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Language</p>
+            <div className="flex flex-wrap gap-2">
+              {OCR_LANGUAGES.map((language) => (
+                <Button
+                  key={language.id}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.language === language.id ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() =>
+                    onOptions({ ...options, language: language.id })
+                  }
+                >
+                  {language.title}
+                </Button>
+              ))}
+            </div>
           </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Output</p>
+            <div className="flex flex-wrap gap-2">
+              {OCR_OUTPUTS.map((output) => (
+                <Button
+                  key={output.id}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.output === output.id ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, output: output.id })}
+                >
+                  {output.title}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4"
+              checked={options.skipTextPages}
+              disabled={disabled}
+              onChange={(event) =>
+                onOptions({ ...options, skipTextPages: event.target.checked })
+              }
+            />
+            <span>
+              Skip pages that already have selectable text. Those pages are
+              copied, not re-read.
+            </span>
+          </label>
         </div>
       );
 
