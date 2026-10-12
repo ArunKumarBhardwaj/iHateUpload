@@ -53,7 +53,7 @@ export type ToolOptions =
   | { kind: "rotate"; degrees: 90 | 180 | 270 }
   | { kind: "organize"; pageOrder: number[] }
   | { kind: "resize"; maxEdge: number }
-  | { kind: "compress"; level: CompressLevel }
+  | { kind: "compress"; level: CompressLevel; targetKb: number | null }
   | { kind: "extract"; range: string; pageCount: number }
   | { kind: "sign"; mode: SignMode; text: string; dataUrl: string; box: PageBox }
   | { kind: "edit"; marks: EditMark[] }
@@ -260,6 +260,9 @@ export const TARGET_KB_PRESETS = [50, 100, 200, 500, 1024] as const;
 export const TARGET_KB_MIN = 20;
 export const TARGET_KB_MAX = 8192;
 
+export const PDF_TARGET_KB_PRESETS = [200, 500, 1024, 2048, 5120] as const;
+export const PDF_TARGET_KB_MAX = 102400;
+
 export const COMPRESS_LEVELS: {
   id: CompressLevel;
   title: string;
@@ -270,21 +273,21 @@ export const COMPRESS_LEVELS: {
   {
     id: "light",
     title: "Light",
-    result: "Keeps text selectable",
-    use: "Contracts, forms, anything you still need to copy",
+    result: "Print-sharp images",
+    use: "Contracts, CVs, anything you might print",
     recommended: true,
   },
   {
     id: "medium",
     title: "Medium",
     result: "Smaller for email",
-    use: "Scans and photo-heavy PDFs",
+    use: "Photo-heavy PDFs and scans",
   },
   {
     id: "heavy",
     title: "Smallest",
     result: "Maximum shrink",
-    use: "When size matters more than sharpness",
+    use: "Upload portals with tight limits",
   },
 ];
 
@@ -337,7 +340,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "resize":
       return { kind: "resize", maxEdge: 1280 };
     case "compress":
-      return { kind: "compress", level: "light" };
+      return { kind: "compress", level: "light", targetKb: null };
     case "extract":
       return { kind: "extract", range: "", pageCount: 0 };
     case "sign":
@@ -419,9 +422,14 @@ export function optionsReady(
   confirmPassword: string,
 ): boolean {
   switch (options.kind) {
+    case "compress":
+      return (
+        options.targetKb === null ||
+        (options.targetKb >= TARGET_KB_MIN &&
+          options.targetKb <= PDF_TARGET_KB_MAX)
+      );
     case "none":
     case "rotate":
-    case "compress":
     case "crop":
     case "ocr":
     case "compare":

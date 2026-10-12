@@ -483,6 +483,7 @@ export function PdfEditCanvas({
         <input
           ref={imageInputRef}
           type="file"
+          aria-label="Choose an image to add"
           accept="image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif"
           className="sr-only"
           onChange={(event) => {

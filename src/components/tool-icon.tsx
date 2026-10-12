@@ -15,9 +15,9 @@ import {
   FileX,
   Hash,
   Highlighter,
+  FileText,
   Image,
   ImageDown,
-  Images,
   Layers,
   Layers2,
   LayoutGrid,
@@ -38,141 +38,180 @@ import {
   Unlock,
 } from "lucide-react";
 
+import { TOOL_GROUPS } from "@/lib/tool-groups";
 import type { ToolId } from "@/lib/tools";
 import { cn } from "@/lib/utils";
 
-type Tone = "rose" | "teal" | "indigo" | "amber" | "slate" | "violet";
+/**
+ * File formats keep the colours people already know from their apps, so a
+ * Word → PDF tile reads before its label does.
+ */
+export const FORMAT = {
+  pdf: { color: "#e5322d", Icon: FileText },
+  word: { color: "#2b5797", Icon: FileType },
+  excel: { color: "#1f7244", Icon: Table },
+  ppt: { color: "#d24726", Icon: LayoutGrid },
+  jpg: { color: "#f2a516", Icon: Image },
+  png: { color: "#0f9b8e", Icon: FileImage },
+  webp: { color: "#5b5bd6", Icon: Image },
+  heic: { color: "#8b45d9", Icon: Smartphone },
+  markdown: { color: "#3c4657", Icon: FileCode },
+  csv: { color: "#2f9d55", Icon: FileSpreadsheet },
+  html: { color: "#e8692c", Icon: FileCode },
+} satisfies Record<string, { color: string; Icon: LucideIcon }>;
 
-const TONE: Record<Tone, string> = {
-  rose: "bg-signal/12 text-signal",
-  teal: "bg-lagoon/12 text-lagoon",
-  indigo: "bg-indigo-500/12 text-indigo-600",
-  amber: "bg-amber-500/15 text-amber-700",
-  slate: "bg-ink/8 text-ink",
-  violet: "bg-violet-500/12 text-violet-600",
+export type Format = keyof typeof FORMAT;
+
+/** Each job group owns one colour; action tools wear their group's colour. */
+export const GROUP_COLOR: Record<string, string> = {
+  smaller: "#18975a",
+  photo: "#e59a0b",
+  "to-pdf": "#e5322d",
+  format: "#f2a516",
+  pages: "#ee6b2f",
+  "mark-up": "#7c4ddb",
+  private: "#2563eb",
+  read: "#0e9384",
 };
 
-function visual(id: ToolId): { Icon: LucideIcon; tone: Tone } {
-  switch (id) {
-    case "merge-pdf":
-      return { Icon: Layers, tone: "indigo" };
-    case "split-pdf":
-      return { Icon: Scissors, tone: "amber" };
-    case "compress-pdf":
-      return { Icon: Minimize2, tone: "teal" };
-    case "extract-pages":
-      return { Icon: FileOutput, tone: "indigo" };
-    case "protect-pdf":
-      return { Icon: Lock, tone: "slate" };
-    case "unlock-pdf":
-      return { Icon: Unlock, tone: "slate" };
-    case "rotate-pdf":
-      return { Icon: RotateCw, tone: "amber" };
-    case "organize-pdf":
-      return { Icon: Layers2, tone: "indigo" };
-    case "sign-pdf":
-      return { Icon: PenLine, tone: "rose" };
-    case "edit-pdf":
-      return { Icon: Type, tone: "indigo" };
-    case "crop-pdf":
-      return { Icon: Crop, tone: "amber" };
-    case "redact-pdf":
-      return { Icon: Highlighter, tone: "rose" };
-    case "compare-pdfs":
-      return { Icon: Columns2, tone: "indigo" };
-    case "extract-text":
-      return { Icon: FileType, tone: "teal" };
-    case "extract-images":
-      return { Icon: ImageDown, tone: "amber" };
-    case "header-footer":
-      return { Icon: PanelTop, tone: "slate" };
-    case "reverse-pages":
-      return { Icon: ArrowDownUp, tone: "indigo" };
-    case "delete-blank":
-      return { Icon: FileX, tone: "amber" };
-    case "insert-blank":
-      return { Icon: FilePlus, tone: "teal" };
-    case "invert-pdf":
-      return { Icon: Contrast, tone: "violet" };
-    case "n-up":
-      return { Icon: LayoutGrid, tone: "indigo" };
-    case "page-size":
-      return { Icon: Proportions, tone: "amber" };
-    case "pdf-to-png":
-      return { Icon: FileImage, tone: "amber" };
-    case "watermark-pdf":
-      return { Icon: Stamp, tone: "violet" };
-    case "page-numbers":
-      return { Icon: Hash, tone: "slate" };
-    case "flatten-pdf":
-      return { Icon: Layers2, tone: "slate" };
-    case "ocr-pdf":
-      return { Icon: ScanText, tone: "teal" };
-    case "strip-metadata":
-      return { Icon: Eraser, tone: "slate" };
-    case "ask-pdf":
-      return { Icon: MessageCircleQuestionMark, tone: "teal" };
-    case "word-to-pdf":
-      return { Icon: FileType, tone: "indigo" };
-    case "excel-to-pdf":
-      return { Icon: Table, tone: "teal" };
-    case "pptx-to-pdf":
-      return { Icon: LayoutGrid, tone: "amber" };
-    case "markdown-to-pdf":
-      return { Icon: FileCode, tone: "indigo" };
-    case "csv-to-pdf":
-      return { Icon: FileSpreadsheet, tone: "teal" };
-    case "html-to-pdf":
-      return { Icon: FileCode, tone: "rose" };
-    case "scan-to-pdf":
-      return { Icon: Camera, tone: "violet" };
-    case "pdf-to-jpg":
-      return { Icon: Image, tone: "amber" };
-    case "png-to-pdf":
-      return { Icon: FileImage, tone: "rose" };
-    case "image-to-pdf":
-      return { Icon: Images, tone: "rose" };
-    case "heic-to-jpg":
-    case "heic-to-pdf":
-      return { Icon: Smartphone, tone: "violet" };
-    case "compress-image":
-      return { Icon: Minimize2, tone: "teal" };
-    case "resize-image":
-      return { Icon: Scaling, tone: "amber" };
-    case "webp-to-jpg":
-    case "png-to-jpg":
-    case "jpg-to-png":
-    case "jpg-to-webp":
-      return { Icon: Image, tone: "rose" };
-    case "crop-image":
-      return { Icon: Crop, tone: "amber" };
-    case "rotate-image":
-      return { Icon: RotateCw, tone: "amber" };
-    case "compress-to-size":
-      return { Icon: Minimize2, tone: "teal" };
-  }
+const CONVERT: Partial<Record<ToolId, [Format, Format]>> = {
+  "image-to-pdf": ["jpg", "pdf"],
+  "png-to-pdf": ["png", "pdf"],
+  "heic-to-pdf": ["heic", "pdf"],
+  "word-to-pdf": ["word", "pdf"],
+  "excel-to-pdf": ["excel", "pdf"],
+  "pptx-to-pdf": ["ppt", "pdf"],
+  "markdown-to-pdf": ["markdown", "pdf"],
+  "csv-to-pdf": ["csv", "pdf"],
+  "html-to-pdf": ["html", "pdf"],
+  "pdf-to-jpg": ["pdf", "jpg"],
+  "pdf-to-png": ["pdf", "png"],
+  "heic-to-jpg": ["heic", "jpg"],
+  "webp-to-jpg": ["webp", "jpg"],
+  "png-to-jpg": ["png", "jpg"],
+  "jpg-to-png": ["jpg", "png"],
+  "jpg-to-webp": ["jpg", "webp"],
+};
+
+const ACTION: Partial<Record<ToolId, LucideIcon>> = {
+  "compress-pdf": Minimize2,
+  "compress-image": Minimize2,
+  "compress-to-size": Scaling,
+  "resize-image": Scaling,
+  "crop-image": Crop,
+  "rotate-image": RotateCw,
+  "scan-to-pdf": Camera,
+  "extract-images": ImageDown,
+  "merge-pdf": Layers,
+  "split-pdf": Scissors,
+  "extract-pages": FileOutput,
+  "organize-pdf": Layers2,
+  "rotate-pdf": RotateCw,
+  "reverse-pages": ArrowDownUp,
+  "delete-blank": FileX,
+  "insert-blank": FilePlus,
+  "crop-pdf": Crop,
+  "page-size": Proportions,
+  "n-up": LayoutGrid,
+  "invert-pdf": Contrast,
+  "sign-pdf": PenLine,
+  "edit-pdf": Type,
+  "watermark-pdf": Stamp,
+  "page-numbers": Hash,
+  "header-footer": PanelTop,
+  "flatten-pdf": Layers2,
+  "protect-pdf": Lock,
+  "unlock-pdf": Unlock,
+  "redact-pdf": Highlighter,
+  "strip-metadata": Eraser,
+  "ocr-pdf": ScanText,
+  "extract-text": FileType,
+  "compare-pdfs": Columns2,
+  "ask-pdf": MessageCircleQuestionMark,
+};
+
+export function groupOf(id: ToolId) {
+  return TOOL_GROUPS.find((group) => group.tools.includes(id));
 }
 
-export function ToolIcon({
-  id,
+function Tile({
+  color,
+  Icon,
   className,
   iconClassName,
 }: {
-  id: ToolId;
+  color: string;
+  Icon: LucideIcon;
   className?: string;
   iconClassName?: string;
 }) {
-  const { Icon, tone } = visual(id);
   return (
     <span
-      className={cn(
-        "inline-flex size-10 shrink-0 items-center justify-center rounded-xl",
-        TONE[tone],
-        className,
-      )}
-      aria-hidden
+      className={cn("flex items-center justify-center text-white", className)}
+      style={{ backgroundColor: color }}
     >
-      <Icon className={cn("size-5", iconClassName)} />
+      <Icon className={cn("size-[55%]", iconClassName)} strokeWidth={2.25} />
     </span>
+  );
+}
+
+/**
+ * A converter shows its source tile tucked behind the target; every other
+ * tool is one solid tile in its job's colour. Size comes from className.
+ */
+export function ToolIcon({
+  id,
+  className,
+}: {
+  id: ToolId;
+  className?: string;
+  /** Kept for callers; the glyph now scales with the tile. */
+  iconClassName?: string;
+}) {
+  const pair = CONVERT[id];
+  if (pair) {
+    const [from, to] = pair;
+    return (
+      <span
+        className={cn("relative inline-block size-10 shrink-0", className, "rounded-none bg-transparent")}
+        aria-hidden
+      >
+        <Tile
+          color={FORMAT[from].color}
+          Icon={FORMAT[from].Icon}
+          className="absolute top-0 left-0 size-[68%] rounded-[24%] opacity-90"
+        />
+        <Tile
+          color={FORMAT[to].color}
+          Icon={FORMAT[to].Icon}
+          className="absolute right-0 bottom-0 size-[68%] rounded-[24%] ring-2 ring-card"
+        />
+      </span>
+    );
+  }
+  const Icon = ACTION[id] ?? FileText;
+  const color = GROUP_COLOR[groupOf(id)?.id ?? "to-pdf"];
+  return (
+    <span className={cn("inline-block size-10 shrink-0", className)} aria-hidden>
+      <Tile color={color} Icon={Icon} className="size-full rounded-[26%]" />
+    </span>
+  );
+}
+
+/** One format tile, for artwork that shows what kinds of files fit. */
+export function FormatTile({
+  format,
+  className,
+}: {
+  format: Format;
+  className?: string;
+}) {
+  const { color, Icon } = FORMAT[format];
+  return (
+    <Tile
+      color={color}
+      Icon={Icon}
+      className={cn("size-12 rounded-[26%]", className)}
+    />
   );
 }

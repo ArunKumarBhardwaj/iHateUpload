@@ -13,6 +13,8 @@ export type ResultItem = {
   originalSize: number;
   /** Shown in the result panel when the output is text, not a file. */
   previewText?: string;
+  /** One line under the result, e.g. when a target size was out of reach. */
+  note?: string;
 };
 
 export type JobState =

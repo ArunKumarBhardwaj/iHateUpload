@@ -1,6 +1,6 @@
 export const CACHE = "ihateupload-static-v2";
 export const IMMUTABLE = /\.(?:woff2?|png|svg|ico|webmanifest)$/;
-export const CODE = /\.(?:js|css|mjs)$/;
+export const CODE = /\.(?:js|css|mjs|wasm)$/;
 
 export type CachePolicy = "skip" | "network-first" | "cache-first";
 

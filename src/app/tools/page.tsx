@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
 
-import { ToolCardGrid } from "@/components/tool-card";
-import { TOOLS } from "@/lib/tools";
+import Link from "next/link";
 
-const PDF_TOOLS = TOOLS.filter((tool) => tool.kind === "pdf");
-const IMAGE_TOOLS = TOOLS.filter((tool) => tool.kind === "image");
+import { ToolIcon } from "@/components/tool-icon";
+import { TOOLS, type ToolDefinition } from "@/lib/tools";
+
+// The homepage browses by job; this page finds a tool by its name.
+const BY_LETTER = [...TOOLS]
+  .sort((a, b) => a.title.localeCompare(b.title))
+  .reduce<Record<string, ToolDefinition[]>>((letters, tool) => {
+    const letter = tool.title[0].toUpperCase();
+    (letters[letter] ??= []).push(tool);
+    return letters;
+  }, {});
 
 export const metadata: Metadata = {
   title: "All PDF and Image Tools — No Upload",
@@ -21,33 +29,70 @@ export const metadata: Metadata = {
 };
 
 export default function ToolsIndexPage() {
+  const letters = Object.keys(BY_LETTER);
   return (
-    <div className="mx-auto max-w-[90rem] px-6 py-10 sm:py-12">
-      <div className="max-w-2xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-signal">
-          All tools
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-          Every tool in this tab
+    <div className="mx-auto max-w-[90rem] px-6 py-12 sm:py-16">
+      <div className="mx-auto max-w-2xl text-center">
+        <h1 className="text-balance text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+          All tools, A to Z
         </h1>
         <p className="mt-3 text-base text-muted-foreground">
-          Compress a photo, merge a PDF, or convert a file. Nothing uploads.
+          {TOOLS.length} tools. Every one runs on your device.
         </p>
       </div>
 
-      <section className="mt-10">
-        <h2 className="text-2xl font-semibold text-ink">Image tools</h2>
-        <div className="mt-5">
-          <ToolCardGrid tools={IMAGE_TOOLS} />
-        </div>
-      </section>
+      <nav
+        aria-label="Jump to letter"
+        className="mt-8 flex flex-wrap justify-center gap-1"
+      >
+        {letters.map((letter) => (
+          <a
+            key={letter}
+            href={`#letter-${letter}`}
+            className="inline-flex size-10 items-center justify-center rounded-lg text-sm font-semibold text-ink hover:bg-surface"
+          >
+            {letter}
+          </a>
+        ))}
+      </nav>
 
-      <section className="mt-12">
-        <h2 className="text-2xl font-semibold text-ink">PDF tools</h2>
-        <div className="mt-5">
-          <ToolCardGrid tools={PDF_TOOLS} />
-        </div>
-      </section>
+      <div className="mt-10 space-y-10">
+        {letters.map((letter) => (
+          <section
+            key={letter}
+            id={`letter-${letter}`}
+            aria-labelledby={`letter-${letter}-title`}
+            className="scroll-mt-24 grid gap-4 border-t border-ink/8 pt-6 md:grid-cols-[4rem_minmax(0,1fr)]"
+          >
+            <h2
+              id={`letter-${letter}-title`}
+              className="text-3xl font-semibold text-ink/30"
+            >
+              {letter}
+            </h2>
+            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {BY_LETTER[letter].map((tool) => (
+                <li key={tool.id}>
+                  <Link
+                    href={`/tools/${tool.slug}`}
+                    className="group flex items-center gap-3 rounded-xl p-2 hover:bg-surface"
+                  >
+                    <ToolIcon id={tool.id} className="size-10" />
+                    <span className="min-w-0">
+                      <span className="block font-semibold text-ink">
+                        {tool.title}
+                      </span>
+                      <span className="block truncate text-sm text-muted-foreground">
+                        {tool.description}
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }

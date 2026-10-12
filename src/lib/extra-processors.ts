@@ -94,13 +94,6 @@ async function signatureBytes(options: Extract<ToolOptions, { kind: "sign" }>) {
   return bytes;
 }
 
-export async function estimateLightCompressBytes(file: File): Promise<number> {
-  const doc = await loadPdf(file);
-  stripPdfMetadata(doc);
-  const bytes = await doc.save({ useObjectStreams: true });
-  return Math.min(bytes.length, file.size);
-}
-
 export async function processPngToPdf(
   files: FileItem[],
   onProgress: ProgressFn,

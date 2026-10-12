@@ -2,14 +2,16 @@ import imageCompression from "browser-image-compression";
 import { PDFDocument, degrees, toDegrees } from "@cantoo/pdf-lib";
 import type { PDFPageProxy } from "pdfjs-dist";
 
+import { compressInWorker } from "@/lib/compress-client";
+import { COMPRESS_PLANS } from "@/lib/compress-plans";
 import type { FileItem, ResultItem } from "@/lib/job";
+import { stripPdfMetadata } from "@/lib/pdf-meta";
 import { loadPdfJs } from "@/lib/pdfjs";
-import { recompressJpegXObjects } from "@/lib/recompress-images";
 import {
   parsePageRange,
-  type CompressLevel,
   type ToolOptions,
 } from "@/lib/tool-options";
+import { formatBytes } from "@/lib/utils";
 
 type ProgressFn = (ratio: number) => void;
 
@@ -881,32 +883,49 @@ async function renderPdfPageToPng(
   }
 }
 
-const COMPRESS_RASTER: Record<
-  Exclude<CompressLevel, "light">,
-  { scale: number; quality: number }
-> = {
-  medium: { scale: 1.35, quality: 0.65 },
-  heavy: { scale: 0.95, quality: 0.44 },
-};
+/** Smallest only: flattening pages has to beat the kept-text result by this much. */
+const RASTER_MUST_BEAT = 0.6;
+const HEAVY_RASTER = { scale: 0.95, quality: 0.44 };
 
 export function pdfBlob(bytes: Uint8Array) {
   return new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
 }
 
-export function stripPdfMetadata(doc: PDFDocument) {
-  doc.setTitle("");
-  doc.setAuthor("");
-  doc.setSubject("");
-  doc.setKeywords([]);
-  doc.setProducer("iHateUpload");
-  doc.setCreator("iHateUpload");
+export { stripPdfMetadata };
+
+async function rasterizePdf(bytes: Uint8Array): Promise<Blob> {
+  const { getDocument } = await loadPdfJs();
+  const src = await getDocument({ data: bytes.slice() }).promise;
+  const out = await PDFDocument.create();
+  try {
+    for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
+      const page = await src.getPage(pageNum);
+      const jpeg = await renderPdfPageToJpeg(
+        page,
+        HEAVY_RASTER.scale,
+        HEAVY_RASTER.quality,
+      );
+      const image = await out.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
+      const pdfPage = out.addPage([image.width, image.height]);
+      pdfPage.drawImage(image, {
+        x: 0,
+        y: 0,
+        width: image.width,
+        height: image.height,
+      });
+    }
+  } finally {
+    await src.loadingTask.destroy();
+  }
+  stripPdfMetadata(out);
+  return pdfBlob(await out.save({ useObjectStreams: true }));
 }
 
 /**
- * Light never paints a page. It rewrites the PDF (object streams + stripped
- * metadata) so text stays selectable. Medium and Smallest may flatten pages
- * to JPEG when that actually shrinks the file; we still keep the rewrite if
- * it is smaller than the flatten.
+ * Every level keeps the page: text stays selectable and links and forms
+ * survive. Images are resampled to the level's dpi at the size the page
+ * draws them, in a worker. Smallest may still flatten pages to JPEG, but
+ * only when that is far smaller.
  */
 export async function processCompressPdf(
   files: FileItem[],
@@ -917,65 +936,26 @@ export async function processCompressPdf(
     throw new Error("Compress PDF requires a compression level.");
   }
 
+  const targetBytes = options.targetKb ? options.targetKb * 1024 : undefined;
   const results: ResultItem[] = [];
 
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
     const bytes = new Uint8Array(await item.file.arrayBuffer());
-    const structuralDoc = await PDFDocument.load(bytes, {
-      ignoreEncryption: true,
-    });
-    stripPdfMetadata(structuralDoc);
-    const structuralBytes = await structuralDoc.save({
-      useObjectStreams: true,
-    });
-    let best: Blob = pdfBlob(structuralBytes);
+    const share = options.level === "heavy" && !targetBytes ? 0.8 : 1;
+    const { bytes: kept, fit } = await compressInWorker(
+      bytes,
+      COMPRESS_PLANS[options.level],
+      (f) => onProgress((i + f * share) / files.length),
+      targetBytes,
+    );
+    let best: Blob = pdfBlob(kept);
+
+    if (options.level === "heavy" && !targetBytes) {
+      const raster = await rasterizePdf(bytes);
+      if (raster.size < best.size * RASTER_MUST_BEAT) best = raster;
+    }
     if (best.size >= item.size) best = item.file;
-    onProgress((i + 0.28) / files.length);
-
-    if (options.level !== "light") {
-      const quality = options.level === "heavy" ? 0.42 : 0.62;
-      const imageDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
-      stripPdfMetadata(imageDoc);
-      await recompressJpegXObjects(imageDoc, quality);
-      const imageBytes = await imageDoc.save({ useObjectStreams: true });
-      const imageBlob = pdfBlob(imageBytes);
-      if (imageBlob.size < best.size) best = imageBlob;
-      onProgress((i + 0.42) / files.length);
-    }
-
-    if (options.level !== "light") {
-      const preset = COMPRESS_RASTER[options.level];
-      const { getDocument } = await loadPdfJs();
-      const src = await getDocument({ data: bytes.slice() }).promise;
-      const out = await PDFDocument.create();
-      try {
-        for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
-          const page = await src.getPage(pageNum);
-          const jpeg = await renderPdfPageToJpeg(
-            page,
-            preset.scale,
-            preset.quality,
-          );
-          const image = await out.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
-          const pdfPage = out.addPage([image.width, image.height]);
-          pdfPage.drawImage(image, {
-            x: 0,
-            y: 0,
-            width: image.width,
-            height: image.height,
-          });
-          onProgress(
-            (i + 0.35 + (0.6 * pageNum) / src.numPages) / files.length,
-          );
-        }
-      } finally {
-        await src.loadingTask.destroy();
-      }
-      stripPdfMetadata(out);
-      const raster = pdfBlob(await out.save({ useObjectStreams: true }));
-      if (raster.size < best.size) best = raster;
-    }
 
     results.push({
       id: item.id,
@@ -983,6 +963,10 @@ export async function processCompressPdf(
       size: best.size,
       blob: best,
       originalSize: item.size,
+      note:
+        targetBytes && !fit
+          ? `Could not reach ${formatBytes(targetBytes)} without wrecking the images. This is the smallest readable version.`
+          : undefined,
     });
   }
 

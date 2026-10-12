@@ -1,81 +1,117 @@
+import { CloudOff, WifiOff } from "lucide-react";
 import Link from "next/link";
 
-import { TOOLS } from "@/lib/tools";
+import { GROUP_COLOR } from "@/components/tool-icon";
+import { TOOL_GROUPS } from "@/lib/tool-groups";
+import { getTool, type ToolId } from "@/lib/tools";
 
-const PDF_TOOLS = TOOLS.filter((tool) => tool.kind === "pdf" && tool.showInNav);
-const IMAGE_TOOLS = TOOLS.filter(
-  (tool) => tool.kind === "image" && tool.showInNav,
-);
+// The handful people search for by name; the full list lives on the homepage.
+const MOST_USED: ToolId[] = [
+  "compress-pdf",
+  "merge-pdf",
+  "word-to-pdf",
+  "pdf-to-jpg",
+  "heic-to-jpg",
+  "compress-to-size",
+];
 
 export function SiteFooter() {
   return (
-    <footer className="relative z-10 mt-auto font-sans">
-      <div className="border-t border-ink/10 bg-background">
-        <div className="mx-auto grid max-w-[90rem] gap-10 px-6 py-14 md:grid-cols-4">
-          <div>
-            <p className="text-xl font-semibold tracking-tight text-ink">
-              iHate<span className="text-signal">Upload</span>
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              We refuse the upload.
-            </p>
-          </div>
-          <FooterCol title="Image tools" tools={IMAGE_TOOLS} />
-          <FooterCol title="PDF tools" tools={PDF_TOOLS.slice(0, 8)} />
-          <div>
-            <p className="text-sm font-semibold tracking-tight text-ink">
-              Company
-            </p>
-            <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
-              <li>
-                <Link href="/tools" className="hover:text-ink">
-                  All tools
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="hover:text-ink">
-                  Privacy
-                </Link>
-              </li>
-            </ul>
-          </div>
+    <footer className="relative z-10 mt-auto border-t border-ink/10 bg-background font-sans">
+      <div className="mx-auto grid max-w-[90rem] grid-cols-2 gap-x-6 gap-y-10 px-6 py-14 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div className="col-span-2 max-w-xs lg:col-span-1">
+          <p className="text-xl font-semibold tracking-tight text-ink">
+            iHate<span className="text-signal-ink">Upload</span>
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            PDF and image tools that run in your browser. Your files never
+            leave your device.
+          </p>
+          <ul className="mt-5 space-y-2 text-sm text-ink">
+            <li className="flex items-center gap-2">
+              <CloudOff className="size-4 text-lagoon" aria-hidden />
+              Nothing is uploaded
+            </li>
+            <li className="flex items-center gap-2">
+              <WifiOff className="size-4 text-lagoon" aria-hidden />
+              Works offline once loaded
+            </li>
+          </ul>
         </div>
-      </div>
-      <div className="bg-secondary">
-        <div className="mx-auto flex max-w-[90rem] flex-col gap-3 px-6 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 iHateUpload. Made for people who hate the upload.</p>
-          <nav className="flex flex-wrap gap-x-5 gap-y-1">
+
+        <FooterColumn title="Browse by job">
+          {TOOL_GROUPS.map((group) => (
+            <li key={group.id}>
+              {/* A plain anchor so the hash change fires on the homepage too. */}
+              <a
+                href={`/#${group.id}`}
+                className="inline-flex items-center gap-2 hover:text-ink"
+              >
+                <span
+                  className="size-2 rounded-full"
+                  style={{ backgroundColor: GROUP_COLOR[group.id] }}
+                  aria-hidden
+                />
+                {group.title}
+              </a>
+            </li>
+          ))}
+        </FooterColumn>
+
+        <FooterColumn title="Most used">
+          {MOST_USED.map((id) => {
+            const tool = getTool(id);
+            if (!tool) return null;
+            return (
+              <li key={id}>
+                <Link href={`/tools/${tool.slug}`} className="hover:text-ink">
+                  {tool.title}
+                </Link>
+              </li>
+            );
+          })}
+        </FooterColumn>
+
+        <FooterColumn title="About">
+          <li>
             <Link href="/privacy" className="hover:text-ink">
-              Privacy
+              How your files stay private
             </Link>
+          </li>
+          <li>
+            <Link href="/privacy#check" className="hover:text-ink">
+              Check it yourself
+            </Link>
+          </li>
+          <li>
             <Link href="/tools" className="hover:text-ink">
-              All tools
+              All tools A to Z
             </Link>
-          </nav>
-        </div>
+          </li>
+        </FooterColumn>
+      </div>
+
+      <div className="border-t border-ink/8">
+        <p className="mx-auto max-w-[90rem] px-6 py-5 text-xs text-muted-foreground">
+          © 2026 iHateUpload. Made for people who hate the upload.
+        </p>
       </div>
     </footer>
   );
 }
 
-function FooterCol({
+function FooterColumn({
   title,
-  tools,
+  children,
 }: {
   title: string;
-  tools: { slug: string; title: string }[];
+  children: React.ReactNode;
 }) {
   return (
     <div>
-      <p className="text-sm font-semibold tracking-tight text-ink">{title}</p>
-      <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
-        {tools.map((tool) => (
-          <li key={tool.slug}>
-            <Link href={`/tools/${tool.slug}`} className="hover:text-ink">
-              {tool.title}
-            </Link>
-          </li>
-        ))}
+      <p className="text-sm font-semibold text-ink">{title}</p>
+      <ul className="mt-4 space-y-1 text-sm text-muted-foreground [&_a]:inline-flex [&_a]:min-h-9 [&_a]:items-center">
+        {children}
       </ul>
     </div>
   );

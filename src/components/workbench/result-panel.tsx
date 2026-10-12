@@ -50,7 +50,7 @@ export function ResultPanel({
                 {formatBytes(delta.before)} → {formatBytes(delta.after)}{" "}
                 <span
                   className={
-                    delta.percent > 0 ? "font-medium text-signal" : undefined
+                    delta.percent > 0 ? "font-medium text-signal-ink" : undefined
                   }
                 >
                   ({delta.percent > 0 ? "−" : "+"}
@@ -65,7 +65,7 @@ export function ResultPanel({
 
       {answer ? (
         <div className="rounded-2xl border border-ink/8 bg-background px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal-ink">
             Text
           </p>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
@@ -87,6 +87,9 @@ export function ResultPanel({
               <p className="text-xs text-muted-foreground">
                 {formatBytes(result.originalSize)} → {formatBytes(result.size)}
               </p>
+              {result.note ? (
+                <p className="mt-1 text-xs text-ink/70">{result.note}</p>
+              ) : null}
             </div>
             <Button
               size="sm"

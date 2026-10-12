@@ -219,18 +219,18 @@ export const TOOLS: ToolDefinition[] = [
     title: "Compress PDF",
     shortTitle: "Compress PDF",
     description:
-      "Shrink PDF size for email and uploads. Processing stays on this device.",
+      "Shrink PDF size for email and uploads. Text stays selectable. Processing stays on this device.",
     accept: "application/pdf,.pdf",
     multiple: true,
     ordered: false,
     actionLabel: "Compress PDF",
     seoTitle: "Compress PDF Online Free — No Upload",
     seoDescription:
-      "Compress PDF online free to shrink file size for email. Light mode keeps text selectable — no upload, no daily limits.",
+      "Compress PDF online free, or to an exact size like 200 KB or 1 MB. Images shrink to print or email sharpness, text stays selectable — no upload, no daily limits.",
     seoHowTo: [
       "Choose the PDF you want to shrink.",
-      "Pick Light to keep text selectable, or Medium / Smallest for scans.",
-      "Download the smaller PDF when it finishes.",
+      "Pick Light for print, Medium for email, or set a target size like 500 KB.",
+      "Download the smaller PDF. Text, links, and forms stay as they were.",
     ],
     showInNav: true,
     kind: "pdf",

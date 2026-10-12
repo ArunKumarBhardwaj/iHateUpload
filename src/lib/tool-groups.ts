@@ -1,0 +1,88 @@
+import type { ToolId } from "@/lib/tools";
+
+/**
+ * The catalog by the chore someone came to do, in their words. Every tool
+ * sits in exactly one group; the test keeps it that way as tools are added.
+ */
+export const TOOL_GROUPS: { id: string; title: string; tools: ToolId[] }[] = [
+  {
+    id: "smaller",
+    title: "Make it smaller",
+    tools: ["compress-pdf", "compress-image", "compress-to-size"],
+  },
+  {
+    id: "photo",
+    title: "Fix a photo",
+    tools: ["crop-image", "rotate-image", "resize-image"],
+  },
+  {
+    id: "to-pdf",
+    title: "Turn it into a PDF",
+    tools: [
+      "image-to-pdf",
+      "png-to-pdf",
+      "heic-to-pdf",
+      "scan-to-pdf",
+      "word-to-pdf",
+      "excel-to-pdf",
+      "pptx-to-pdf",
+      "markdown-to-pdf",
+      "csv-to-pdf",
+      "html-to-pdf",
+    ],
+  },
+  {
+    id: "format",
+    title: "Change the format",
+    tools: [
+      "pdf-to-jpg",
+      "pdf-to-png",
+      "heic-to-jpg",
+      "webp-to-jpg",
+      "png-to-jpg",
+      "jpg-to-png",
+      "jpg-to-webp",
+      "extract-images",
+    ],
+  },
+  {
+    id: "pages",
+    title: "Arrange pages",
+    tools: [
+      "merge-pdf",
+      "split-pdf",
+      "extract-pages",
+      "organize-pdf",
+      "rotate-pdf",
+      "reverse-pages",
+      "delete-blank",
+      "insert-blank",
+      "crop-pdf",
+      "page-size",
+      "n-up",
+      "invert-pdf",
+    ],
+  },
+  {
+    id: "mark-up",
+    title: "Sign and mark up",
+    tools: [
+      "sign-pdf",
+      "edit-pdf",
+      "watermark-pdf",
+      "page-numbers",
+      "header-footer",
+      "flatten-pdf",
+    ],
+  },
+  {
+    id: "private",
+    title: "Keep it private",
+    tools: ["protect-pdf", "unlock-pdf", "redact-pdf", "strip-metadata"],
+  },
+  {
+    id: "read",
+    title: "Read what’s inside",
+    tools: ["ocr-pdf", "extract-text", "compare-pdfs", "ask-pdf"],
+  },
+];

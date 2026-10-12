@@ -62,9 +62,9 @@ export function Stepper({
             aria-current={index === active ? "step" : undefined}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-medium",
-              index === active && "bg-signal/10 text-signal",
+              index === active && "bg-signal/10 text-signal-ink",
               index < active && "text-ink",
-              index > active && "text-muted-foreground/70",
+              index > active && "text-muted-foreground",
             )}
           >
             {index < active ? (
@@ -75,7 +75,7 @@ export function Stepper({
                   "inline-flex size-4 items-center justify-center rounded-full text-[10px]",
                   index === active
                     ? "bg-signal text-primary-foreground"
-                    : "bg-ink/10 text-ink/50",
+                    : "bg-ink/10 text-muted-foreground",
                 )}
               >
                 {index + 1}

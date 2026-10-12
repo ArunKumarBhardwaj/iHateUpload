@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 
-import { ToolCardGrid } from "@/components/tool-card";
+import { Check } from "lucide-react";
+import Link from "next/link";
+
+import { HomeDrop } from "@/components/home-drop";
+import { ToolCatalog } from "@/components/tool-catalog";
+import { TOOL_GROUPS } from "@/lib/tool-groups";
 import { TOOLS, type ToolId } from "@/lib/tools";
 
 export const metadata: Metadata = {
@@ -17,21 +22,25 @@ export const metadata: Metadata = {
   },
 };
 
+// "All tools" opens with these, in this order, then the rest by job.
 const POPULAR: ToolId[] = [
-  "compress-image",
+  "compress-pdf",
+  "merge-pdf",
+  "word-to-pdf",
   "image-to-pdf",
   "pdf-to-jpg",
-  "merge-pdf",
+  "edit-pdf",
+  "sign-pdf",
+  "compress-image",
   "heic-to-jpg",
-  "organize-pdf",
-  "resize-image",
-  "compress-to-size",
-  "crop-image",
-  "compress-pdf",
+  "split-pdf",
 ];
 
-const PDF_TOOLS = TOOLS.filter((tool) => tool.kind === "pdf");
-const IMAGE_TOOLS = TOOLS.filter((tool) => tool.kind === "image");
+const PROOF = [
+  "Zero bytes uploaded",
+  "Works offline",
+  "No account or watermark",
+];
 
 function toolsById(ids: readonly ToolId[]) {
   return ids
@@ -39,79 +48,67 @@ function toolsById(ids: readonly ToolId[]) {
     .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined);
 }
 
+const GROUPS = TOOL_GROUPS.map((group) => ({
+  ...group,
+  tools: toolsById(group.tools),
+}));
+
+const ALL = [
+  ...toolsById(POPULAR),
+  ...GROUPS.flatMap((group) => group.tools).filter(
+    (tool) => !POPULAR.includes(tool.id),
+  ),
+];
+
 export default function HomePage() {
   return (
-    <div className="mx-auto max-w-[90rem] px-6">
-      <section className="pt-10 pb-6 sm:pt-12 sm:pb-8">
-        <h1 className="max-w-4xl text-4xl font-semibold leading-[1.1] tracking-tight text-ink sm:text-5xl">
-          Compress a photo or merge a PDF. Nothing leaves this tab.
+    <>
+      <section className="mx-auto max-w-[90rem] px-6 pt-12 pb-16 text-center sm:pt-16 sm:pb-24">
+        <h1 className="mx-auto max-w-4xl text-balance text-4xl font-semibold leading-[1.06] tracking-tight text-ink sm:text-6xl">
+          Edit, convert, and shrink files. Nothing leaves this tab.
         </h1>
-        <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          Image and PDF jobs run on this device. No account. No watermark. No
-          daily cap.
+        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+          {TOOLS.length} free PDF and image tools that run on your device, so
+          contracts, IDs, and medical records never touch a server.
         </p>
-      </section>
-
-      <section id="tools" className="scroll-mt-24 pb-10 sm:pb-12">
-        <SectionHead
-          eyebrow="Popular"
-          title="Most used tools"
-          copy="The jobs people open first."
-        />
-        <div className="mt-6">
-          <ToolCardGrid tools={toolsById(POPULAR)} />
+        <ul className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2">
+          {PROOF.map((line) => (
+            <li
+              key={line}
+              className="flex items-center gap-1.5 text-sm font-medium text-ink"
+            >
+              <Check className="size-4 text-lagoon" aria-hidden />
+              {line}
+            </li>
+          ))}
+        </ul>
+        <div className="mx-auto mt-10 max-w-3xl text-left sm:mt-14">
+          <HomeDrop />
         </div>
+        <Link
+          href="/privacy"
+          className="mt-6 inline-block text-sm font-medium text-signal-ink underline-offset-4 hover:underline"
+        >
+          How your files stay private
+        </Link>
       </section>
 
       <section
-        id="image-tools"
-        className="scroll-mt-24 border-t border-ink/8 py-10 sm:py-12"
+        id="all-tools"
+        className="scroll-mt-20 border-t border-ink/6 bg-surface py-14 sm:py-20"
       >
-        <SectionHead
-          eyebrow="Images"
-          title="Image tools"
-          copy="Compress, resize, and convert JPG, PNG, WebP, and HEIC for email or WhatsApp."
-        />
-        <div className="mt-6">
-          <ToolCardGrid tools={IMAGE_TOOLS} />
+        <div className="mx-auto max-w-[90rem] px-6">
+          <h2 className="text-balance text-center text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+            Every tool you need, in one tab
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-center text-muted-foreground">
+            Pick a job, or start from the most used.
+          </p>
+          <div className="mt-8 sm:mt-10">
+            <ToolCatalog all={ALL} groups={GROUPS} />
+          </div>
         </div>
       </section>
-
-      <section
-        id="pdf-tools"
-        className="scroll-mt-24 border-t border-ink/8 py-10 sm:py-12"
-      >
-        <SectionHead
-          eyebrow="PDF"
-          title="PDF tools"
-          copy="Merge, compress, convert, protect, sign, and organize in the browser."
-        />
-        <div className="mt-6">
-          <ToolCardGrid tools={PDF_TOOLS} />
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function SectionHead({
-  eyebrow,
-  title,
-  copy,
-}: {
-  eyebrow: string;
-  title: string;
-  copy: string;
-}) {
-  return (
-    <div className="max-w-2xl">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-signal">
-        {eyebrow}
-      </p>
-      <h2 className="mt-2 text-2xl font-semibold text-ink sm:text-3xl">
-        {title}
-      </h2>
-      <p className="mt-2 text-sm text-muted-foreground sm:text-base">{copy}</p>
-    </div>
+    </>
   );
 }

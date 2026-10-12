@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ToolCardGrid } from "@/components/tool-card";
+import { ToolIcon } from "@/components/tool-icon";
 import { ToolWorkspace } from "@/components/tool-workspace";
 import { siteUrl } from "@/lib/site";
 import { getTool, TOOLS } from "@/lib/tools";
@@ -91,14 +92,12 @@ export default async function ToolPage({ params }: ToolPageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(howToLd) }}
       />
 
-      <div className="mb-6 max-w-2xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-signal">
-          Upload-free tool
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-4xl">
+      <div className="mx-auto mb-8 flex max-w-2xl flex-col items-center text-center">
+        <ToolIcon id={tool.id} className="size-14" />
+        <h1 className="mt-4 text-balance text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-4xl">
           {tool.title}
         </h1>
-        <p className="mt-2 text-base text-muted-foreground">
+        <p className="mt-2 text-balance text-base text-muted-foreground sm:text-lg">
           {tool.description}
         </p>
       </div>
@@ -107,8 +106,8 @@ export default async function ToolPage({ params }: ToolPageProps) {
       <ToolWorkspace key={tool.id} tool={tool} />
 
       <section className="mt-12">
-        <h2 className="text-2xl font-semibold text-ink">
-          How to {tool.title.toLowerCase()} online
+        <h2 className="text-balance text-2xl font-semibold text-ink">
+          How to use {tool.title}
         </h2>
         <ol className="mt-5 grid gap-3 sm:grid-cols-3">
           {tool.seoHowTo.map((step, index) => (
@@ -116,7 +115,7 @@ export default async function ToolPage({ params }: ToolPageProps) {
               key={step}
               className="rounded-2xl border border-ink/8 bg-card p-4"
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal">
+              <p className="text-sm font-semibold text-signal-ink">
                 Step {index + 1}
               </p>
               <p className="mt-2 text-sm leading-relaxed text-ink">{step}</p>
@@ -130,7 +129,7 @@ export default async function ToolPage({ params }: ToolPageProps) {
 
       {related.length > 0 && (
         <section className="mt-12">
-          <h2 className="text-2xl font-semibold text-ink">
+          <h2 className="text-balance text-2xl font-semibold text-ink">
             Related {tool.kind === "pdf" ? "PDF" : "image"} tools
           </h2>
           <div className="mt-5">

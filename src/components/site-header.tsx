@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Search } from "lucide-react";
@@ -18,13 +18,13 @@ const SECTIONS: {
   {
     id: "images",
     label: "Images",
-    href: "/#image-tools",
+    href: "/#all-tools",
     tools: TOOLS.filter((tool) => tool.kind === "image"),
   },
   {
     id: "pdf",
     label: "PDF",
-    href: "/#pdf-tools",
+    href: "/#all-tools",
     tools: TOOLS.filter((tool) => tool.kind === "pdf"),
   },
 ];
@@ -200,7 +200,7 @@ export function SiteHeader({ className }: { className?: string }) {
               </p>
               <Link
                 href={active.href}
-                className="font-sans text-sm font-semibold text-signal hover:underline"
+                className="font-sans text-sm font-semibold text-signal-ink hover:underline"
                 onClick={() => queueMicrotask(() => setOpen(null))}
               >
                 See all
@@ -252,7 +252,7 @@ function NavButton({
     <button
       type="button"
       className={cn(
-        "relative inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 font-sans text-[13px] font-semibold tracking-[0.12em] uppercase transition-colors",
+        "relative inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium transition-colors",
         open
           ? "bg-ink text-white"
           : "text-ink/70 hover:bg-secondary hover:text-ink",
@@ -280,6 +280,37 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [active, setActive] = useState(0);
+  const hint = useSyncExternalStore(
+    () => () => {},
+    () => (/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "Ctrl K"),
+    () => "Ctrl K",
+  );
+
+  useEffect(() => {
+    // Cmd/Ctrl+K or "/" focuses search, unless the user is already typing.
+    const onKey = (event: KeyboardEvent) => {
+      const isK =
+        event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey);
+      const isSlash =
+        event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey;
+      if (!isK && !isSlash) return;
+      const el = document.activeElement as HTMLElement | null;
+      const typing =
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLTextAreaElement ||
+        el instanceof HTMLSelectElement ||
+        el?.isContentEditable;
+      if (typing && isSlash) return;
+      event.preventDefault();
+      inputRef.current?.focus();
+      inputRef.current?.select();
+      setOpen(true);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -316,6 +347,7 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
       </label>
       <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink/35" />
       <input
+        ref={inputRef}
         id={`${listId}-q`}
         type="search"
         value={query}
@@ -324,13 +356,17 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
         role="combobox"
         aria-expanded={open}
         aria-controls={listId}
-        className="h-10 w-full rounded-full border border-ink/12 bg-card pr-3 pl-9 font-sans text-sm tracking-tight text-ink outline-none placeholder:text-muted-foreground focus:border-signal/40"
+        aria-activedescendant={
+          open && matches[active] ? `${listId}-${matches[active].id}` : undefined
+        }
+        className="h-10 w-full rounded-full border border-ink/12 bg-card pr-3 pl-9 md:pr-16 font-sans text-sm tracking-tight text-ink outline-none placeholder:text-muted-foreground focus:border-signal/40"
         onFocus={() => {
           onOpen();
           setOpen(true);
         }}
         onChange={(event) => {
           setQuery(event.target.value);
+          setActive(0);
           setOpen(true);
         }}
         onKeyDown={(event) => {
@@ -338,19 +374,28 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
             setOpen(false);
             event.currentTarget.blur();
           }
-          if (event.key === "Enter" && matches[0]) {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
-            go(matches[0]);
+            setOpen(true);
+            const step = event.key === "ArrowDown" ? 1 : -1;
+            setActive((i) => (i + step + matches.length) % matches.length);
+          }
+          if (event.key === "Enter" && matches.length > 0) {
+            event.preventDefault();
+            go(matches[Math.min(active, matches.length - 1)]);
           }
         }}
       />
+      <kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded border border-ink/12 bg-background px-1.5 font-sans text-[11px] leading-5 text-muted-foreground md:block">
+        {hint}
+      </kbd>
       {open && (
         <ul
           id={listId}
           role="listbox"
           className="absolute inset-x-0 top-[calc(100%+0.4rem)] z-30 overflow-hidden rounded-2xl border border-ink/10 bg-card py-1.5 shadow-[0_18px_40px_-24px_rgba(20,22,28,0.35)]"
         >
-          <li className="px-3 pb-1 font-sans text-[11px] font-semibold tracking-[0.14em] text-signal uppercase">
+          <li className="px-3 pb-1 font-sans text-[11px] font-semibold tracking-[0.14em] text-signal-ink uppercase">
             {query.trim() ? "Matches" : "Popular"}
           </li>
           {matches.length === 0 ? (
@@ -358,8 +403,14 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
               No tools match that.
             </li>
           ) : (
-            matches.map((tool) => (
-              <li key={tool.id} role="option">
+            matches.map((tool, index) => (
+              <li
+                key={tool.id}
+                id={`${listId}-${tool.id}`}
+                role="option"
+                aria-selected={index === active}
+                className={index === active ? "bg-signal/5" : undefined}
+              >
                 <Link
                   href={`/tools/${tool.slug}`}
                   className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-signal/5"

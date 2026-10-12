@@ -5,27 +5,30 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #f3eee6;
+  --background: #ffffff;
   --foreground: #14161c;
-  --card: #fffcf7;
+  --card: #ffffff;
   --card-foreground: #14161c;
-  --popover: #fffcf7;
+  --popover: #ffffff;
   --popover-foreground: #14161c;
   --primary: #d61f3a;
   --primary-foreground: #fff7f8;
-  --secondary: #e8e1d6;
+  --secondary: #f2f3f5;
   --secondary-foreground: #14161c;
-  --muted: #e8e1d6;
-  --muted-foreground: #5c564c;
+  --muted: #f2f3f5;
+  --muted-foreground: #565c69;
   --accent: #d61f3a;
   --accent-foreground: #fff7f8;
   --destructive: #be123c;
-  --border: #d9d0c3;
-  --input: #cfc6b8;
+  --border: #e4e6ea;
+  --input: #d3d6dc;
   --ring: #d61f3a;
   --radius: 0.85rem;
   --ink: #14161c;
+  /* A cool off-white for bands that sit behind white cards. */
+  --surface: #f6f7f9;
   --signal: #d61f3a;
+  --signal-ink: #b3162f;
   --lagoon: #0f766e;
   --chrome: #14161c;
 }
@@ -50,7 +53,9 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ink: var(--ink);
+  --color-surface: var(--surface);
   --color-signal: var(--signal);
+  --color-signal-ink: var(--signal-ink);
   --color-lagoon: var(--lagoon);
   --color-chrome: var(--chrome);
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
@@ -71,8 +76,19 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background-color: #f3eee6;
+    background-color: var(--background);
     font-family: var(--font-sans);
+  }
+
+  ::selection {
+    background-color: rgb(214 31 58 / 0.22);
+    color: var(--ink);
+  }
+
+  :where(a, button, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
+    outline: 2px solid var(--signal-ink);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
   }
 }
 

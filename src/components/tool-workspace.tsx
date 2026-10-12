@@ -37,7 +37,6 @@ import {
 import type { ToolDefinition, ToolId } from "@/lib/tools";
 import { shouldWarnLargeJob } from "@/lib/device-caps";
 import {
-  estimateLightCompressBytes,
   processAnnotatePdf,
   processAskPdf,
   processCropPdf,
@@ -269,7 +268,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     initialOptions(tool.ui),
   );
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [estimateLabel, setEstimateLabel] = useState<string | undefined>();
 
   const files = job.status === "idle" ? NO_FILES : job.files;
   const previews = useFilePreviews(files, tool.kind);
@@ -424,24 +422,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   };
 
   const optionsInCanvas = optionsNeedCanvas(options);
-  useEffect(() => {
-    if (tool.id !== "compress-pdf" || files.length === 0) {
-      setEstimateLabel(undefined);
-      return;
-    }
-    const file = files[0].file;
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      void estimateLightCompressBytes(file).then((bytes) => {
-        if (cancelled) return;
-        setEstimateLabel(`About ${formatBytes(bytes)} after Light`);
-      });
-    }, 400);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [tool.id, files]);
 
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
   const largeJob = shouldWarnLargeJob(totalBytes, pageCount);
@@ -464,7 +444,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       pagePreviews={pagePreviews}
       pageCount={pageCount}
       disabled={locked}
-      estimateLabel={estimateLabel}
       onAddFiles={(next) => {
         const items = createFileItems(next);
         setFiles(tool.multiple ? [...files, ...items] : items.slice(0, 1));
@@ -511,6 +490,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
         <input
           ref={inputRef}
           type="file"
+          aria-label="Choose files"
           className="sr-only"
           accept={tool.accept}
           multiple={tool.multiple}

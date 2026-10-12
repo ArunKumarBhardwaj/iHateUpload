@@ -15,6 +15,8 @@ import {
 import {
   ANNOTATE_POSITIONS,
   COMPRESS_LEVELS,
+  PDF_TARGET_KB_MAX,
+  PDF_TARGET_KB_PRESETS,
   OCR_LANGUAGES,
   OCR_OUTPUTS,
   parsePageRange,
@@ -135,7 +137,6 @@ export function OptionsPanel({
   pagePreviews,
   pageCount,
   disabled,
-  estimateLabel,
   onAddFiles,
 }: {
   options: ToolOptions;
@@ -145,7 +146,6 @@ export function OptionsPanel({
   pagePreviews: ReadonlyMap<number, ThumbnailState>;
   pageCount: number;
   disabled: boolean;
-  estimateLabel?: string;
   onAddFiles?: (files: File[]) => void;
 }) {
   switch (options.kind) {
@@ -257,7 +257,7 @@ export function OptionsPanel({
                   checked={selected}
                   disabled={disabled}
                   onChange={() =>
-                    onOptions({ kind: "compress", level: level.id })
+                    onOptions({ ...options, level: level.id })
                   }
                 />
                 <span className="min-w-0">
@@ -276,9 +276,52 @@ export function OptionsPanel({
               </label>
             );
           })}
-          {estimateLabel ? (
-            <p className="pt-1 text-xs text-muted-foreground">{estimateLabel}</p>
-          ) : null}
+          <div className="space-y-2 pt-3">
+            <p className="text-sm font-medium text-ink">Target size</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className={OPTION_BUTTON}
+                variant={options.targetKb === null ? "default" : "outline"}
+                disabled={disabled}
+                onClick={() => onOptions({ ...options, targetKb: null })}
+              >
+                Off
+              </Button>
+              {PDF_TARGET_KB_PRESETS.map((targetKb) => (
+                <Button
+                  key={targetKb}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.targetKb === targetKb ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, targetKb })}
+                >
+                  {targetKb >= 1024 ? `${targetKb / 1024} MB` : `${targetKb} KB`}
+                </Button>
+              ))}
+            </div>
+            {options.targetKb !== null ? (
+              <Field label="Custom KB" htmlFor="pdf-target-kb">
+                <Input
+                  id="pdf-target-kb"
+                  type="number"
+                  min={TARGET_KB_MIN}
+                  max={PDF_TARGET_KB_MAX}
+                  value={options.targetKb}
+                  disabled={disabled}
+                  onChange={(e) =>
+                    onOptions({ ...options, targetKb: Number(e.target.value) })
+                  }
+                />
+              </Field>
+            ) : null}
+            <p className="text-xs text-muted-foreground">
+              Steps down image quality until the PDF fits, text untouched.
+            </p>
+          </div>
         </fieldset>
       );
 

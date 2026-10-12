@@ -4,8 +4,8 @@
   "description": "PDF and image tools that run in this tab. Files never upload.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#e8eef3",
-  "theme_color": "#0b1220",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
     {
       "src": "/icon-192.png",
