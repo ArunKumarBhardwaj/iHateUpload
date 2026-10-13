@@ -180,6 +180,62 @@ test("images with a Decode array are left alone", async () => {
   expect(num(out.dict, "Width")).toBe(2000);
 });
 
+/** ASCII85 with the ~> end marker, as PDF writers emit it. */
+function ascii85(bytes: Uint8Array): Uint8Array {
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 4) {
+    const chunk = bytes.subarray(i, i + 4);
+    let value = 0;
+    for (let k = 0; k < 4; k++) value = value * 256 + (chunk[k] ?? 0);
+    if (value === 0 && chunk.length === 4) {
+      out += "z";
+      continue;
+    }
+    let group = "";
+    for (let k = 0; k < 5; k++) {
+      group = String.fromCharCode(33 + (value % 85)) + group;
+      value = Math.floor(value / 85);
+    }
+    out += group.slice(0, chunk.length + 1);
+  }
+  return new TextEncoder().encode(out + "~>");
+}
+
+/** Rewraps the photo PDF's image behind extra filters, the way ReportLab writes it. */
+async function chainedPhotoPdf(wrap: "jpeg" | "flate") {
+  const doc = await PDFDocument.load(await photoPdf());
+  const [found] = images(doc);
+  const stream = doc.context.lookup(PDFRef.of(Number(found.ref.split(" ")[0]))) as PDFRawStream;
+  if (wrap === "jpeg") {
+    stream.contents = ascii85(stream.contents);
+    stream.dict.set(PDFName.of("Filter"), doc.context.obj([PDFName.of("ASCII85Decode"), PDFName.of("DCTDecode")]));
+  } else {
+    const pixels = (await codec.decodeJpeg(stream.contents))!;
+    const rgb = new Uint8Array(pixels.width * pixels.height * 3);
+    for (let p = 0; p < pixels.width * pixels.height; p++) rgb.set(pixels.data.subarray(p * 4, p * 4 + 3), p * 3);
+    stream.contents = ascii85(await deflate(rgb));
+    stream.dict.set(PDFName.of("Filter"), doc.context.obj([PDFName.of("ASCII85Decode"), PDFName.of("FlateDecode")]));
+  }
+  stream.dict.set(PDFName.of("Length"), doc.context.obj(stream.contents.length));
+  return doc.save();
+}
+
+test("JPEGs behind an ASCII85 filter chain are compressed", async () => {
+  const input = await chainedPhotoPdf("jpeg");
+  const { bytes, stats } = await compressPdfBytes(input, COMPRESS_PLANS.medium, codec);
+  expect(stats.resampled).toBe(1);
+  expect(bytes.length).toBeLessThan(input.length * 0.3);
+  const [image] = images(await PDFDocument.load(bytes));
+  expect(image.dict.get(PDFName.of("Filter"))).toBe(PDFName.of("DCTDecode"));
+});
+
+test("raw pixels behind ASCII85 then Flate are compressed", async () => {
+  const input = await chainedPhotoPdf("flate");
+  const { bytes, stats } = await compressPdfBytes(input, COMPRESS_PLANS.medium, codec);
+  expect(stats.resampled).toBe(1);
+  expect(bytes.length).toBeLessThan(input.length * 0.3);
+});
+
 test("target size walks down until the PDF fits", async () => {
   const input = await photoPdf();
   const target = 60 * 1024;

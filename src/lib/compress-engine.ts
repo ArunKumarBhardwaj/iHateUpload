@@ -60,6 +60,41 @@ function singleFilter(dict: PDFDict): string | null | undefined {
   return name?.asString().replace(/^\//, "");
 }
 
+/** Lossless filters pdf-lib can undo, which writers stack in front of the real one. */
+const TRANSPORT_FILTERS = new Set([
+  "ASCII85Decode",
+  "ASCIIHexDecode",
+  "FlateDecode",
+  "LZWDecode",
+  "RunLengthDecode",
+]);
+
+/** Every filter name in order, or null when an entry isn't a name. */
+function filterChain(dict: PDFDict): string[] | null {
+  const filter = dict.lookup(PDFName.of("Filter"));
+  if (filter === undefined) return [];
+  if (filter instanceof PDFName) return [filter.asString().replace(/^\//, "")];
+  if (!(filter instanceof PDFArray)) return null;
+  const names: string[] = [];
+  for (let i = 0; i < filter.size(); i++) {
+    const name = filter.lookup(i);
+    if (!(name instanceof PDFName)) return null;
+    names.push(name.asString().replace(/^\//, ""));
+  }
+  return names;
+}
+
+/** Undoes the given filters only, e.g. the ASCII85 wrapped around a JPEG. */
+function undoFilters(stream: PDFRawStream, filters: string[]): Uint8Array {
+  if (filters.length === 0) return stream.contents;
+  const dict = stream.dict.clone();
+  dict.set(
+    PDFName.of("Filter"),
+    dict.context.obj(filters.map((f) => PDFName.of(f))),
+  );
+  return decodePDFRawStream(PDFRawStream.of(dict, stream.contents)).decode();
+}
+
 /** 1 or 3 for color spaces we can round-trip, otherwise null. */
 function channels(doc: PDFDocument, dict: PDFDict): 1 | 3 | null {
   const space = dict.lookup(PDFName.of("ColorSpace"));
@@ -264,8 +299,8 @@ async function compressImage(
   const width = num(dict, "Width");
   const height = num(dict, "Height");
   const ch = channels(doc, dict);
-  const filter = singleFilter(dict);
-  if (!width || !height || !ch) return "skipped";
+  const chain = filterChain(dict);
+  if (!width || !height || !ch || !chain) return "skipped";
   if (num(dict, "BitsPerComponent") !== 8) return "skipped";
   if (dict.has(PDFName.of("ImageMask")) || dict.has(PDFName.of("Decode"))) {
     return "skipped";
@@ -273,17 +308,24 @@ async function compressImage(
   // Color-key masks match exact sample values, which lossy output breaks.
   if (dict.lookup(PDFName.of("Mask")) instanceof PDFArray) return "skipped";
   if (dict.has(PDFName.of("DecodeParms"))) return "skipped";
-  if (filter !== "DCTDecode" && filter !== "FlateDecode" && filter !== null) {
-    return "skipped";
-  }
+  const jpeg = chain.at(-1) === "DCTDecode";
+  const transport = jpeg ? chain.slice(0, -1) : chain;
+  if (!transport.every((f) => TRANSPORT_FILTERS.has(f))) return "skipped";
+  const plainFlate = chain.length === 1 && chain[0] === "FlateDecode";
 
   let pixels: Pixels | null;
-  if (filter === "DCTDecode") {
-    pixels = await codec.decodeJpeg(stream.contents);
+  if (jpeg) {
+    let bytes: Uint8Array;
+    try {
+      bytes = undoFilters(stream, transport);
+    } catch {
+      return "skipped";
+    }
+    pixels = await codec.decodeJpeg(bytes);
   } else {
     let raw: Uint8Array;
     try {
-      raw = decodePDFRawStream(stream).decode();
+      raw = undoFilters(stream, transport);
     } catch {
       return "skipped";
     }
@@ -302,15 +344,15 @@ async function compressImage(
 
   type Candidate = { bytes: Uint8Array; filter: "DCTDecode" | "FlateDecode" };
   const candidates: Candidate[] = [];
-  const jpegAllowed =
-    filter === "DCTDecode" || (plan.lossyFlate && looksPhotographic(out));
+  const jpegAllowed = jpeg || (plan.lossyFlate && looksPhotographic(out));
   if (jpegAllowed) {
     candidates.push({
       bytes: await encodeAdaptive(out, plan, ch === 1, codec),
       filter: "DCTDecode",
     });
   }
-  if (filter !== "DCTDecode" && (resampled || filter === null)) {
+  // Plain Flate at the same size would only re-deflate what is already there.
+  if (!jpeg && (resampled || !plainFlate)) {
     candidates.push({
       bytes: await deflate(fromRgba(out, ch)),
       filter: "FlateDecode",

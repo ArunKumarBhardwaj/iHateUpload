@@ -83,7 +83,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "organize":
       return "Reorder or drop pages in the grid, then save the new PDF.";
     case "compress":
-      return "Light keeps text selectable. Medium and Smallest may flatten scans to shrink them further.";
+      return "Every level keeps text selectable. Smallest may flatten scanned pages that have no text to shrink them further.";
     case "extract":
       return "Type the pages to keep. The new file is only those pages, in that order.";
     case "sign":

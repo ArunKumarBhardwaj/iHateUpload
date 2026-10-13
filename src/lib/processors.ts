@@ -893,13 +893,21 @@ export function pdfBlob(bytes: Uint8Array) {
 
 export { stripPdfMetadata };
 
-async function rasterizePdf(bytes: Uint8Array): Promise<Blob> {
+/**
+ * Flattens every page to JPEG, but only for scans: returns null as soon as a
+ * page has selectable text, since flattening would throw that text away.
+ */
+async function rasterizeScan(bytes: Uint8Array): Promise<Blob | null> {
   const { getDocument } = await loadPdfJs();
   const src = await getDocument({ data: bytes.slice() }).promise;
   const out = await PDFDocument.create();
   try {
     for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
       const page = await src.getPage(pageNum);
+      const text = await page.getTextContent();
+      if (text.items.some((item) => "str" in item && item.str.trim())) {
+        return null;
+      }
       const jpeg = await renderPdfPageToJpeg(
         page,
         HEAVY_RASTER.scale,
@@ -924,8 +932,8 @@ async function rasterizePdf(bytes: Uint8Array): Promise<Blob> {
 /**
  * Every level keeps the page: text stays selectable and links and forms
  * survive. Images are resampled to the level's dpi at the size the page
- * draws them, in a worker. Smallest may still flatten pages to JPEG, but
- * only when that is far smaller.
+ * draws them, in a worker. Smallest may still flatten a scan to JPEG, but
+ * only when it has no selectable text and flattening is far smaller.
  */
 export async function processCompressPdf(
   files: FileItem[],
@@ -952,8 +960,8 @@ export async function processCompressPdf(
     let best: Blob = pdfBlob(kept);
 
     if (options.level === "heavy" && !targetBytes) {
-      const raster = await rasterizePdf(bytes);
-      if (raster.size < best.size * RASTER_MUST_BEAT) best = raster;
+      const raster = await rasterizeScan(bytes);
+      if (raster && raster.size < best.size * RASTER_MUST_BEAT) best = raster;
     }
     if (best.size >= item.size) best = item.file;
 
