@@ -7,24 +7,31 @@ import type { ResultItem } from "@/lib/job";
 import type { ToolDefinition } from "@/lib/tools";
 import { downloadBlob, formatBytes } from "@/lib/utils";
 
-/** Real measured change, not an estimate: we already did the work locally. */
+/**
+ * Real measured saving, not an estimate: we already did the work locally.
+ * Only for tools whose job is shrinking. Split parts share one input, and
+ * growth is expected from tools like PDF to JPG or Sign, so a percentage
+ * there would mislead.
+ */
 function sizeDelta(results: ResultItem[]) {
   const before = results.reduce((sum, result) => sum + result.originalSize, 0);
   const after = results.reduce((sum, result) => sum + result.size, 0);
-  if (before === 0 || after === before) return null;
+  if (before === 0 || after >= before) return null;
   return { before, after, percent: Math.round((1 - after / before) * 100) };
 }
 
 export function ResultPanel({
   results,
+  showSaving,
   continueTargets,
   onContinue,
 }: {
   results: ResultItem[];
+  showSaving: boolean;
   continueTargets: ToolDefinition[];
   onContinue: (tool: ToolDefinition) => void;
 }) {
-  const delta = sizeDelta(results);
+  const delta = showSaving ? sizeDelta(results) : null;
   const answer = results.find((result) => result.previewText)?.previewText;
 
   return (
@@ -48,13 +55,8 @@ export function ResultPanel({
             : delta ? (
               <>
                 {formatBytes(delta.before)} → {formatBytes(delta.after)}{" "}
-                <span
-                  className={
-                    delta.percent > 0 ? "font-medium text-signal-ink" : undefined
-                  }
-                >
-                  ({delta.percent > 0 ? "−" : "+"}
-                  {Math.abs(delta.percent)}%)
+                <span className="font-medium text-signal-ink">
+                  (−{delta.percent}%)
                 </span>
               </>
             ) : (
@@ -85,7 +87,9 @@ export function ResultPanel({
                 {result.name}
               </p>
               <p className="text-xs text-muted-foreground">
-                {formatBytes(result.originalSize)} → {formatBytes(result.size)}
+                {delta
+                  ? `${formatBytes(result.originalSize)} → ${formatBytes(result.size)}`
+                  : formatBytes(result.size)}
               </p>
               {result.note ? (
                 <p className="mt-1 text-xs text-ink/70">{result.note}</p>

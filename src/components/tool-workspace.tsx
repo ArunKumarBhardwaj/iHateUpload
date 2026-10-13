@@ -90,6 +90,7 @@ import {
   processWebpToJpg,
 } from "@/lib/processors";
 import type { FileFacts } from "@/lib/preview";
+import { TOOL_GROUPS } from "@/lib/tool-groups";
 import { useFilePreviews, usePagePreviews } from "@/lib/use-previews";
 import { cn, downloadBlob, formatBytes } from "@/lib/utils";
 
@@ -127,11 +128,11 @@ async function runTool(
     case "merge-pdf":
       return processMergePdf(files, onProgress);
     case "split-pdf":
-      return processSplitPdf(files, onProgress);
+      return processSplitPdf(files, onProgress, options);
     case "extract-pages":
       return processExtractPages(files, onProgress, options);
     case "pdf-to-jpg":
-      return processPdfToJpg(files, onProgress);
+      return processPdfToJpg(files, onProgress, options);
     case "compress-pdf":
       return processCompressPdf(files, onProgress, options);
     case "protect-pdf":
@@ -171,7 +172,7 @@ async function runTool(
     case "page-size":
       return processPageSize(files, onProgress, options);
     case "pdf-to-png":
-      return processPdfToPng(files, onProgress);
+      return processPdfToPng(files, onProgress, options);
     case "watermark-pdf":
     case "page-numbers":
       return processAnnotatePdf(files, onProgress, options);
@@ -212,6 +213,11 @@ function downloadLabel(results: ResultItem[]) {
   if (type.includes("text")) return "Download text";
   return "Download file";
 }
+
+/** Tools whose whole point is a smaller file, so a saving is worth showing. */
+const SHRINK_TOOLS = new Set<string>(
+  TOOL_GROUPS.find((group) => group.id === "smaller")?.tools ?? [],
+);
 
 function dropLabel(tool: ToolDefinition) {
   if (tool.accept.includes("docx")) return "Word files";
@@ -673,6 +679,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
         {job.status === "done" && (
           <ResultPanel
             results={job.results}
+            showSaving={SHRINK_TOOLS.has(tool.id)}
             continueTargets={continueToolsFor(
               tool.id,
               job.results.map((result) => ({ type: result.blob.type })),

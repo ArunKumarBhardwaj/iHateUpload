@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start --port 43127",
     "lint": "eslint",
-    "test": "bun test src/lib/sw-cache.test.ts src/lib/ocr-words.test.ts src/lib/edit-pdf.test.ts src/lib/pdf-edit-runs.test.ts src/lib/compress-engine.test.ts src/lib/file-match.test.ts src/lib/tool-groups.test.ts",
+    "test": "bun test src/lib/sw-cache.test.ts src/lib/ocr-words.test.ts src/lib/edit-pdf.test.ts src/lib/pdf-edit-runs.test.ts src/lib/compress-engine.test.ts src/lib/file-match.test.ts src/lib/tool-groups.test.ts src/lib/split-pdf.test.ts src/lib/page-numbers.test.ts src/lib/page-scope.test.ts",
     "sync-pdf-worker": "cp node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs public/pdf.worker.min.mjs",
     "sync-codecs": "mkdir -p public/codecs && cp node_modules/@jsquash/jpeg/codec/dec/mozjpeg_dec.wasm node_modules/@jsquash/jpeg/codec/enc/mozjpeg_enc.wasm node_modules/@jsquash/resize/lib/resize/pkg/squoosh_resize_bg.wasm public/codecs/",
     "build-sw": "bun build src/sw.ts --outfile public/sw.js --target browser --format iife",

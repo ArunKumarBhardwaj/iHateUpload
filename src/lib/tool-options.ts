@@ -46,11 +46,32 @@ export type AnnotatePosition =
   | "bl"
   | "br";
 
+export type SplitMode = "pages" | "ranges" | "half" | "size";
+
+export type PdfImageDpi = 72 | 144 | 300;
+
+export type NumberFormat = "n" | "page" | "n-of" | "page-of" | "roman";
+
+export type NumberSize = "small" | "medium" | "large";
+
 export type ToolOptions =
   | { kind: "none" }
   | { kind: "password"; password: string }
   | { kind: "password-confirm"; password: string }
-  | { kind: "rotate"; degrees: 90 | 180 | 270 }
+  | {
+      kind: "rotate";
+      degrees: 90 | 180 | 270;
+      /** Empty or "all" turns every page. */
+      range: string;
+    }
+  | { kind: "split"; mode: SplitMode; ranges: string; maxMb: number }
+  | {
+      kind: "pdf-image";
+      /** 144 is the long-standing 2x default. */
+      dpi: PdfImageDpi;
+      /** Empty or "all" converts every page. */
+      range: string;
+    }
   | { kind: "organize"; pageOrder: number[] }
   | { kind: "resize"; maxEdge: number }
   | { kind: "compress"; level: CompressLevel; targetKb: number | null }
@@ -78,6 +99,11 @@ export type ToolOptions =
       opacity: number;
       rotation: number;
       position: AnnotatePosition;
+      /** The next four only shape page numbers. */
+      numberFormat: NumberFormat;
+      startAt: number;
+      skipFirst: boolean;
+      numberSize: NumberSize;
     }
   | { kind: "ocr"; language: string; output: OcrOutput; skipTextPages: boolean }
   | { kind: "ask"; question: string }
@@ -292,8 +318,9 @@ export const COMPRESS_LEVELS: {
 ];
 
 /**
- * `1-3, 7` → zero-based indices in document order. Empty or out of range
- * tokens are ignored; the result is empty when nothing valid remains.
+ * `1-3, 7, 9-` → zero-based indices in document order. A trailing dash runs to
+ * the last page. Empty or out of range tokens are ignored; the result is empty
+ * when nothing valid remains.
  */
 export function parsePageRange(range: string, pageCount: number): number[] {
   if (pageCount < 1) return [];
@@ -306,7 +333,10 @@ export function parsePageRange(range: string, pageCount: number): number[] {
   const pages: number[] = [];
   for (const part of trimmed.split(/[,;\s]+/)) {
     if (!part) continue;
-    const bounds = part.split("-").map((bit) => Number(bit));
+    const openEnded = /^\d+-$/.test(part);
+    const bounds = (openEnded ? `${part}${pageCount}` : part)
+      .split("-")
+      .map((bit) => Number(bit));
     if (bounds.some((n) => !Number.isInteger(n))) continue;
     const start = Math.min(bounds[0], bounds[bounds.length - 1]);
     const end = Math.max(bounds[0], bounds[bounds.length - 1]);
@@ -321,6 +351,53 @@ export function parsePageRange(range: string, pageCount: number): number[] {
   return pages.sort((a, b) => a - b);
 }
 
+/** Blank or "all" is every page; anything else must name at least one page. */
+export function resolvePageRange(range: string, pageCount: number): number[] {
+  const pages = parsePageRange(range.trim() === "" ? "all" : range, pageCount);
+  if (pages.length === 0) {
+    throw new Error(`Enter pages between 1 and ${pageCount}, like 1-3, 7.`);
+  }
+  return pages;
+}
+
+/**
+ * `1-3, 4-6, 7-` → one list of zero-based indices per comma part, in the order
+ * typed. Parts with nothing valid in them are dropped.
+ */
+export function parseRangeGroups(range: string, pageCount: number): number[][] {
+  return range
+    .split(/[,;]+/)
+    .map((part) => parsePageRange(part, pageCount))
+    .filter((group) => group.length > 0);
+}
+
+export const SPLIT_MODES: { id: SplitMode; title: string }[] = [
+  { id: "pages", title: "Every page" },
+  { id: "ranges", title: "By ranges" },
+  { id: "half", title: "In half" },
+  { id: "size", title: "By size" },
+];
+
+export const PDF_IMAGE_DPIS: { id: PdfImageDpi; title: string }[] = [
+  { id: 72, title: "72 DPI" },
+  { id: 144, title: "Standard" },
+  { id: 300, title: "300 DPI" },
+];
+
+export const NUMBER_FORMATS: { id: NumberFormat; title: string }[] = [
+  { id: "n-of", title: "1 / N" },
+  { id: "n", title: "1" },
+  { id: "page", title: "Page 1" },
+  { id: "page-of", title: "Page 1 of N" },
+  { id: "roman", title: "i" },
+];
+
+export const NUMBER_SIZES: { id: NumberSize; title: string; points: number }[] = [
+  { id: "small", title: "Small", points: 9 },
+  { id: "medium", title: "Medium", points: 11 },
+  { id: "large", title: "Large", points: 14 },
+];
+
 /**
  * Options carry their own kind, so `tool.ui` is only read here. Everything
  * downstream switches on the options themselves and cannot drift from the tool.
@@ -334,7 +411,11 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "password-confirm":
       return { kind: "password-confirm", password: "" };
     case "rotate":
-      return { kind: "rotate", degrees: 90 };
+      return { kind: "rotate", degrees: 90, range: "" };
+    case "split":
+      return { kind: "split", mode: "pages", ranges: "", maxMb: 5 };
+    case "pdf-image":
+      return { kind: "pdf-image", dpi: 144, range: "" };
     case "organize":
       return { kind: "organize", pageOrder: [] };
     case "resize":
@@ -383,6 +464,10 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         opacity: 0.28,
         rotation: -32,
         position: "diagonal",
+        numberFormat: "n-of",
+        startAt: 1,
+        skipFirst: false,
+        numberSize: "medium",
       };
     case "page-numbers":
       return {
@@ -392,6 +477,10 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         opacity: 0.9,
         rotation: 0,
         position: "footer",
+        numberFormat: "n-of",
+        startAt: 1,
+        skipFirst: false,
+        numberSize: "medium",
       };
     case "ocr":
       return {
@@ -429,7 +518,6 @@ export function optionsReady(
           options.targetKb <= PDF_TARGET_KB_MAX)
       );
     case "none":
-    case "rotate":
     case "crop":
     case "ocr":
     case "compare":
@@ -437,7 +525,15 @@ export function optionsReady(
     case "nup":
     case "page-size":
     case "scan":
+    case "rotate":
+    case "pdf-image":
       return true;
+    case "split":
+      return options.mode === "ranges"
+        ? options.ranges.trim().length > 0
+        : options.mode === "size"
+          ? Number.isFinite(options.maxMb) && options.maxMb > 0
+          : true;
     case "image-turn":
       return options.degrees !== 0 || options.flipH || options.flipV;
     case "image-crop":
@@ -485,7 +581,9 @@ export function optionsReady(
     case "redact":
       return options.boxes.some((box) => box.w > 0.04 && box.h > 0.04);
     case "annotate":
-      return options.variant === "numbers" || options.text.trim().length > 0;
+      return options.variant === "numbers"
+        ? Number.isInteger(options.startAt) && options.startAt >= 0
+        : options.text.trim().length > 0;
     case "ask":
       return options.question.trim().length > 0;
   }

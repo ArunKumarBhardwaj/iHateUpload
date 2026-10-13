@@ -15,6 +15,10 @@ import {
 import {
   ANNOTATE_POSITIONS,
   COMPRESS_LEVELS,
+  NUMBER_FORMATS,
+  NUMBER_SIZES,
+  PDF_IMAGE_DPIS,
+  SPLIT_MODES,
   PDF_TARGET_KB_MAX,
   PDF_TARGET_KB_PRESETS,
   OCR_LANGUAGES,
@@ -77,7 +81,11 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "password-confirm":
       return "Choose a password. You will need it every time you open the PDF.";
     case "rotate":
-      return "Pick how far to turn every page in the document.";
+      return "Pick how far to turn the pages. Leave the pages box empty for all of them.";
+    case "split":
+      return "Pick how to cut the PDF. Each piece is its own file.";
+    case "pdf-image":
+      return "Higher DPI is sharper and bigger. Leave the pages box empty for every page.";
     case "resize":
       return "Set the longest edge in pixels. The aspect ratio stays as it is.";
     case "organize":
@@ -108,7 +116,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Fit fills the sheet and may clip. Letterbox keeps the whole page.";
     case "annotate":
       return options.variant === "numbers"
-        ? "Pick where the page numbers sit."
+        ? "Pick where the numbers sit, how they read, and where counting starts."
         : "Type the stamp. It is drawn on every page in this tab.";
     case "ocr":
       return "Tesseract reads each page in this tab. Hindi keeps its letters. Pages that already have words can be copied as-is. Slow on long scans.";
@@ -213,23 +221,127 @@ export function OptionsPanel({
 
     case "rotate":
       return (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-ink">Rotate every page by</p>
-          <div className="flex flex-wrap gap-2">
-            {([90, 180, 270] as const).map((degrees) => (
-              <Button
-                key={degrees}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.degrees === degrees ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() => onOptions({ kind: "rotate", degrees })}
-              >
-                {degrees}°
-              </Button>
-            ))}
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Rotate by</p>
+            <div className="flex flex-wrap gap-2">
+              {([90, 180, 270] as const).map((degrees) => (
+                <Button
+                  key={degrees}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.degrees === degrees ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, degrees })}
+                >
+                  {degrees}°
+                </Button>
+              ))}
+            </div>
           </div>
+          <Field label="Pages" htmlFor="rotate-range">
+            <Input
+              id="rotate-range"
+              value={options.range}
+              disabled={disabled}
+              onChange={(e) => onOptions({ ...options, range: e.target.value })}
+              placeholder="All pages, or e.g. 1-3, 7"
+              inputMode="text"
+              autoComplete="off"
+            />
+          </Field>
+        </div>
+      );
+
+    case "split":
+      return (
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Split</p>
+            <div className="flex flex-wrap gap-2">
+              {SPLIT_MODES.map((mode) => (
+                <Button
+                  key={mode.id}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.mode === mode.id ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, mode: mode.id })}
+                >
+                  {mode.title}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {options.mode === "ranges" ? (
+            <Field label="Ranges, one file each" htmlFor="split-ranges">
+              <Input
+                id="split-ranges"
+                value={options.ranges}
+                disabled={disabled}
+                onChange={(e) =>
+                  onOptions({ ...options, ranges: e.target.value })
+                }
+                placeholder="e.g. 1-3, 4-6, 7-"
+                inputMode="text"
+                autoComplete="off"
+              />
+            </Field>
+          ) : null}
+          {options.mode === "size" ? (
+            <Field label="Max size per part (MB)" htmlFor="split-size">
+              <Input
+                id="split-size"
+                type="number"
+                min={0.1}
+                step={0.5}
+                value={options.maxMb}
+                disabled={disabled}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  if (!Number.isFinite(next)) return;
+                  onOptions({ ...options, maxMb: next });
+                }}
+              />
+            </Field>
+          ) : null}
+        </div>
+      );
+
+    case "pdf-image":
+      return (
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Resolution</p>
+            <div className="flex flex-wrap gap-2">
+              {PDF_IMAGE_DPIS.map((dpi) => (
+                <Button
+                  key={dpi.id}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.dpi === dpi.id ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, dpi: dpi.id })}
+                >
+                  {dpi.title}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <Field label="Pages" htmlFor="pdf-image-range">
+            <Input
+              id="pdf-image-range"
+              value={options.range}
+              disabled={disabled}
+              onChange={(e) => onOptions({ ...options, range: e.target.value })}
+              placeholder="All pages, or e.g. 1-3, 7"
+              inputMode="text"
+              autoComplete="off"
+            />
+          </Field>
         </div>
       );
 
@@ -774,6 +886,79 @@ export function OptionsPanel({
               </Button>
             ))}
           </div>
+          {options.variant === "numbers" ? (
+            <>
+              <p className="text-sm font-medium text-ink">Format</p>
+              <div className="flex flex-wrap gap-2">
+                {NUMBER_FORMATS.map((format) => (
+                  <Button
+                    key={format.id}
+                    type="button"
+                    size="sm"
+                    className={OPTION_BUTTON}
+                    variant={
+                      options.numberFormat === format.id ? "default" : "outline"
+                    }
+                    disabled={disabled}
+                    onClick={() =>
+                      onOptions({ ...options, numberFormat: format.id })
+                    }
+                  >
+                    {format.title}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-sm font-medium text-ink">Size</p>
+              <div className="flex flex-wrap gap-2">
+                {NUMBER_SIZES.map((size) => (
+                  <Button
+                    key={size.id}
+                    type="button"
+                    size="sm"
+                    className={OPTION_BUTTON}
+                    variant={
+                      options.numberSize === size.id ? "default" : "outline"
+                    }
+                    disabled={disabled}
+                    onClick={() =>
+                      onOptions({ ...options, numberSize: size.id })
+                    }
+                  >
+                    {size.title}
+                  </Button>
+                ))}
+              </div>
+              <Field label="Start at" htmlFor="numbers-start">
+                <Input
+                  id="numbers-start"
+                  type="number"
+                  min={0}
+                  value={options.startAt}
+                  disabled={disabled}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    if (!Number.isFinite(next)) return;
+                    onOptions({
+                      ...options,
+                      startAt: Math.max(0, Math.round(next)),
+                    });
+                  }}
+                />
+              </Field>
+              <label className="flex items-start gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-4"
+                  checked={options.skipFirst}
+                  disabled={disabled}
+                  onChange={(event) =>
+                    onOptions({ ...options, skipFirst: event.target.checked })
+                  }
+                />
+                <span>Leave the first page without a number.</span>
+              </label>
+            </>
+          ) : null}
         </div>
       );
 

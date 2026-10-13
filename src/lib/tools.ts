@@ -73,6 +73,8 @@ export type ToolDefinition = {
     | "password"
     | "password-confirm"
     | "rotate"
+    | "split"
+    | "pdf-image"
     | "organize"
     | "resize"
     | "compress"
@@ -188,7 +190,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "pdf-image",
   },
   {
     id: "pdf-to-png",
@@ -211,7 +213,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "pdf-image",
   },
   {
     id: "compress-pdf",
@@ -242,7 +244,7 @@ export const TOOLS: ToolDefinition[] = [
     title: "Split PDF",
     shortTitle: "Split PDF",
     description:
-      "Split one PDF into a separate file per page. Download what you need.",
+      "Split one PDF by page, range, half, or size. Download what you need.",
     accept: "application/pdf,.pdf",
     multiple: false,
     ordered: false,
@@ -252,12 +254,12 @@ export const TOOLS: ToolDefinition[] = [
       "Split PDF online free into separate pages. Extract pages in your browser — no upload, no signup.",
     seoHowTo: [
       "Choose the PDF you want to split.",
-      "Click Split PDF to create one file per page locally.",
+      "Pick how to split, then click Split PDF to build the files locally.",
       "Download individual pages or grab them all as a zip.",
     ],
     showInNav: false,
     kind: "pdf",
-    ui: "none",
+    ui: "split",
   },
   {
     id: "extract-pages",

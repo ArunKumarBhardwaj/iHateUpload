@@ -9,6 +9,8 @@ import { stripPdfMetadata } from "@/lib/pdf-meta";
 import { loadPdfJs } from "@/lib/pdfjs";
 import {
   parsePageRange,
+  parseRangeGroups,
+  resolvePageRange,
   type ToolOptions,
 } from "@/lib/tool-options";
 import { formatBytes } from "@/lib/utils";
@@ -755,47 +757,145 @@ export async function processMergePdf(
   ];
 }
 
+/** Copies the listed pages of `donor` into a fresh document and saves it. */
+async function savePageSubset(donor: PDFDocument, indices: number[]) {
+  const out = await PDFDocument.create();
+  const pages = await out.copyPages(donor, indices);
+  for (const page of pages) out.addPage(page);
+  return out.save({ useObjectStreams: true });
+}
+
+/**
+ * Greedy parts under `limit` bytes. Each part grows one page at a time and is
+ * measured as saved; a page that overflows starts the next part. A page that
+ * is over the limit on its own still ships, alone, and is reported.
+ */
+async function splitBySize(
+  donor: PDFDocument,
+  limit: number,
+  onProgress: ProgressFn,
+) {
+  const count = donor.getPageCount();
+  const parts: { indices: number[]; bytes: Uint8Array; oversize: boolean }[] = [];
+  let indices: number[] = [];
+  let kept: Uint8Array | null = null;
+
+  for (let i = 0; i < count; i++) {
+    const trial = await savePageSubset(donor, [...indices, i]);
+    if (trial.length <= limit || indices.length === 0) {
+      indices = [...indices, i];
+      kept = trial;
+    } else {
+      parts.push({ indices, bytes: kept!, oversize: false });
+      indices = [i];
+      kept = await savePageSubset(donor, indices);
+    }
+    onProgress((i + 1) / count / 2);
+  }
+  if (kept) parts.push({ indices, bytes: kept, oversize: false });
+  for (const part of parts) {
+    part.oversize = part.indices.length === 1 && part.bytes.length > limit;
+  }
+  return parts;
+}
+
 export async function processSplitPdf(
   files: FileItem[],
   onProgress: ProgressFn,
+  options: ToolOptions,
 ): Promise<ResultItem[]> {
+  if (options.kind !== "split") throw new Error("Split PDF needs a split mode.");
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to split.");
 
   const donor = await PDFDocument.load(await item.file.arrayBuffer(), {
     ignoreEncryption: true,
   });
-  const indices = donor.getPageIndices();
-  if (indices.length === 0) throw new Error("This PDF has no pages.");
+  const count = donor.getPageCount();
+  if (count === 0) throw new Error("This PDF has no pages.");
 
   const base = item.name.replace(/\.[^.]+$/, "");
   const results: ResultItem[] = [];
-
-  for (let i = 0; i < indices.length; i++) {
-    const out = await PDFDocument.create();
-    const [page] = await out.copyPages(donor, [indices[i]]);
-    out.addPage(page);
-    const pdfBytes = await out.save({ useObjectStreams: true });
-    const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {
+  const push = (bytes: Uint8Array, name: string, note?: string) => {
+    const blob = new Blob([bytes.buffer as ArrayBuffer], {
       type: "application/pdf",
     });
     results.push({
       id: crypto.randomUUID(),
-      name: `${base}-page-${i + 1}.pdf`,
+      name,
       size: blob.size,
       blob,
       originalSize: item.size,
+      note,
     });
-    onProgress((i + 1) / indices.length);
+  };
+
+  if (options.mode === "size") {
+    const limit = options.maxMb * 1_000_000;
+    if (!(limit > 0)) throw new Error("Enter a size limit in MB.");
+    const parts = await splitBySize(donor, limit, onProgress);
+    parts.forEach((part, index) => {
+      const first = part.indices[0] + 1;
+      const last = part.indices[part.indices.length - 1] + 1;
+      push(
+        part.bytes,
+        `${base}-part-${index + 1}.pdf`,
+        part.oversize
+          ? `Page ${first} alone is ${formatBytes(part.bytes.length)}, over the ${options.maxMb} MB limit.`
+          : parts.length > 1
+            ? first === last
+              ? `Page ${first}`
+              : `Pages ${first}-${last}`
+            : undefined,
+      );
+    });
+    onProgress(1);
+    return results;
+  }
+
+  let groups: number[][];
+  let names: string[];
+  if (options.mode === "ranges") {
+    groups = parseRangeGroups(options.ranges, count);
+    if (groups.length === 0) {
+      throw new Error("Enter ranges like 1-3, 4-6, 7-.");
+    }
+    names = groups.map(
+      (group) =>
+        `${base}-pages-${group[0] + 1}${group.length > 1 ? `-${group[group.length - 1] + 1}` : ""}.pdf`,
+    );
+  } else if (options.mode === "half") {
+    if (count < 2) throw new Error("Splitting in half needs at least 2 pages.");
+    const mid = Math.ceil(count / 2);
+    const all = donor.getPageIndices();
+    groups = [all.slice(0, mid), all.slice(mid)];
+    names = [`${base}-part-1.pdf`, `${base}-part-2.pdf`];
+  } else {
+    groups = donor.getPageIndices().map((index) => [index]);
+    names = groups.map((_, index) => `${base}-page-${index + 1}.pdf`);
+  }
+
+  for (let i = 0; i < groups.length; i++) {
+    push(await savePageSubset(donor, groups[i]), names[i]);
+    onProgress((i + 1) / groups.length);
   }
 
   return results;
 }
 
+/** pdf.js renders at 72 DPI for scale 1. */
+export function dpiScale(dpi: number) {
+  return dpi / 72;
+}
+
 export async function processPdfToJpg(
   files: FileItem[],
   onProgress: ProgressFn,
+  options: ToolOptions,
 ): Promise<ResultItem[]> {
+  if (options.kind !== "pdf-image") {
+    throw new Error("PDF to image needs a resolution.");
+  }
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to convert.");
 
@@ -806,9 +906,11 @@ export async function processPdfToJpg(
   const results: ResultItem[] = [];
 
   try {
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const wanted = resolvePageRange(options.range, pdf.numPages);
+    for (let done = 0; done < wanted.length; done++) {
+      const pageNum = wanted[done] + 1;
       const page = await pdf.getPage(pageNum);
-      const blob = await renderPdfPageToJpeg(page, 2, 0.9);
+      const blob = await renderPdfPageToJpeg(page, dpiScale(options.dpi), 0.9);
       results.push({
         id: crypto.randomUUID(),
         name: `${base}-page-${pageNum}.jpg`,
@@ -816,7 +918,7 @@ export async function processPdfToJpg(
         blob,
         originalSize: item.size,
       });
-      onProgress(pageNum / pdf.numPages);
+      onProgress((done + 1) / wanted.length);
     }
   } finally {
     await pdf.loadingTask.destroy();
@@ -828,7 +930,11 @@ export async function processPdfToJpg(
 export async function processPdfToPng(
   files: FileItem[],
   onProgress: ProgressFn,
+  options: ToolOptions,
 ): Promise<ResultItem[]> {
+  if (options.kind !== "pdf-image") {
+    throw new Error("PDF to image needs a resolution.");
+  }
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to convert.");
 
@@ -839,9 +945,11 @@ export async function processPdfToPng(
   const results: ResultItem[] = [];
 
   try {
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const wanted = resolvePageRange(options.range, pdf.numPages);
+    for (let done = 0; done < wanted.length; done++) {
+      const pageNum = wanted[done] + 1;
       const page = await pdf.getPage(pageNum);
-      const blob = await renderPdfPageToPng(page, 2);
+      const blob = await renderPdfPageToPng(page, dpiScale(options.dpi));
       results.push({
         id: crypto.randomUUID(),
         name: `${base}-page-${pageNum}.png`,
@@ -849,7 +957,7 @@ export async function processPdfToPng(
         blob,
         originalSize: item.size,
       });
-      onProgress(pageNum / pdf.numPages);
+      onProgress((done + 1) / wanted.length);
     }
   } finally {
     await pdf.loadingTask.destroy();
@@ -1128,9 +1236,10 @@ export async function processRotatePdf(
     const doc = await PDFDocument.load(await item.file.arrayBuffer(), {
       ignoreEncryption: true,
     });
-    for (const page of doc.getPages()) {
-      const current = toDegrees(page.getRotation());
-      page.setRotation(degrees((current + delta) % 360));
+    const pages = doc.getPages();
+    for (const index of resolvePageRange(options.range, pages.length)) {
+      const current = toDegrees(pages[index].getRotation());
+      pages[index].setRotation(degrees((current + delta) % 360));
     }
     const pdfBytes = await doc.save({ useObjectStreams: true });
     const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {

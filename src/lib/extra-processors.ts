@@ -25,8 +25,10 @@ import {
   wordsFromOcrBlocks,
 } from "@/lib/ocr-words";
 import {
+  NUMBER_SIZES,
   pageBoxToPdf,
   type AnnotatePosition,
+  type NumberFormat,
   type EditMark,
   type PageBox,
   type ToolOptions,
@@ -419,6 +421,42 @@ function stampPoint(
   }
 }
 
+function toRoman(value: number) {
+  if (value < 1 || value > 3999) return String(value);
+  const steps: [number, string][] = [
+    [1000, "m"], [900, "cm"], [500, "d"], [400, "cd"], [100, "c"], [90, "xc"],
+    [50, "l"], [40, "xl"], [10, "x"], [9, "ix"], [5, "v"], [4, "iv"], [1, "i"],
+  ];
+  let rest = value;
+  let out = "";
+  for (const [step, glyph] of steps) {
+    while (rest >= step) {
+      out += glyph;
+      rest -= step;
+    }
+  }
+  return out;
+}
+
+function numberLabel(
+  format: NumberFormat,
+  shown: number,
+  total: number,
+): string {
+  switch (format) {
+    case "n":
+      return String(shown);
+    case "page":
+      return `Page ${shown}`;
+    case "n-of":
+      return `${shown} / ${total}`;
+    case "page-of":
+      return `Page ${shown} of ${total}`;
+    case "roman":
+      return toRoman(shown);
+  }
+}
+
 export async function processAnnotatePdf(
   files: FileItem[],
   onProgress: ProgressFn,
@@ -433,13 +471,23 @@ export async function processAnnotatePdf(
     const doc = await loadPdf(item.file);
     const font = await doc.embedFont(StandardFonts.HelveticaBold);
     const pages = doc.getPages();
+    const numberPoints =
+      NUMBER_SIZES.find((entry) => entry.id === options.numberSize)?.points ??
+      11;
     pages.forEach((page, index) => {
+      if (options.variant === "numbers" && options.skipFirst && index === 0) {
+        return;
+      }
       const { width, height } = page.getSize();
       const label =
         options.variant === "numbers"
-          ? `${index + 1} / ${pages.length}`
+          ? numberLabel(
+              options.numberFormat,
+              options.startAt + index,
+              options.startAt + pages.length - 1,
+            )
           : options.text.trim();
-      const size = options.variant === "numbers" ? 11 : 28;
+      const size = options.variant === "numbers" ? numberPoints : 28;
       const textWidth = font.widthOfTextAtSize(label, size);
       const point = stampPoint(
         options.position,
