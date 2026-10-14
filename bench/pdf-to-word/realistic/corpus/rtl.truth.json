@@ -1,0 +1,19 @@
+{
+  "name": "rtl",
+  "category": "rtl",
+  "description": "Arabic and Hebrew paragraphs under an English heading",
+  "paragraphs": [
+    "Multilingual notice",
+    "مرحبا بكم في مكتبة المدينة المركزية. تفتح المكتبة أبوابها من الأحد إلى الخميس، من الساعة التاسعة صباحا حتى الخامسة مساء. يرجى إحضار بطاقة العضوية عند الاستعارة.",
+    "ברוכים הבאים לספרייה המרכזית של העיר. הספרייה פתוחה בימים ראשון עד חמישי, בין השעות תשע בבוקר עד חמש אחר הצהריים. נא להביא כרטיס חבר בעת ההשאלה.",
+    "English summary: the central library is open Sunday to Thursday, nine to five."
+  ],
+  "pages": 1,
+  "charMode": true,
+  "headings": [
+    {
+      "text": "Multilingual notice",
+      "level": 1
+    }
+  ]
+}

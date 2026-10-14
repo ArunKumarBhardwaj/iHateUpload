@@ -1,0 +1,42 @@
+{
+  "name": "memo-pdflib",
+  "category": "memo",
+  "description": "Memo drawn with pdf-lib standard fonts: heading, wrapped paragraphs, drawn-bullet list",
+  "paragraphs": [
+    "MEMORANDUM",
+    "To: All field staff",
+    "From: Operations",
+    "Date: 9 October 2026",
+    "Anchor violet thunder island morning falcon prairie island willow lantern harbor ribbon tunnel valley. Willow compass letter velvet engine compass anchor timber timber. Vessel compass morning jungle pocket pocket pepper forest harbor bridge nectar jungle lagoon kernel quiver. Yellow lagoon copper river anchor needle quartz pocket stone oyster island ember. Yonder ladder violet mosaic meadow ember paper garden ember falcon falcon pepper unity falcon tunnel. Dagger summit hollow letter quartz.",
+    "Action items",
+    "Return all loaner radios to the depot by Friday",
+    "Submit mileage logs through the new portal",
+    "Complete the winter safety module"
+  ],
+  "order": true,
+  "headings": [
+    {
+      "text": "MEMORANDUM",
+      "level": 1
+    },
+    {
+      "text": "Action items",
+      "level": 2
+    }
+  ],
+  "lists": [
+    {
+      "type": "bullet",
+      "items": [
+        "Return all loaner radios to the depot by Friday",
+        "Submit mileage logs through the new portal",
+        "Complete the winter safety module"
+      ]
+    }
+  ],
+  "fonts": [
+    "Helvetica",
+    "Times-Roman"
+  ],
+  "pages": 1
+}

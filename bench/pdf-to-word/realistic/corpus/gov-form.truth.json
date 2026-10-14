@@ -1,0 +1,101 @@
+{
+  "name": "gov-form",
+  "category": "form",
+  "description": "Government-style form: labelled boxes and drawn checkboxes (no AcroForm)",
+  "paragraphs": [
+    "Application for Temporary Use of Public Land",
+    "Form PL-204 (Rev. 03/2026). Print clearly in black ink. Fields marked * are required.",
+    "Section 1. Applicant",
+    "1a. Full legal name *",
+    "1b. Mailing address *",
+    "1c. Daytime telephone",
+    "Section 2. Proposed use",
+    "2a. Parcel number *",
+    "2b. Start date *",
+    "2c. Description of activity *",
+    "Type of applicant",
+    "Individual",
+    "Business",
+    "Non-profit organisation",
+    "I declare that the information given is true and complete. Signature of applicant and date:"
+  ],
+  "pages": 1,
+  "order": true,
+  "fonts": [
+    "Arial"
+  ],
+  "headings": [
+    {
+      "text": "Application for Temporary Use of Public Land",
+      "level": 1
+    }
+  ],
+  "tables": [
+    {
+      "rows": [
+        [
+          {
+            "text": "Section 1. Applicant",
+            "shaded": true,
+            "cs": 2
+          }
+        ],
+        [
+          {
+            "text": "1a. Full legal name *"
+          },
+          {
+            "text": ""
+          }
+        ],
+        [
+          {
+            "text": "1b. Mailing address *"
+          },
+          {
+            "text": ""
+          }
+        ],
+        [
+          {
+            "text": "1c. Daytime telephone"
+          },
+          {
+            "text": ""
+          }
+        ],
+        [
+          {
+            "text": "Section 2. Proposed use",
+            "shaded": true,
+            "cs": 2
+          }
+        ],
+        [
+          {
+            "text": "2a. Parcel number *"
+          },
+          {
+            "text": ""
+          }
+        ],
+        [
+          {
+            "text": "2b. Start date *"
+          },
+          {
+            "text": ""
+          }
+        ],
+        [
+          {
+            "text": "2c. Description of activity *"
+          },
+          {
+            "text": ""
+          }
+        ]
+      ]
+    }
+  ]
+}

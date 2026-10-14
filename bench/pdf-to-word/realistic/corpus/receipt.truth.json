@@ -1,0 +1,26 @@
+{
+  "name": "receipt",
+  "category": "receipt",
+  "description": "Narrow thermal-style receipt in monospace",
+  "paragraphs": [
+    "GREEN APRON MARKET",
+    "55 Linden Ave, Ithaca NY",
+    "Tel 555-0176   03/14/2026 10:42",
+    "Oat milk 1L 3.49",
+    "Sourdough loaf 5.25",
+    "Free-range eggs 12 4.80",
+    "Bananas 1.2kg 1.56",
+    "Olive oil 500ml 9.99",
+    "Dark chocolate 3.20",
+    "SUBTOTAL 28.29",
+    "TAX 4% 1.13",
+    "TOTAL 29.42",
+    "VISA ****8841 29.42",
+    "THANK YOU FOR SHOPPING WITH US"
+  ],
+  "pages": 1,
+  "order": true,
+  "fonts": [
+    "Courier New"
+  ]
+}
