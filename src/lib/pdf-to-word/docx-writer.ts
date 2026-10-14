@@ -28,9 +28,13 @@ function esc(text: string): string {
   );
 }
 
+/** What the paragraph writers need from the package: hyperlink relationships and bookmark ids. */
+type Ctx = { linkRel?: (url: string) => string; bookmarkId: () => number };
+
 function runXml(run: Run): string {
   if (run.tab) return "<w:r><w:tab/></w:r>";
   const props: string[] = [];
+  if (run.link) props.push('<w:rStyle w:val="Hyperlink"/>');
   if (run.font) {
     const f = esc(run.font);
     props.push(`<w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:cs="${f}" w:eastAsia="${f}"/>`);
@@ -79,14 +83,36 @@ function paragraphProps(p: ParagraphBlock, sectPr = ""): string {
   return parts.length ? `<w:pPr>${parts.join("")}</w:pPr>` : "";
 }
 
-function paragraphXml(p: ParagraphBlock, sectPr = ""): string {
+/** Runs in order, with neighbours that share a link gathered under one hyperlink. */
+function runsXml(runs: Run[], ctx: Ctx): string {
+  const out: string[] = [];
+  for (let i = 0; i < runs.length; ) {
+    const link = runs[i].link;
+    const rId = link && "url" in link ? ctx.linkRel?.(link.url) : undefined;
+    const target = link && (rId || ("anchor" in link && link.anchor)) ? link : undefined;
+    if (!target) {
+      out.push(runXml(runs[i++]));
+      continue;
+    }
+    const group: Run[] = [];
+    while (i < runs.length && JSON.stringify(runs[i].link) === JSON.stringify(link)) group.push(runs[i++]);
+    const attr = "url" in target ? `r:id="${rId}"` : `w:anchor="${esc(target.anchor)}"`;
+    out.push(`<w:hyperlink ${attr} w:history="1">${group.map(runXml).join("")}</w:hyperlink>`);
+  }
+  return out.join("");
+}
+
+function paragraphXml(p: ParagraphBlock, ctx: Ctx, sectPr = ""): string {
   const colBreak = p.columnBreakBefore ? '<w:r><w:br w:type="column"/></w:r>' : "";
-  return `<w:p>${paragraphProps(p, sectPr)}${colBreak}${p.runs.map(runXml).join("")}</w:p>`;
+  const marks = (p.bookmarks ?? []).map((name) => ({ id: ctx.bookmarkId(), name }));
+  const starts = marks.map((m) => `<w:bookmarkStart w:id="${m.id}" w:name="${esc(m.name)}"/>`).join("");
+  const ends = marks.map((m) => `<w:bookmarkEnd w:id="${m.id}"/>`).join("");
+  return `<w:p>${paragraphProps(p, sectPr)}${colBreak}${starts}${runsXml(p.runs, ctx)}${ends}</w:p>`;
 }
 
 const BORDER = '<w:{side} w:val="single" w:sz="4" w:space="0" w:color="000000"/>';
 
-function tableXml(t: TableBlock): string {
+function tableXml(t: TableBlock, ctx: Ctx): string {
   const total = t.colWidths.reduce((a, b) => a + b, 0);
   const borders = t.borders
     ? `<w:tblBorders>${["top", "left", "bottom", "right", "insideH", "insideV"]
@@ -106,7 +132,7 @@ function tableXml(t: TableBlock): string {
           if (cell.vMerge === "restart") props.push('<w:vMerge w:val="restart"/>');
           if (cell.vMerge === "continue") props.push("<w:vMerge/>");
           const body = cell.paragraphs.length
-            ? cell.paragraphs.map((p) => paragraphXml(p)).join("")
+            ? cell.paragraphs.map((p) => paragraphXml(p, ctx)).join("")
             : "<w:p/>";
           return `<w:tc><w:tcPr>${props.join("")}</w:tcPr>${body}</w:tc>`;
         })
@@ -215,6 +241,8 @@ const STYLES =
   headingStyle("Heading1", "heading 1", 40, 0) +
   headingStyle("Heading2", "heading 2", 32, 1) +
   headingStyle("Heading3", "heading 3", 26, 2) +
+  `<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:basedOn w:val="DefaultParagraphFont"/>` +
+  `<w:uiPriority w:val="99"/><w:unhideWhenUsed/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>` +
   `<w:style w:type="paragraph" w:styleId="Header"><w:name w:val="header"/><w:basedOn w:val="Normal"/></w:style>` +
   `<w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/></w:style>` +
   `</w:styles>`;
@@ -243,8 +271,8 @@ function numberingXml(lists: Map<number, ListInfo>): string {
   return `${XML_HEAD}<w:numbering ${NS}>${abstracts.join("")}${nums.join("")}</w:numbering>`;
 }
 
-function partXml(root: "hdr" | "ftr", paragraphs: ParagraphBlock[]): string {
-  const body = paragraphs.length ? paragraphs.map((p) => paragraphXml(p)).join("") : "<w:p/>";
+function partXml(root: "hdr" | "ftr", paragraphs: ParagraphBlock[], ctx: Ctx): string {
+  const body = paragraphs.length ? paragraphs.map((p) => paragraphXml(p, ctx)).join("") : "<w:p/>";
   return `${XML_HEAD}<w:${root} ${NS}>${body}</w:${root}>`;
 }
 
@@ -265,18 +293,36 @@ export async function writeDocx(
   const zip = new JSZip();
   let relId = 3;
   const next = () => `rId${++relId}`;
+  let bookmarks = 0;
+  // Header and footer parts have relationships of their own, so links there stay plain text.
+  const plain: Ctx = { bookmarkId: () => ++bookmarks };
+  const linkIds = new Map<string, string>();
+  const ctx: Ctx = {
+    bookmarkId: plain.bookmarkId,
+    linkRel: (url) => {
+      let id = linkIds.get(url);
+      if (!id) {
+        id = next();
+        linkIds.set(url, id);
+        rels.push(
+          `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${esc(url)}" TargetMode="External"/>`,
+        );
+      }
+      return id;
+    },
+  };
 
   let headerRefs = "";
   if (model.header.length) {
     const id = next();
     rels.push(`<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>`);
-    zip.file("word/header1.xml", partXml("hdr", model.header));
+    zip.file("word/header1.xml", partXml("hdr", model.header, plain));
     headerRefs += `<w:headerReference w:type="default" r:id="${id}"/>`;
   }
   if (model.footer.length) {
     const id = next();
     rels.push(`<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>`);
-    zip.file("word/footer1.xml", partXml("ftr", model.footer));
+    zip.file("word/footer1.xml", partXml("ftr", model.footer, plain));
     headerRefs += `<w:footerReference w:type="default" r:id="${id}"/>`;
   }
 
@@ -315,7 +361,7 @@ export async function writeDocx(
       endsWithParagraph = false;
       if (block.type === "p") {
         collect(block);
-        pieces.push(paragraphXml(block, carry));
+        pieces.push(paragraphXml(block, ctx, carry));
         endsWithParagraph = true;
       } else if (block.type === "image") {
         const part = partFor(block.ref);
@@ -325,7 +371,7 @@ export async function writeDocx(
       } else {
         block.rows.forEach((row) => row.forEach((c) => c.paragraphs.forEach(collect)));
         if (pieces.length && pieces[pieces.length - 1].startsWith("<w:tbl>")) pieces.push(tinyParagraph(""));
-        pieces.push(tableXml(block));
+        pieces.push(tableXml(block, ctx));
       }
     });
     if (!last && !endsWithParagraph) pieces.push(tinyParagraph(sect));

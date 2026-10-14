@@ -244,6 +244,23 @@ function columnSpec(region: Region, colL: number, colR: number): NonNullable<Sec
   return { widths, gap };
 }
 
+/** Put a bookmark on the paragraph each internal link points at: the first one at or below its height. */
+function placeBookmarks(inputs: PageInput[], placed: { block: ParagraphBlock; top: number }[][]) {
+  const seen = new Set<string>();
+  for (const input of inputs) {
+    for (const link of input.links ?? []) {
+      const anchor = link.anchor;
+      if (!anchor || seen.has(anchor.name)) continue;
+      seen.add(anchor.name);
+      const onPage = placed[anchor.page];
+      if (!onPage?.length) continue;
+      const below = onPage.filter((p) => p.top >= anchor.y - 6).sort((a, b) => a.top - b.top)[0];
+      const target = below ?? [...onPage].sort((a, b) => b.top - a.top)[0];
+      (target.block.bookmarks ??= []).push(anchor.name);
+    }
+  }
+}
+
 type ListState = { key: string; markerX: number; instance: number };
 
 export function layoutDocument(inputs: PageInput[]): DocModel {
@@ -314,6 +331,8 @@ export function layoutDocument(inputs: PageInput[]): DocModel {
 
   let instance = 0;
   let active: ListState[] = [];
+  // Every paragraph placed on a page with its top, so link and outline targets can find theirs.
+  const placed: { block: ParagraphBlock; top: number }[][] = works.map(() => []);
 
   const sections: Section[] = works.flatMap((work, workIndex) => {
     const { input } = work;
@@ -337,6 +356,7 @@ export function layoutDocument(inputs: PageInput[]): DocModel {
         const { block, meta } = para;
         top = Math.min(top, meta.firstTop);
         bottom = Math.max(bottom, meta.lastBottom);
+        placed[workIndex].push({ block, top: meta.firstTop });
 
         if (meta.marker) {
           const key = `${meta.marker.kind}|${meta.marker.suffix}`;
@@ -453,5 +473,6 @@ export function layoutDocument(inputs: PageInput[]): DocModel {
     }));
   });
 
+  placeBookmarks(inputs, placed);
   return { sections, header, footer, notes };
 }

@@ -373,3 +373,24 @@ test("text under a link rectangle becomes a linked run", () => {
     [" before starting.", undefined],
   ]);
 });
+
+test("an internal link gets a bookmark on the paragraph at its destination", () => {
+  const anchor = { name: "sec2", page: 0, y: 398 };
+  const doc = layoutDocument([
+    page(
+      [
+        item("Jump to section two for more.", 72, 100),
+        ...filler(130),
+        item("Section Two", 72, 410, 18, { bold: true }),
+        item("Quartz nectar feather ladder needle tunnel jasper opal breeze anchor.", 72, 440),
+      ],
+      [],
+      { links: [{ x0: 72, x1: 160, top: 91, bottom: 103, anchor }] },
+    ),
+  ]);
+  const paras = paragraphs(doc.sections[0].blocks);
+  const target = paras.find((p) => text(p) === "Section Two")!;
+  expect(target.bookmarks).toEqual(["sec2"]);
+  expect(paras.filter((p) => p.bookmarks).length).toBe(1);
+  expect(paras[0].runs[0].link).toEqual({ anchor: "sec2" });
+});

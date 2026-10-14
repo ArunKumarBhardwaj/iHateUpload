@@ -229,3 +229,45 @@ test("columns of different widths list each width", async () => {
   const xml = await (await JSZip.loadAsync(bytes)).file("word/document.xml")!.async("string");
   expect(xml).toContain('<w:cols w:num="2" w:space="400" w:equalWidth="0"><w:col w:w="6678" w:space="400"/><w:col w:w="2922"/></w:cols>');
 });
+
+test("linked runs become hyperlinks with relationships, and bookmarks mark the targets", async () => {
+  const margins = { top: 50, right: 50, bottom: 50, left: 50 };
+  const bytes = await writeDocx(
+    {
+      header: [],
+      footer: [],
+      notes: [],
+      sections: [
+        {
+          width: 600,
+          height: 800,
+          margins,
+          blocks: [
+            {
+              type: "p",
+              runs: [
+                { text: "See " },
+                { text: "the docs", link: { url: "https://example.com/a?x=1&y=2" } },
+                { text: " or " },
+                { text: "section two", link: { anchor: "sec2" } },
+              ],
+            },
+            { type: "p", bookmarks: ["sec2"], runs: [{ text: "Section Two" }] },
+          ],
+        },
+      ],
+    },
+    {},
+    "T",
+  );
+  const zip = await JSZip.loadAsync(bytes);
+  const xml = await zip.file("word/document.xml")!.async("string");
+  const rels = await zip.file("word/_rels/document.xml.rels")!.async("string");
+  const rid = /<w:hyperlink r:id="(rId\d+)" w:history="1"><w:r><w:rPr><w:rStyle w:val="Hyperlink"\/><\/w:rPr><w:t xml:space="preserve">the docs<\/w:t>/.exec(xml)?.[1];
+  expect(rid).toBeDefined();
+  expect(rels).toContain(`Id="${rid}"`);
+  expect(rels).toContain('Target="https://example.com/a?x=1&amp;y=2" TargetMode="External"');
+  expect(xml).toContain('<w:hyperlink w:anchor="sec2" w:history="1">');
+  expect(xml).toMatch(/<w:bookmarkStart w:id="\d+" w:name="sec2"\/><w:r>.*Section Two.*<\/w:r><w:bookmarkEnd w:id="\d+"\/>/);
+  expect(await zip.file("word/styles.xml")!.async("string")).toContain('w:styleId="Hyperlink"');
+});
