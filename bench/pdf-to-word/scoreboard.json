@@ -10,13 +10,13 @@
    "order": 0.9973262032085561,
    "editability": 1,
    "headings": 1,
-   "lists": 0.34375,
-   "tables": 0.5972222222222222,
+   "lists": 1,
+   "tables": 1,
    "runs": 0.5517241379310345,
    "images": 1,
    "vectors": 0,
-   "links": 0,
-   "columns": 0,
+   "links": 1,
+   "columns": 1,
    "fonts": 0.5,
    "headerFooter": 1,
    "footnotes": 0,
@@ -58,35 +58,35 @@
   }
  },
  "overall": {
-  "ours": 0.8808247005698833,
+  "ours": 0.9372235100936928,
   "rival": 0.9425538965586233,
   "rival-exact": 0.6991015156062426
  },
  "perFixture": {
   "columns": {
    "ours": {
-    "overall": 0.75,
+    "overall": 0.9166666666666666,
     "features": {
      "text": 1,
      "order": 1,
      "editability": 1,
      "headings": 1,
-     "columns": 0,
+     "columns": 1,
      "fonts": 0.5
     },
     "detail": {},
     "time": {
      "n": 5,
-     "med": 259,
-     "min": 230,
-     "max": 359
+     "med": 187,
+     "min": 166,
+     "max": 201
     },
     "hashes": [
-     "a854dd5c88f7",
-     "a854dd5c88f7",
-     "a854dd5c88f7",
-     "a854dd5c88f7",
-     "a854dd5c88f7"
+     "f64b38cca1e5",
+     "f64b38cca1e5",
+     "f64b38cca1e5",
+     "f64b38cca1e5",
+     "f64b38cca1e5"
     ]
    },
    "rival": {
@@ -149,9 +149,9 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 358,
-     "min": 228,
-     "max": 359
+     "med": 200,
+     "min": 181,
+     "max": 201
     },
     "hashes": [
      "aed8dadc56ef",
@@ -219,9 +219,9 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 229,
-     "min": 226,
-     "max": 359
+     "med": 204,
+     "min": 197,
+     "max": 206
     },
     "hashes": [
      "1a9256bb6a90",
@@ -289,9 +289,9 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 361,
-     "min": 230,
-     "max": 365
+     "med": 196,
+     "min": 167,
+     "max": 301
     },
     "hashes": [
      "bc459b52740e",
@@ -359,9 +359,9 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 335,
-     "min": 333,
-     "max": 356
+     "med": 302,
+     "min": 286,
+     "max": 326
     },
     "hashes": [
      "cecf8338b956",
@@ -418,26 +418,26 @@
   },
   "links": {
    "ours": {
-    "overall": 0.75,
+    "overall": 1,
     "features": {
      "text": 1,
      "editability": 1,
      "headings": 1,
-     "links": 0
+     "links": 1
     },
     "detail": {},
     "time": {
      "n": 5,
-     "med": 358,
-     "min": 226,
-     "max": 360
+     "med": 190,
+     "min": 170,
+     "max": 209
     },
     "hashes": [
-     "e76f8fda3dc1",
-     "e76f8fda3dc1",
-     "e76f8fda3dc1",
-     "e76f8fda3dc1",
-     "e76f8fda3dc1"
+     "5fbf908862ef",
+     "5fbf908862ef",
+     "5fbf908862ef",
+     "5fbf908862ef",
+     "5fbf908862ef"
     ]
    },
    "rival": {
@@ -485,27 +485,27 @@
   },
   "lists-headings": {
    "ours": {
-    "overall": 0.86875,
+    "overall": 1,
     "features": {
      "text": 1,
      "order": 1,
      "editability": 1,
      "headings": 1,
-     "lists": 0.34375
+     "lists": 1
     },
     "detail": {},
     "time": {
      "n": 5,
-     "med": 228,
-     "min": 227,
-     "max": 356
+     "med": 197,
+     "min": 167,
+     "max": 205
     },
     "hashes": [
-     "728415c12222",
-     "728415c12222",
-     "728415c12222",
-     "728415c12222",
-     "728415c12222"
+     "876b7309cdb0",
+     "876b7309cdb0",
+     "876b7309cdb0",
+     "876b7309cdb0",
+     "876b7309cdb0"
     ]
    },
    "rival": {
@@ -563,14 +563,14 @@
     "detail": {},
     "time": {
      "n": 3,
-     "med": 438,
-     "min": 437,
-     "max": 439
+     "med": 413,
+     "min": 402,
+     "max": 417
     },
     "hashes": [
-     "b816d2616b9b",
-     "b816d2616b9b",
-     "b816d2616b9b"
+     "c9de03817cc4",
+     "c9de03817cc4",
+     "c9de03817cc4"
     ]
    },
    "rival": {
@@ -621,9 +621,9 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 330,
-     "min": 324,
-     "max": 373
+     "med": 203,
+     "min": 187,
+     "max": 230
     },
     "hashes": [
      "f12ac64ccc21",
@@ -690,9 +690,9 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 939,
-     "min": 938,
-     "max": 2962
+     "med": 912,
+     "min": 905,
+     "max": 1917
     },
     "hashes": [
      "977be4e9c21c",
@@ -760,9 +760,9 @@
     },
     "time": {
      "n": 5,
-     "med": 229,
-     "min": 228,
-     "max": 357
+     "med": 201,
+     "min": 183,
+     "max": 206
     },
     "hashes": [
      "2f30ff2eaf7d",
@@ -823,30 +823,30 @@
   },
   "table-multipage": {
    "ours": {
-    "overall": 0.825,
+    "overall": 1,
     "features": {
      "text": 1,
      "order": 1,
      "editability": 1,
      "headings": 1,
-     "tables": 0.125
+     "tables": 1
     },
     "detail": {
-     "tables.grid": 0.25,
-     "tables.shading": 0
+     "tables.grid": 1,
+     "tables.shading": 1
     },
     "time": {
      "n": 5,
-     "med": 360,
-     "min": 334,
-     "max": 366
+     "med": 299,
+     "min": 277,
+     "max": 306
     },
     "hashes": [
-     "1cc2a636f155",
-     "1cc2a636f155",
-     "1cc2a636f155",
-     "1cc2a636f155",
-     "1cc2a636f155"
+     "32f1ca8b7972",
+     "32f1ca8b7972",
+     "32f1ca8b7972",
+     "32f1ca8b7972",
+     "32f1ca8b7972"
     ]
    },
    "rival": {
@@ -902,31 +902,31 @@
   },
   "table-ruled": {
    "ours": {
-    "overall": 0.9333333333333333,
+    "overall": 1,
     "features": {
      "text": 1,
      "order": 1,
      "editability": 1,
      "headings": 1,
-     "tables": 0.6666666666666666
+     "tables": 1
     },
     "detail": {
      "tables.grid": 1,
      "tables.merges": 1,
-     "tables.shading": 0
+     "tables.shading": 1
     },
     "time": {
      "n": 5,
-     "med": 229,
-     "min": 226,
-     "max": 357
+     "med": 203,
+     "min": 187,
+     "max": 211
     },
     "hashes": [
-     "3a97f6748623",
-     "3a97f6748623",
-     "3a97f6748623",
-     "3a97f6748623",
-     "3a97f6748623"
+     "d27fffe7cadc",
+     "d27fffe7cadc",
+     "d27fffe7cadc",
+     "d27fffe7cadc",
+     "d27fffe7cadc"
     ]
    },
    "rival": {
@@ -995,9 +995,9 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 356,
-     "min": 229,
-     "max": 357
+     "med": 202,
+     "min": 175,
+     "max": 205
     },
     "hashes": [
      "9d3bc000bce7",
@@ -1055,27 +1055,6 @@
  },
  "gaps": [
   {
-   "f": "columns",
-   "k": "columns",
-   "ours": 0,
-   "theirs": 1,
-   "gap": 1
-  },
-  {
-   "f": "links",
-   "k": "links",
-   "ours": 0,
-   "theirs": 1,
-   "gap": 1
-  },
-  {
-   "f": "table-multipage",
-   "k": "tables",
-   "ours": 0.125,
-   "theirs": 1,
-   "gap": 0.875
-  },
-  {
    "f": "vectors",
    "k": "vectors",
    "ours": 0,
@@ -1088,20 +1067,6 @@
    "ours": 0.5517241379310345,
    "theirs": 1,
    "gap": 0.4482758620689655
-  },
-  {
-   "f": "table-ruled",
-   "k": "tables",
-   "ours": 0.6666666666666666,
-   "theirs": 1,
-   "gap": 0.33333333333333337
-  },
-  {
-   "f": "lists-headings",
-   "k": "lists",
-   "ours": 0.34375,
-   "theirs": 0.484375,
-   "gap": 0.140625
   },
   {
    "f": "columns",
@@ -1127,6 +1092,13 @@
   {
    "f": "columns",
    "k": "headings",
+   "ours": 1,
+   "theirs": 1,
+   "gap": 0
+  },
+  {
+   "f": "columns",
+   "k": "columns",
    "ours": 1,
    "theirs": 1,
    "gap": 0
@@ -1293,6 +1265,13 @@
    "gap": 0
   },
   {
+   "f": "links",
+   "k": "links",
+   "ours": 1,
+   "theirs": 1,
+   "gap": 0
+  },
+  {
    "f": "lists-headings",
    "k": "text",
    "ours": 1,
@@ -1447,6 +1426,13 @@
    "gap": 0
   },
   {
+   "f": "table-multipage",
+   "k": "tables",
+   "ours": 1,
+   "theirs": 1,
+   "gap": 0
+  },
+  {
    "f": "table-ruled",
    "k": "text",
    "ours": 1,
@@ -1470,6 +1456,13 @@
   {
    "f": "table-ruled",
    "k": "headings",
+   "ours": 1,
+   "theirs": 1,
+   "gap": 0
+  },
+  {
+   "f": "table-ruled",
+   "k": "tables",
    "ours": 1,
    "theirs": 1,
    "gap": 0
@@ -1515,6 +1508,13 @@
    "ours": 1,
    "theirs": 0.8333333333333333,
    "gap": -0.16666666666666674
+  },
+  {
+   "f": "lists-headings",
+   "k": "lists",
+   "ours": 1,
+   "theirs": 0.484375,
+   "gap": -0.515625
   }
  ]
 }
