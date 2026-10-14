@@ -86,7 +86,7 @@ function peelHead(els: El[]): [El[], El[]] | null {
     const rest = sorted.slice(i);
     const headBottom = Math.max(...head.map((e) => e.bottom));
     const lineHeight = Math.max(...head.map((e) => e.bottom - e.top));
-    if (Math.min(...rest.map((e) => e.top)) < headBottom + lineHeight) continue;
+    if (Math.min(...rest.map((e) => e.top)) < headBottom + 0.5 * lineHeight) continue;
     if (splitVertical(rest)) return [head, rest];
   }
   return null;
@@ -119,7 +119,7 @@ function splitHorizontal(els: El[]): [El[], El[]] | null {
 export function readingOrder(els: El[], colL: number, colR: number): El[] {
   const out: El[] = [];
   let regions = 0;
-  const visit = (group: El[], l: number, r: number, region?: Region) => {
+  const visit = (group: El[], l: number, r: number, region?: Region, peel = true) => {
     if (group.length === 1) {
       const el = group[0];
       if (region) el.region = region;
@@ -130,10 +130,10 @@ export function readingOrder(els: El[], colL: number, colR: number): El[] {
       out.push(el);
       return;
     }
-    const head = peelHead(group);
+    const head = peel ? peelHead(group) : null;
     if (head) {
       visit(head[0], l, r, region);
-      visit(head[1], l, r, region);
+      visit(head[1], l, r, region, false);
       return;
     }
     const columns = splitVertical(group);
