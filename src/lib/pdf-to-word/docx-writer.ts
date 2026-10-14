@@ -80,7 +80,8 @@ function paragraphProps(p: ParagraphBlock, sectPr = ""): string {
 }
 
 function paragraphXml(p: ParagraphBlock, sectPr = ""): string {
-  return `<w:p>${paragraphProps(p, sectPr)}${p.runs.map(runXml).join("")}</w:p>`;
+  const colBreak = p.columnBreakBefore ? '<w:r><w:br w:type="column"/></w:r>' : "";
+  return `<w:p>${paragraphProps(p, sectPr)}${colBreak}${p.runs.map(runXml).join("")}</w:p>`;
 }
 
 const BORDER = '<w:{side} w:val="single" w:sz="4" w:space="0" w:color="000000"/>';
@@ -150,15 +151,36 @@ function imageXml(
   );
 }
 
+/** Columns scaled to the text width the section really has, equal when they are close to it. */
+function colsXml(section: Section): string {
+  const cols = section.columns;
+  if (!cols || cols.widths.length < 2) return "";
+  const n = cols.widths.length;
+  const m = section.margins;
+  const avail = Math.max(24 * n, section.width - m.left - m.right - cols.gap * (n - 1));
+  const sum = cols.widths.reduce((a, b) => a + b, 0);
+  const widths = cols.widths.map((w) => (w * avail) / sum);
+  const space = tw(cols.gap);
+  const mean = avail / n;
+  if (widths.every((w) => Math.abs(w - mean) <= 0.04 * mean)) {
+    return `<w:cols w:num="${n}" w:space="${space}" w:equalWidth="1"/>`;
+  }
+  const list = widths
+    .map((w, i) => `<w:col w:w="${tw(w)}"${i < n - 1 ? ` w:space="${space}"` : ""}/>`)
+    .join("");
+  return `<w:cols w:num="${n}" w:space="${space}" w:equalWidth="0">${list}</w:cols>`;
+}
+
 function sectionProps(section: Section, refs: string): string {
   const w = Math.min(MAX_PAGE_TWIPS, tw(section.width));
   const h = Math.min(MAX_PAGE_TWIPS, tw(section.height));
   const m = section.margins;
   const orient = section.width > section.height ? ' w:orient="landscape"' : "";
   return (
-    `<w:sectPr>${refs}<w:type w:val="nextPage"/><w:pgSz w:w="${w}" w:h="${h}"${orient}/>` +
+    `<w:sectPr>${refs}<w:type w:val="${section.start ?? "nextPage"}"/><w:pgSz w:w="${w}" w:h="${h}"${orient}/>` +
     `<w:pgMar w:top="${tw(m.top)}" w:right="${tw(m.right)}" w:bottom="${tw(m.bottom)}" w:left="${tw(m.left)}" ` +
     `w:header="${tw(section.headerDistance ?? 36)}" w:footer="${tw(section.footerDistance ?? 36)}" w:gutter="0"/>` +
+    colsXml(section) +
     `</w:sectPr>`
   );
 }

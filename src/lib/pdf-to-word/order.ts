@@ -1,10 +1,15 @@
 import type { Line, PageImage } from "./lines";
 import type { TableEl } from "./tables";
 
+/** Which side-by-side text columns an element sits in. */
+export type Region = { id: number; index: number; boxes: { x0: number; x1: number }[] };
+
+type Box = { x0: number; x1: number; top: number; bottom: number; region?: Region };
+
 export type El =
-  | { kind: "line"; line: Line; x0: number; x1: number; top: number; bottom: number }
-  | { kind: "table"; table: TableEl; x0: number; x1: number; top: number; bottom: number }
-  | { kind: "image"; image: PageImage; x0: number; x1: number; top: number; bottom: number };
+  | ({ kind: "line"; line: Line } & Box)
+  | ({ kind: "table"; table: TableEl } & Box)
+  | ({ kind: "image"; image: PageImage } & Box);
 
 export const lineEl = (line: Line): El => ({
   kind: "line",
@@ -94,9 +99,11 @@ function splitHorizontal(els: El[]): [El[], El[]] | null {
  */
 export function readingOrder(els: El[], colL: number, colR: number): El[] {
   const out: El[] = [];
-  const visit = (group: El[], l: number, r: number) => {
+  let regions = 0;
+  const visit = (group: El[], l: number, r: number, region?: Region) => {
     if (group.length === 1) {
       const el = group[0];
+      if (region) el.region = region;
       if (el.kind === "line") {
         el.line.colL = l;
         el.line.colR = r;
@@ -106,20 +113,26 @@ export function readingOrder(els: El[], colL: number, colR: number): El[] {
     }
     const columns = splitVertical(group);
     if (columns) {
-      for (const column of columns) {
+      const boxes = columns.map((c) => ({
+        x0: Math.min(...c.map((e) => e.x0)),
+        x1: Math.max(...c.map((e) => e.x1)),
+      }));
+      const id = ++regions;
+      columns.forEach((column, index) => {
         const box = textBox(column);
-        visit(column, box ? box[0] : l, box ? box[1] : r);
-      }
+        // Columns inside a column are read in order but stay part of the outer one.
+        visit(column, box ? box[0] : l, box ? box[1] : r, region ?? { id, index, boxes });
+      });
       return;
     }
     const bands = splitHorizontal(group);
     if (bands) {
-      visit(bands[0], l, r);
-      visit(bands[1], l, r);
+      visit(bands[0], l, r, region);
+      visit(bands[1], l, r, region);
       return;
     }
     // Overlapping blocks that cannot be separated: top to bottom, then left to right.
-    for (const el of [...group].sort((a, b) => a.top - b.top || a.x0 - b.x0)) visit([el], l, r);
+    for (const el of [...group].sort((a, b) => a.top - b.top || a.x0 - b.x0)) visit([el], l, r, region);
   };
   if (els.length) visit(els, colL, colR);
   return out;

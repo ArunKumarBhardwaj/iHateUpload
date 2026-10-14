@@ -39,6 +39,8 @@ export type ParagraphBlock = {
   lineRatio?: number;
   tabs?: { pos: number; kind: "left" | "center" | "right" }[];
   list?: ListInfo;
+  /** Starts in the next column of a multi-column section. */
+  columnBreakBefore?: boolean;
 };
 
 export type ImageBlock = {
@@ -71,6 +73,10 @@ export type Section = {
   height: number;
   margins: { top: number; right: number; bottom: number; left: number };
   blocks: Block[];
+  /** How this section starts: a new page (the default) or on the same page as the one before. */
+  start?: "nextPage" | "continuous";
+  /** Text columns, in points: widths left to right and the gap between neighbours. */
+  columns?: { widths: number[]; gap: number };
   /** Distance from the page edge to the header and footer text. */
   headerDistance?: number;
   footerDistance?: number;

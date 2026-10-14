@@ -174,3 +174,58 @@ test("mammoth can read the result back", async () => {
   expect(result.value).toContain("<img");
   expect(result.value).toContain("<li>");
 });
+
+test("a continuous section with columns writes w:cols and a column break", async () => {
+  const margins = { top: 50, right: 50, bottom: 50, left: 50 };
+  const p = (t: string, extra: object = {}) => ({ type: "p" as const, runs: [{ text: t }], ...extra });
+  const bytes = await writeDocx(
+    {
+      header: [],
+      footer: [],
+      notes: [],
+      sections: [
+        { width: 600, height: 800, margins, blocks: [p("Title")] },
+        {
+          width: 600,
+          height: 800,
+          margins,
+          start: "continuous",
+          columns: { widths: [240, 240], gap: 20 },
+          blocks: [p("Left"), p("Right", { columnBreakBefore: true })],
+        },
+      ],
+    },
+    {},
+    "T",
+  );
+  const xml = await (await JSZip.loadAsync(bytes)).file("word/document.xml")!.async("string");
+  const cols = xml.match(/<w:cols [^>]*>/g) ?? [];
+  expect(cols).toEqual(['<w:cols w:num="2" w:space="400" w:equalWidth="1"/>']);
+  expect(xml).toContain('<w:type w:val="continuous"/>');
+  expect(xml.indexOf('<w:br w:type="column"/>')).toBeGreaterThan(xml.indexOf("Left"));
+  expect(xml.indexOf('<w:br w:type="column"/>')).toBeLessThan(xml.indexOf("Right"));
+});
+
+test("columns of different widths list each width", async () => {
+  const margins = { top: 50, right: 50, bottom: 50, left: 50 };
+  const bytes = await writeDocx(
+    {
+      header: [],
+      footer: [],
+      notes: [],
+      sections: [
+        {
+          width: 600,
+          height: 800,
+          margins,
+          columns: { widths: [320, 140], gap: 20 },
+          blocks: [{ type: "p", runs: [{ text: "x" }] }],
+        },
+      ],
+    },
+    {},
+    "T",
+  );
+  const xml = await (await JSZip.loadAsync(bytes)).file("word/document.xml")!.async("string");
+  expect(xml).toContain('<w:cols w:num="2" w:space="400" w:equalWidth="0"><w:col w:w="6678" w:space="400"/><w:col w:w="2922"/></w:cols>');
+});

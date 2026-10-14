@@ -1,6 +1,6 @@
 import { buildLines, lineText, type Line, type PageInput } from "./lines";
 import type { Block, DocModel, ListInfo, ParagraphBlock, Run, Section, TableBlock } from "./model";
-import { imageEl, lineEl, readingOrder, tableEl, type El } from "./order";
+import { imageEl, lineEl, readingOrder, tableEl, type El, type Region } from "./order";
 import {
   buildParagraphs,
   mergeRows,
@@ -232,6 +232,17 @@ function tableBlock(table: TableEl, stats: Stats, left: number): TableBlock {
   };
 }
 
+/** Column widths from where each column starts, and the gap from the narrowest space between them. */
+function columnSpec(region: Region, colL: number, colR: number): NonNullable<Section["columns"]> {
+  const { boxes } = region;
+  let gap = Infinity;
+  for (let i = 1; i < boxes.length; i++) gap = Math.min(gap, boxes[i].x0 - boxes[i - 1].x1);
+  gap = Math.max(12, Math.round(gap * 10) / 10);
+  const starts = boxes.map((b, i) => (i === 0 ? colL : b.x0));
+  const widths = starts.map((x, i) => Math.max(24, (i < starts.length - 1 ? starts[i + 1] - gap : colR) - x));
+  return { widths, gap };
+}
+
 type ListState = { key: string; markerX: number; instance: number };
 
 export function layoutDocument(inputs: PageInput[]): DocModel {
@@ -299,10 +310,14 @@ export function layoutDocument(inputs: PageInput[]): DocModel {
   let instance = 0;
   let active: ListState[] = [];
 
-  const sections: Section[] = works.map((work, workIndex) => {
+  const sections: Section[] = works.flatMap((work, workIndex) => {
     const { input } = work;
     const stats = pageStats[workIndex];
-    const blocks: Block[] = [];
+    let blocks: Block[] = [];
+    // A page is cut into pieces wherever the number of text columns changes.
+    const pieces: { blocks: Block[]; region?: Region }[] = [{ blocks }];
+    let region: Region | undefined;
+    let columnBreak = false;
     let pending: Line[] = [];
     let prevPara: BuiltPara | null = null;
     let prevBottom: number | null = null;
@@ -351,6 +366,10 @@ export function layoutDocument(inputs: PageInput[]): DocModel {
         }
         const ratio = (meta.pitch ?? stats.pitchRatio * meta.size) / (1.15 * meta.size);
         if (Math.abs(ratio - 1) > 0.06) block.lineRatio = Math.round(Math.min(3, Math.max(0.7, ratio)) * 100) / 100;
+        if (columnBreak) {
+          block.columnBreakBefore = true;
+          columnBreak = false;
+        }
         blocks.push(block);
         prevPara = para;
         prevBottom = null;
@@ -358,12 +377,31 @@ export function layoutDocument(inputs: PageInput[]): DocModel {
     };
 
     for (const el of work.ordered) {
+      if (el.region?.id !== region?.id) {
+        flush();
+        active = [];
+        prevPara = null;
+        if (blocks.length) {
+          blocks = [];
+          pieces.push({ blocks, region: el.region });
+        } else pieces[pieces.length - 1].region = el.region;
+        columnBreak = false;
+      } else if (el.region && region && el.region.index !== region.index) {
+        flush();
+        active = [];
+        columnBreak = true;
+      }
+      region = el.region;
       if (el.kind === "line") {
         pending.push(el.line);
         continue;
       }
       flush();
       active = [];
+      if (columnBreak) {
+        blocks.push({ type: "p", runs: [], columnBreakBefore: true });
+        columnBreak = false;
+      }
       top = Math.min(top, el.top);
       bottom = Math.max(bottom, el.bottom);
       const spaceBefore = prevBottom !== null && el.top - prevBottom > 1.5 ? el.top - prevBottom : undefined;
@@ -398,14 +436,16 @@ export function layoutDocument(inputs: PageInput[]): DocModel {
       top: topMargin,
       bottom: hasContent ? clamp(input.height - bottom - 14, 28, Math.max(topMargin, 36)) : 72,
     };
-    return {
+    return pieces.map((piece, i): Section => ({
       width: input.width,
       height: input.height,
       margins,
-      blocks,
+      blocks: piece.blocks,
+      start: i > 0 ? "continuous" : undefined,
+      columns: piece.region ? columnSpec(piece.region, work.colL, work.colR) : undefined,
       headerDistance: furnitureTops.header ? Math.max(12, furnitureTops.header - 6) : undefined,
       footerDistance: furnitureTops.footer ? Math.max(12, furnitureTops.footer - 6) : undefined,
-    };
+    }));
   });
 
   return { sections, header, footer, notes };

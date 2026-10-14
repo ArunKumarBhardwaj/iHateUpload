@@ -318,3 +318,31 @@ test("a short page keeps normal margins so Word has room to reflow", () => {
   expect(section.margins.bottom).toBeLessThanOrEqual(section.margins.top + 1);
   expect(section.margins.right).toBeLessThanOrEqual(section.margins.left * 1.5 + 1);
 });
+
+test("two columns under a full-width title become a continuous section with w:cols", () => {
+  const items: TextItem[] = [item("A Title Across The Page Width For Sure Yes Indeed", 72, 80, 20, { bold: true })];
+  for (let i = 0; i < 4; i++) {
+    items.push(item(`Left ${i} text in first column here`, 72, 130 + i * 14));
+    items.push(item(`Right ${i} text in second column here`, 330, 130 + i * 14));
+  }
+  const doc = layoutDocument([page(items)]);
+  expect(doc.sections).toHaveLength(2);
+  const [head, body] = doc.sections;
+  expect(head.columns).toBeUndefined();
+  expect(head.blocks.map(text)).toEqual(["A Title Across The Page Width For Sure Yes Indeed"]);
+  expect(body.start).toBe("continuous");
+  expect(body.columns?.widths).toHaveLength(2);
+  expect(body.columns!.gap).toBeGreaterThan(10);
+  // The right column starts with a column break, and the left one does not.
+  const paras = paragraphs(body.blocks);
+  expect(paras).toHaveLength(2);
+  expect(paras[0].columnBreakBefore).toBeUndefined();
+  expect(paras[1].columnBreakBefore).toBe(true);
+  expect(text(paras[1]).startsWith("Right 0")).toBe(true);
+});
+
+test("a single-column page gets no columns", () => {
+  const doc = layoutDocument([page([...filler(100)])]);
+  expect(doc.sections).toHaveLength(1);
+  expect(doc.sections[0].columns).toBeUndefined();
+});
