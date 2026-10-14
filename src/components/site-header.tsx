@@ -85,13 +85,14 @@ export function SiteHeader({ className }: { className?: string }) {
     return () => window.clearTimeout(closeTimer.current);
   }, []);
 
+  // Keep the last menu mounted while it fades out; mark it entered a frame later so it animates in.
+  if (open && open !== shown) setShown(open);
+  if (!open && entered) setEntered(false);
+
   useEffect(() => {
-    if (open) {
-      setShown(open);
-      const frame = window.requestAnimationFrame(() => setEntered(true));
-      return () => window.cancelAnimationFrame(frame);
-    }
-    setEntered(false);
+    if (!open) return;
+    const frame = window.requestAnimationFrame(() => setEntered(true));
+    return () => window.cancelAnimationFrame(frame);
   }, [open]);
 
   useEffect(() => {

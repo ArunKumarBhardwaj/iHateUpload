@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   Highlighter,
   ImageIcon,
@@ -90,17 +90,17 @@ export function PdfEditCanvas({
   const [hoverRun, setHoverRun] = useState<PageTextRun | null>(null);
   const [scan, setScan] = useState<"text" | "ocr" | "reading" | "empty">("empty");
   const [seenFile, setSeenFile] = useState(file);
+  const [canUndo, setCanUndo] = useState(false);
 
   if (file !== seenFile) {
     setSeenFile(file);
     setPageIndex(0);
     setSelectedId(null);
-    draftRef.current = null;
     setDraft(null);
     setRuns([]);
     setHoverRun(null);
     setScan("empty");
-    history.current = [];
+    setCanUndo(false);
   }
   if (pageCount > 0 && pageIndex >= pageCount) {
     setPageIndex(pageCount - 1);
@@ -201,9 +201,20 @@ export function PdfEditCanvas({
     if (node instanceof HTMLTextAreaElement) node.focus();
   }, [selectedId]);
 
-  const commit = (next: EditMark[]) => {
-    history.current.push(marks);
+  // A new file starts with no drag in progress and nothing to undo.
+  useEffect(() => {
+    draftRef.current = null;
+    history.current = [];
+  }, [file]);
+
+  const remember = (snapshot: EditMark[]) => {
+    history.current.push(snapshot);
     if (history.current.length > 40) history.current.shift();
+    setCanUndo(true);
+  };
+
+  const commit = (next: EditMark[]) => {
+    remember(marks);
     onMarks(next);
   };
 
@@ -217,6 +228,7 @@ export function PdfEditCanvas({
 
   const undo = () => {
     const previous = history.current.pop();
+    setCanUndo(history.current.length > 0);
     if (!previous) return;
     onMarks(previous);
     setSelectedId(null);
@@ -228,31 +240,32 @@ export function PdfEditCanvas({
     setSelectedId(null);
   };
 
+  const onKey = useEffectEvent((event: KeyboardEvent) => {
+    if (disabled) return;
+    const typing =
+      event.target instanceof HTMLElement &&
+      (event.target.tagName === "TEXTAREA" ||
+        event.target.tagName === "INPUT");
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+      event.preventDefault();
+      undo();
+      return;
+    }
+    if (typing) return;
+    if (event.key === "Escape") {
+      setSelectedId(null);
+      setTool("select");
+    }
+    if ((event.key === "Backspace" || event.key === "Delete") && selectedId) {
+      event.preventDefault();
+      removeSelected();
+    }
+  });
+
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (disabled) return;
-      const typing =
-        event.target instanceof HTMLElement &&
-        (event.target.tagName === "TEXTAREA" ||
-          event.target.tagName === "INPUT");
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
-        event.preventDefault();
-        undo();
-        return;
-      }
-      if (typing) return;
-      if (event.key === "Escape") {
-        setSelectedId(null);
-        setTool("select");
-      }
-      if ((event.key === "Backspace" || event.key === "Delete") && selectedId) {
-        event.preventDefault();
-        removeSelected();
-      }
-    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [disabled, selectedId, marks]);
+  }, []);
 
   const ratioOf = (event: React.PointerEvent<HTMLElement>) => {
     const host = hostRef.current;
@@ -378,8 +391,7 @@ export function PdfEditCanvas({
     const dy = (event.clientY - active.startY) / rect.height;
     if (Math.abs(dx) + Math.abs(dy) > 0.004 && !moved.current) {
       moved.current = true;
-      history.current.push(active.snapshot);
-      if (history.current.length > 40) history.current.shift();
+      remember(active.snapshot);
     }
     if (!moved.current) return;
     if (active.kind === "move") {
@@ -467,7 +479,7 @@ export function PdfEditCanvas({
         <ToolButton
           label="Undo"
           pressed={false}
-          disabled={disabled || history.current.length === 0}
+          disabled={disabled || !canUndo}
           onClick={undo}
         >
           <Undo2 />

@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "public/pdf.worker.min.mjs",
     "public/sw.js",
+    // Untracked design and prototype scratch, not app code.
+    ".arena-pdf-edit/**",
+    ".design/**",
   ]),
 ]);
 

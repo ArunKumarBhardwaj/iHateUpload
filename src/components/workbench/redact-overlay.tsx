@@ -48,12 +48,15 @@ export function RedactOverlay({
     setSeenFile(file);
     setPageIndex(0);
     setSelected(null);
-    draftRef.current = null;
     setDraft(null);
   }
   if (pageCount > 0 && pageIndex >= pageCount) {
     setPageIndex(pageCount - 1);
   }
+
+  useEffect(() => {
+    draftRef.current = null;
+  }, [file]);
 
   useEffect(() => {
     let revoked: string | null = null;

@@ -80,10 +80,7 @@ function PagePane({
   const missing = pages > 0 && pageIndex >= pages;
 
   useEffect(() => {
-    if (missing) {
-      setUrl(null);
-      return;
-    }
+    if (missing) return;
     let revoked: string | null = null;
     let cancelled = false;
     void (async () => {

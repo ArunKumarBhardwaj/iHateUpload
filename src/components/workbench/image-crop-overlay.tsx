@@ -31,6 +31,8 @@ export function ImageCropOverlay({
 
   useEffect(() => {
     const next = URL.createObjectURL(file);
+    // An object URL is an external resource: it must be created and revoked in the effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUrl(next);
     return () => URL.revokeObjectURL(next);
   }, [file]);
@@ -98,6 +100,9 @@ export function ImageCropOverlay({
         <div
           role="slider"
           aria-label={label}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(box.x * 100)}
           aria-valuetext={`Left ${Math.round(box.x * 100)} percent, top ${Math.round(box.y * 100)} percent`}
           className={cn(
             "absolute rounded-md border-2 border-signal bg-signal/15",
