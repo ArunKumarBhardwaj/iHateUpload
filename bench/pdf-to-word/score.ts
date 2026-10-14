@@ -104,6 +104,22 @@ export function readingOrder(truthParas: string[], hypParas: string[]): number |
   return clamp(lcsLength(t, h) / shared);
 }
 
+/** Share of paragraphs that are exactly right: a truth paragraph is whole in one docx paragraph (not merged, not split). */
+export function segmentation(truth: string[], m: DocxModel): number {
+  const hyp = m.paragraphs.map((p) => hypWords(p.text).join(" ")).filter(Boolean);
+  const pool = multiset(hyp);
+  let ok = 0;
+  for (const t of truth) {
+    const k = words(t).join(" ");
+    const c = pool.get(k) ?? 0;
+    if (c > 0) {
+      ok++;
+      pool.set(k, c - 1);
+    }
+  }
+  return clamp(ok / Math.max(truth.length, hyp.length, 1));
+}
+
 function headings(truth: NonNullable<Truth["headings"]>, m: DocxModel): number {
   const hyp = m.paragraphs.filter((p) => p.headingLevel > 0 && p.text);
   let score = 0;
@@ -411,6 +427,7 @@ export function scoreModel(truth: Truth, m: DocxModel): ScoreResult {
   const all = overlap(tw, m.paragraphs.flatMap((p) => hypWords(p.text)));
   const flow = overlap(tw, m.paragraphs.filter((p) => !p.inTextbox).flatMap((p) => hypWords(p.text)));
   features.editability = all ? flow / all : 0;
+  if (truth.segmentation) features.paragraphs = segmentation(truth.paragraphs, m);
   if (truth.headings?.length) features.headings = headings(truth.headings, m);
   if (truth.lists?.length) features.lists = lists(truth.lists, m);
   if (truth.tables?.length) {

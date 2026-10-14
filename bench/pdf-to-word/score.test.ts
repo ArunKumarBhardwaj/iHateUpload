@@ -45,6 +45,29 @@ describe("text accuracy and reading order", () => {
   });
 });
 
+describe("paragraph breaks", () => {
+  const paragraphs = ["Plain intro line here.", "We have another line here.", "Colours end now."];
+  test("one docx paragraph per truth paragraph scores 1", async () => {
+    const r = await scoreDocx(await docx(paragraphs.map((p) => para(p)).join("")), base({ paragraphs, segmentation: true }));
+    expect(r.features.paragraphs).toBe(1);
+  });
+  test("lines merged into one paragraph cost the segmentation score", async () => {
+    const body = para(paragraphs[0] + " " + paragraphs[1]) + para(paragraphs[2]);
+    const r = await scoreDocx(await docx(body), base({ paragraphs, segmentation: true }));
+    expect(r.features.text).toBe(1);
+    expect(r.features.paragraphs).toBeCloseTo(1 / 3, 5);
+  });
+  test("a paragraph split in two also costs", async () => {
+    const body = para("Plain intro") + para("line here.") + para(paragraphs[1]) + para(paragraphs[2]);
+    const r = await scoreDocx(await docx(body), base({ paragraphs, segmentation: true }));
+    expect(r.features.paragraphs).toBeCloseTo(2 / 4, 5);
+  });
+  test("is not scored unless the truth asks for it", async () => {
+    const r = await scoreDocx(await docx(para(paragraphs.join(" "))), base({ paragraphs }));
+    expect(r.features.paragraphs).toBeUndefined();
+  });
+});
+
 describe("structure", () => {
   test("headings match by text and level; wrong level is half credit", async () => {
     const body = para("Title Here", '<w:pStyle w:val="Heading1"/>') + para("Sub Head", '<w:pStyle w:val="Heading1"/>') + para("body");

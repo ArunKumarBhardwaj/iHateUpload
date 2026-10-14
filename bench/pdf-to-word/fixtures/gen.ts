@@ -235,6 +235,7 @@ fixtures["columns"] = async () => {
 fixtures["rich-formatting"] = async () => {
   const d = new Doc("rich-formatting", "Bold/italic/underline/strike/colour/size/sup/sub/highlight and three font families");
   d.t.fonts = ["Georgia", "Courier New", "Arial"];
+  d.t.segmentation = true; // every line is its own <p>, so the PDF has no wrapped paragraphs
   d.h(1, "Formatting Showcase");
   d.rich([{ text: "Plain intro and " }, { text: "bold words", b: true }, { text: " then " }, { text: "italic words", i: true }, { text: " then " }, { text: "bold italic", b: true, i: true }, { text: " done." }]);
   d.rich([{ text: "We have " }, { text: "underlined text", u: true }, { text: " and " }, { text: "struck out text", s: true }, { text: " and " }, { text: "both lines", u: true, s: true }, { text: " here." }]);

@@ -793,3 +793,48 @@ test("an underline a little longer than its text (a link's trailing space) is st
   const runs = runsOf(blocks([page([item("Plain ", 72, 100, 12, { w: 30 }), item("linked text", 108, 100, 12, { w: 60 })], rules)]));
   expect(runs.find((r) => r.text === "linked text")?.underline).toBe(true);
 });
+
+test("single-line paragraphs with a paragraph gap stay separate paragraphs", () => {
+  // Each line is its own paragraph (pitch 25 on 12 pt text); no line is a wrapped one.
+  const lines = ["Plain intro and bold words then italic done.", "We have underlined text and struck out text.", "Colours: red words and blue words end.", "Sizes: small normal large back."];
+  const all = blocks([page(lines.map((s, i) => item(s, 54, 100 + i * 25, 12)))]);
+  expect(paragraphs(all).map(text)).toEqual(lines);
+});
+
+test("a change of font family between lines ends the paragraph", () => {
+  const all = blocks([
+    page([
+      ...filler(60),
+      item("Serif line in Georgia for the record.", 72, 140, 11, { font: "Georgia", generic: "serif" }),
+      item("Monospace line in Courier New for code.", 72, 154, 11, { font: "CourierNewPSMT", generic: "mono" }),
+    ]),
+  ]);
+  const texts = paragraphs(all).map(text);
+  expect(texts).toContain("Serif line in Georgia for the record.");
+  expect(texts).toContain("Monospace line in Courier New for code.");
+});
+
+test("a line that ends well short of the column ends its paragraph when the next word would have fitted", () => {
+  const all = blocks([
+    page([
+      item("A long first line that runs almost all the way across the column of text here", 72, 100),
+      item("Short line without a stop", 72, 114),
+      item("Another paragraph begins right away", 72, 128),
+    ]),
+  ]);
+  expect(paragraphs(all).map(text)).toEqual([
+    "A long first line that runs almost all the way across the column of text here Short line without a stop",
+    "Another paragraph begins right away",
+  ]);
+});
+
+test("a wrapped paragraph whose last line is short still merges its lines", () => {
+  const all = blocks([
+    page([
+      item("The quick brown fox jumps over the lazy dog and keeps running far away", 72, 100),
+      item("across the field and past the old mill by the river bank today and on", 72, 114),
+      item("to the sea", 72, 128),
+    ]),
+  ]);
+  expect(paragraphs(all).length).toBe(1);
+});

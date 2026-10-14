@@ -13,6 +13,7 @@ const FEATURE_LABEL: Record<string, string> = {
   text: "Text accuracy (1-CER)",
   order: "Reading order",
   editability: "Editability (not in text boxes)",
+  paragraphs: "Paragraph breaks",
   headings: "Headings",
   lists: "Lists",
   tables: "Tables",

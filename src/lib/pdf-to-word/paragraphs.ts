@@ -143,10 +143,40 @@ function pitchOf(acc: Acc): number | null {
   return diffs[Math.floor(diffs.length / 2)];
 }
 
+/** The Word family most of a line's characters are set in. */
+function lineFamily(line: Line): string {
+  const weight = new Map<string, number>();
+  for (const f of line.frags) {
+    const n = f.text.trim().length;
+    if (n) weight.set(wordFont(f.font, f.generic), (weight.get(wordFont(f.font, f.generic)) ?? 0) + n);
+  }
+  let best = "";
+  let top = 0;
+  for (const [family, n] of weight) {
+    if (n > top) {
+      top = n;
+      best = family;
+    }
+  }
+  return best;
+}
+
+/** Rough width of the first word of a line, from its first piece of text. */
+function firstWordWidth(line: Line): number {
+  const f = line.frags.find((x) => x.text.trim());
+  if (!f) return 0;
+  const word = f.text.trim().split(/\s+/)[0];
+  return ((f.x1 - f.x0) * word.length) / Math.max(1, f.text.trimEnd().length);
+}
+
 function continues(acc: Acc, cur: Line, stats: Stats, lists: boolean, markers: Map<Line, Marker>): boolean {
   const prev = acc.lines[acc.lines.length - 1];
   if (Math.abs(cur.size - prev.size) > 0.15 * prev.size) return false;
   if (lists && markers.has(cur)) return false;
+  // Another typeface is another paragraph (a line of code, a quote, a caption).
+  const famPrev = lineFamily(prev);
+  const famCur = lineFamily(cur);
+  if (famPrev && famCur && famPrev !== famCur) return false;
   const pitch = cur.baseline - prev.baseline;
   if (pitch < 0.5 * prev.size) return false;
   const known = pitchOf(acc);
@@ -167,6 +197,11 @@ function continues(acc: Acc, cur: Line, stats: Stats, lists: boolean, markers: M
     if (!(acc.lines.length === 1 && !acc.marker && wrapped)) return false;
   }
   if (prev.x1 < prev.colR - 0.25 * width && SENTENCE_END.test(lineText(prev))) return false;
+  // A wrapped line runs to the edge because the next word did not fit. If that word would have
+  // fitted in the space left, the author ended the line, so the paragraph ends here too.
+  const room = prev.colR - prev.x1;
+  const startsLower = /^[a-z]/.test(lineText(cur).trimStart());
+  if (room > Math.max(0.2 * width, 2 * firstWordWidth(cur)) && !startsLower) return false;
   return true;
 }
 

@@ -170,7 +170,10 @@ function computeStats(pages: PageWork[]): Stats {
   const headingSizes: number[] = [];
   for (const s of big) if (!headingSizes.length || headingSizes[headingSizes.length - 1] - s > 0.6) headingSizes.push(s);
 
+  // Line pitch is read from lines that are surely wrapped (they run to the right edge), so
+  // documents of one-line paragraphs do not mistake the paragraph gap for the leading.
   const buckets = new Map<number, number>();
+  const wrapped = new Map<number, number>();
   for (const p of pages) {
     const lines = p.ordered.filter((e) => e.kind === "line").map((e) => (e as { line: Line }).line);
     const rows = mergeRows(lines);
@@ -183,16 +186,24 @@ function computeStats(pages: PageWork[]): Stats {
       if (ratio < 0.95 || ratio > 2.6) continue;
       const bucket = Math.round(ratio * 20) / 20;
       buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
+      if (a.x1 >= a.colR - 0.1 * Math.max(1, a.colR - a.colL)) wrapped.set(bucket, (wrapped.get(bucket) ?? 0) + 1);
     }
   }
-  let pitchRatio = 1.2;
-  let top = 0;
-  for (const [ratio, n] of buckets) {
-    if (n > top || (n === top && ratio < pitchRatio)) {
-      top = n;
-      pitchRatio = ratio;
+  const commonest = (m: Map<number, number>): [number, number] => {
+    let ratio = 1.2;
+    let top = 0;
+    for (const [r, n] of m) {
+      if (n > top || (n === top && r < ratio)) {
+        top = n;
+        ratio = r;
+      }
     }
-  }
+    return [ratio, top];
+  };
+  const [wrappedRatio, wrappedCount] = commonest(wrapped);
+  // Too little wrapped text to say: trust the plain count only when it looks like ordinary leading.
+  const [anyRatio] = commonest(buckets);
+  const pitchRatio = wrappedCount >= 3 ? wrappedRatio : anyRatio <= 1.6 ? anyRatio : 1.2;
   const bodyBold = (boldChars.get(key(bodySize)) ?? 0) / Math.max(1, chars.get(key(bodySize)) ?? 1) > 0.5;
   return { bodySize, pitchRatio, headingSizes, bodyBold, chars: total };
 }

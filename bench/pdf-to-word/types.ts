@@ -23,6 +23,8 @@ export type Truth = {
   description: string;
   /** Body text in reading order, one entry per paragraph/list item/cell. Headers, footers excluded. */
   paragraphs: string[];
+  /** Score paragraph segmentation: every entry of `paragraphs` is its own paragraph in the PDF (no wrapped lines to merge or split). */
+  segmentation?: boolean;
   /** Score reading order for this fixture. */
   order?: boolean;
   headings?: { text: string; level: number }[];
