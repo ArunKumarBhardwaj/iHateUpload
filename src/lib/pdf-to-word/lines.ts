@@ -11,6 +11,8 @@ export type TextItem = {
   bold: boolean;
   italic: boolean;
   generic?: "serif" | "sans" | "mono";
+  /** The Word family to name when the font travels with the document. */
+  wordFont?: string;
   color?: string;
 };
 
@@ -76,6 +78,7 @@ export type Frag = {
   bold: boolean;
   italic: boolean;
   generic?: "serif" | "sans" | "mono";
+  wordFont?: string;
   color?: string;
   /** Baseline of this piece, measured down from the top of the page. */
   y?: number;
@@ -276,6 +279,7 @@ function segments(items: TextItem[]): Frag[][] {
       bold: item.bold,
       italic: item.italic,
       generic: item.generic,
+      wordFont: item.wordFont,
       color: item.color,
       y: item.y,
     };

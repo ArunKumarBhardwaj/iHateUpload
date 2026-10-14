@@ -1,5 +1,6 @@
 import type { PDFPageProxy } from "pdfjs-dist";
 
+import type { FontCollector } from "./embed";
 import { fontFlags } from "./fonts";
 import { indexAt } from "./links";
 import type { Bullet, Fill, PageImage, PageInput, PathSeg, PathShape, Rule, TextItem } from "./lines";
@@ -216,6 +217,7 @@ export async function extractPage(
   page: PDFPageProxy,
   OPS: Ops,
   pageNo: number,
+  fonts?: FontCollector,
 ): Promise<Extracted> {
   const viewport = page.getViewport({ scale: 1 });
   const vt = viewport.transform as Matrix;
@@ -391,7 +393,7 @@ export async function extractPage(
     }
   }
 
-  const fontInfo = new Map<string, { name: string; bold: boolean; italic: boolean; generic: TextItem["generic"] }>();
+  const fontInfo = new Map<string, { name: string; bold: boolean; italic: boolean; generic: TextItem["generic"]; wordFont?: string }>();
   const describe = (id: string) => {
     let info = fontInfo.get(id);
     if (info) return info;
@@ -399,6 +401,7 @@ export async function extractPage(
     let bold = false;
     let italic = false;
     let family: string | undefined = content.styles[id]?.fontFamily;
+    let data: Uint8Array | undefined;
     try {
       if (page.commonObjs.has(id)) {
         const font = page.commonObjs.get(id) as {
@@ -411,6 +414,7 @@ export async function extractPage(
           isSerifFont?: boolean;
         };
         name = font.name ?? "";
+        data = (font as { data?: Uint8Array; missingFile?: boolean }).missingFile ? undefined : (font as { data?: Uint8Array }).data;
         bold = font.bold === true || font.black === true;
         italic = font.italic === true;
         family = font.isMonospace ? "monospace" : font.isSerifFont ? "serif" : (font.fallbackName ?? family);
@@ -425,6 +429,7 @@ export async function extractPage(
       italic: italic || flags.italic,
       generic: generic(family, name),
     };
+    if (fonts && name) info.wordFont = fonts.add(id, { name, data, bold: info.bold, italic: info.italic }) ?? undefined;
     fontInfo.set(id, info);
     return info;
   };
@@ -498,6 +503,7 @@ export async function extractPage(
         bold: font.bold,
         italic: font.italic,
         generic: font.generic,
+        wordFont: font.wordFont,
         color: piece.color,
       });
     }

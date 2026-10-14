@@ -70,7 +70,7 @@ export async function processPdfToWord(
       const result = await convertPdf(
         pdf as never,
         name,
-        { mode: options.mode, language: options.language },
+        { mode: options.mode, language: options.language, embedFonts: options.embedFonts },
         deps,
         report,
       );

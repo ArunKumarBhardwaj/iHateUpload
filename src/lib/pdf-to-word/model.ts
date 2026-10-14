@@ -134,11 +134,16 @@ export type DocProperties = {
   modified?: string;
 };
 
+/** A font file to carry in the document, already named for the family its runs use. */
+export type FontFile = { family: string; bold: boolean; italic: boolean; data: Uint8Array };
+
 export type DocModel = {
   properties?: DocProperties;
   sections: Section[];
   header: ParagraphBlock[];
   footer: ParagraphBlock[];
+  /** Fonts to embed (optional). */
+  fonts?: FontFile[];
   /** Plain-language notes for the person, e.g. pages that were skipped. */
   notes: string[];
 };

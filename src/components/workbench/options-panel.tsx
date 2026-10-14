@@ -395,6 +395,24 @@ export function OptionsPanel({
               </div>
             </div>
           ) : null}
+          {options.mode === "editable" ? (
+            <label className="flex items-start gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4"
+                checked={options.embedFonts}
+                disabled={disabled}
+                onChange={(event) =>
+                  onOptions({ ...options, embedFonts: event.target.checked })
+                }
+              />
+              <span>
+                Embed fonts. The Word file carries the fonts from the PDF, so it
+                looks right on computers that do not have them. The file gets
+                bigger.
+              </span>
+            </label>
+          ) : null}
         </div>
       );
 

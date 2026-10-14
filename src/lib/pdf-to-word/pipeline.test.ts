@@ -180,3 +180,32 @@ test("drawn shapes become native Word shapes; tables, bullets and underlines do 
   const fmt = await convert(await (await import("./fixture")).makeFormattedPdf());
   expect(fmt.xml).not.toContain("<wps:wsp>");
 });
+
+async function convertFixture(name: string, options: Partial<Parameters<typeof convertPdf>[2]> = {}) {
+  const { readFileSync } = await import("node:fs");
+  const data = new Uint8Array(readFileSync(`${process.cwd()}/bench/pdf-to-word/fixtures/${name}.pdf`));
+  const pdf = await getDocument({ data, fontExtraProperties: true, standardFontDataUrl: FONTS }).promise;
+  const result = await convertPdf(pdf as never, name, { mode: "editable", language: "eng", ...options }, deps, () => {});
+  const zip = await JSZip.loadAsync(result.bytes);
+  return { zip, xml: await zip.file("word/document.xml")!.async("string") };
+}
+
+test("fonts the PDF embeds are embedded in the docx and the runs name them", async () => {
+  const { zip, xml } = await convertFixture("rich-formatting");
+  const table = await zip.file("word/fontTable.xml")!.async("string");
+  for (const family of ["Georgia", "Courier New", "Arial", "Times New Roman"]) expect(table).toContain(`w:name="${family}"`);
+  expect(Object.keys(zip.files).filter((f) => f.endsWith(".odttf")).length).toBe(7);
+  expect(xml).toContain('w:ascii="Georgia"');
+  expect(await zip.file("word/settings.xml")!.async("string")).toContain("embedTrueTypeFonts");
+});
+
+test("embedding fonts can be switched off", async () => {
+  const { zip } = await convertFixture("rich-formatting", { embedFonts: false });
+  expect(zip.file("word/fontTable.xml")).toBeNull();
+  expect(Object.keys(zip.files).some((f) => f.startsWith("word/fonts/"))).toBe(false);
+});
+
+test("a PDF without embedded fonts gets no font parts", async () => {
+  const { zip } = await convert(await makeSamplePdf());
+  expect(zip.file("word/fontTable.xml")).toBeNull();
+});

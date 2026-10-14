@@ -36,7 +36,7 @@ export function fontFlags(name: string): { bold: boolean; italic: boolean } {
 export function familyName(name: string): string {
   let base = stripSubset(name).split(/[-,]/)[0];
   base = base.replace(/(PS|MT|PSMT)$/, "");
-  base = base.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\s+/g, " ").trim();
+  base = base.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/([a-z])(\d)/g, "$1 $2").replace(/\s+/g, " ").trim();
   return base;
 }
 

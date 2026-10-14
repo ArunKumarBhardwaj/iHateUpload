@@ -1,0 +1,21 @@
+{
+  "name": "fonts-cff",
+  "description": "Text in Source Serif 4 (OFL, CFF outlines) carried as a Type1C font program, the way LaTeX documents do",
+  "paragraphs": [
+    "Carried as Type1C",
+    "Zenith stone glacier morning violet candle willow zephyr needle violet kernel valley. Timber quiver willow valley wagon hollow engine mirror letter breeze compass hollow compass. Mirror umbrella willow marble marble pepper forest summit summit silver valley tunnel dagger. Opal candle.",
+    "Breeze stone tunnel zenith summit window thunder compass raven. Feather kernel hollow needle compass ladder zenith yellow lantern silver paper glacier. Orchard nectar kernel summit ladder needle silver compass velvet opal marble. Anchor river timber ember river market meadow anchor.",
+    "Island silver kettle yonder lagoon feather unity lantern letter. Thunder quartz mosaic paper compass hollow cobalt quartz island. Glacier mirror zephyr ladder valley thunder quiver stone velvet paper silver. Quartz ladder river lantern compass whisper breeze paper ribbon. Compass engine."
+  ],
+  "order": true,
+  "fonts": [
+    "Source Serif 4"
+  ],
+  "pages": 1,
+  "headings": [
+    {
+      "text": "Carried as Type1C",
+      "level": 1
+    }
+  ]
+}

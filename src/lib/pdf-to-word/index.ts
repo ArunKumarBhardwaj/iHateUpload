@@ -1,6 +1,7 @@
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 
 import { createResolver, readLinks, readOutline, readProperties } from "./annotations";
+import { FontCollector } from "./embed";
 import { writeDocx } from "./docx-writer";
 import { extractPage, type ImageSource } from "./extract";
 import { layoutDocument, type PageInput } from "./layout";
@@ -8,7 +9,12 @@ import type { DocModel, MediaFile } from "./model";
 
 export type PdfToWordMode = "editable" | "exact";
 
-export type ConvertOptions = { mode: PdfToWordMode; language: string };
+export type ConvertOptions = {
+  mode: PdfToWordMode;
+  language: string;
+  /** Carry the PDF's fonts in the Word file. On unless set to false. */
+  embedFonts?: boolean;
+};
 
 /** The parts that need a browser. Tests swap them for stand-ins. */
 export type ConvertDeps = {
@@ -64,6 +70,7 @@ export async function convertPdf(
   }
 
   const resolve = createResolver(pdf);
+  const fonts = options.embedFonts === false ? undefined : new FontCollector();
   const inputs: PageInput[] = [];
   const scanned: number[] = [];
   const unreadable: number[] = [];
@@ -73,7 +80,7 @@ export async function convertPdf(
     const base = (n - 1) / total;
     const share = 1 / total;
     const page = await pdf.getPage(n);
-    const extracted = await extractPage(page, deps.OPS, n);
+    const extracted = await extractPage(page, deps.OPS, n, fonts);
     rotatedSkipped += extracted.skippedRotated;
     let input = { ...extracted.input, links: await readLinks(page, resolve) };
 
@@ -102,6 +109,7 @@ export async function convertPdf(
 
   const model = layoutDocument(inputs, { outline: await readOutline(pdf, resolve) });
   model.properties = await readProperties(pdf);
+  if (fonts) model.fonts = fonts.fonts();
   // A picture that could not be decoded would leave a hole, so drop its block.
   for (const section of model.sections) {
     section.blocks = section.blocks.filter((b) => b.type !== "image" || media[b.ref]);

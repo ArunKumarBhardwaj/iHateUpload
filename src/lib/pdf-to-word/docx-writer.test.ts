@@ -437,3 +437,43 @@ test("shapes are written as page-anchored DrawingML with preset or custom geomet
   const parser = new DOMParser({ onError: (level, message) => { throw new Error(`${level}: ${message}`); } });
   parser.parseFromString(xml, "application/xml");
 });
+
+test("embedded fonts are written as obfuscated parts with a font table, rels, content type and settings", async () => {
+  const { obfuscate } = await import("./sfnt");
+  const m = model();
+  const font = Uint8Array.from({ length: 100 }, (_, i) => (i === 3 ? 0 : i % 7 === 0 ? 1 : i));
+  m.fonts = [
+    { family: "Georgia", bold: false, italic: false, data: font },
+    { family: "Georgia", bold: true, italic: false, data: font },
+    { family: "Source Serif 4", bold: false, italic: true, data: font },
+  ];
+  const zip = await JSZip.loadAsync(await writeDocx(m, {}, "t"));
+  const table = await zip.file("word/fontTable.xml")!.async("string");
+  const rels = await zip.file("word/_rels/fontTable.xml.rels")!.async("string");
+  expect(table.match(/<w:font /g)?.length).toBe(2);
+  expect(table).toMatch(/<w:font w:name="Georgia">.*<w:embedRegular r:id="(rId\d+)" w:fontKey="\{[0-9A-F-]{36}\}" w:subsetted="1"\/><w:embedBold /s);
+  expect(table).toContain('<w:font w:name="Source Serif 4">');
+  expect(table).toContain("<w:embedItalic ");
+  // each embed points at a real obfuscated part, and undoing the obfuscation gives the font back
+  const first = /<w:embedRegular r:id="(rId\d+)" w:fontKey="(\{[0-9A-F-]+\})"/.exec(table)!;
+  const target = new RegExp(`Id="${first[1]}"[^>]*Target="(fonts/font\\d+\\.odttf)"|Target="(fonts/font\\d+\\.odttf)"[^>]*Id="${first[1]}"`).exec(rels)!;
+  const part = await zip.file("word/" + (target[1] ?? target[2]))!.async("uint8array");
+  expect(part[0]).not.toBe(font[0]);
+  expect(obfuscate(part, first[2])).toEqual(font);
+  expect(await zip.file("[Content_Types].xml")!.async("string")).toContain(
+    '<Default Extension="odttf" ContentType="application/vnd.openxmlformats-officedocument.obfuscatedFont"/>',
+  );
+  expect(await zip.file("[Content_Types].xml")!.async("string")).toContain("/word/fontTable.xml");
+  expect(await zip.file("word/_rels/document.xml.rels")!.async("string")).toContain('Target="fontTable.xml"');
+  const settings = await zip.file("word/settings.xml")!.async("string");
+  expect(settings.indexOf("<w:embedTrueTypeFonts/>")).toBeGreaterThan(0);
+  expect(settings.indexOf("<w:embedTrueTypeFonts/>")).toBeLessThan(settings.indexOf("<w:defaultTabStop"));
+  expect(settings).toContain("<w:saveSubsetFonts/>");
+  new DOMParser().parseFromString(table, "text/xml");
+});
+
+test("without fonts the package has no font parts", async () => {
+  const zip = await JSZip.loadAsync(await writeDocx(model(), {}, "t"));
+  expect(zip.file("word/fontTable.xml")).toBeNull();
+  expect(await zip.file("word/settings.xml")!.async("string")).not.toContain("embedTrueTypeFonts");
+});

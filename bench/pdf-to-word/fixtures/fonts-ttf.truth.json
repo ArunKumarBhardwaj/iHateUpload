@@ -1,0 +1,21 @@
+{
+  "name": "fonts-ttf",
+  "description": "Text in PT Serif (OFL TrueType, a font nobody has installed), embedded whole by pdf-lib (fontkit cannot subset it under Bun)",
+  "paragraphs": [
+    "Typeset in PT Serif",
+    "Nectar hollow window island whisper paper unity lagoon breeze velvet glacier umbrella island. Window ember ivory opal ribbon quiver nectar jasper lagoon vessel amber zephyr market. Candle ember ribbon ribbon cobalt amber yonder mosaic nectar. Orchard anchor anchor garden nectar.",
+    "Feather window kettle raven yonder amber mosaic quartz. Letter vessel falcon willow mosaic meadow kernel feather prairie kernel timber. Marble prairie valley jasper anchor lagoon engine timber harbor nectar quartz. Mirror ladder mirror orchard silver wagon ladder pepper oyster tunnel.",
+    "Quartz quiver ladder kettle lagoon umbrella silver velvet candle. Marble market orchard wagon jungle feather engine paper ember needle tunnel kettle basket unity yellow. Whisper unity cobalt river cobalt copper nectar needle ember feather meadow. Violet window stone breeze yellow."
+  ],
+  "order": true,
+  "headings": [
+    {
+      "text": "Typeset in PT Serif",
+      "level": 1
+    }
+  ],
+  "fonts": [
+    "PT Serif"
+  ],
+  "pages": 1
+}

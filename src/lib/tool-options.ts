@@ -75,7 +75,7 @@ export type ToolOptions =
       /** Empty or "all" converts every page. */
       range: string;
     }
-  | { kind: "pdf-to-word"; mode: PdfToWordMode; language: string }
+  | { kind: "pdf-to-word"; mode: PdfToWordMode; language: string; embedFonts: boolean }
   | { kind: "organize"; pageOrder: number[] }
   | { kind: "resize"; maxEdge: number }
   | { kind: "compress"; level: CompressLevel; targetKb: number | null }
@@ -421,7 +421,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "pdf-image":
       return { kind: "pdf-image", dpi: 144, range: "" };
     case "pdf-to-word":
-      return { kind: "pdf-to-word", mode: "editable", language: "eng" };
+      return { kind: "pdf-to-word", mode: "editable", language: "eng", embedFonts: true };
     case "organize":
       return { kind: "organize", pageOrder: [] };
     case "resize":

@@ -148,7 +148,10 @@ function lineFamily(line: Line): string {
   const weight = new Map<string, number>();
   for (const f of line.frags) {
     const n = f.text.trim().length;
-    if (n) weight.set(wordFont(f.font, f.generic), (weight.get(wordFont(f.font, f.generic)) ?? 0) + n);
+    if (n) {
+      const family = f.wordFont ?? wordFont(f.font, f.generic);
+      weight.set(family, (weight.get(family) ?? 0) + n);
+    }
   }
   let best = "";
   let top = 0;
@@ -240,7 +243,7 @@ function toRuns(lines: Line[], marker: Acc["marker"]): Run[] {
         highlight: frag.highlight,
         vertAlign,
         size: Math.round((vertAlign ? line.size : frag.size) * 2) / 2,
-        font: wordFont(frag.font, frag.generic),
+        font: frag.wordFont ?? wordFont(frag.font, frag.generic),
         color: frag.color,
         link: frag.link,
       };

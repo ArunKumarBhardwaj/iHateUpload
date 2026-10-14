@@ -13,7 +13,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deflateSync } from "node:zlib";
 
-import { PDFDocument, StandardFonts, rgb } from "@cantoo/pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
+import { PDFDocument, PDFName, StandardFonts, rgb } from "@cantoo/pdf-lib";
 
 import type { Seg, Truth, TruthCell } from "../types";
 
@@ -496,6 +497,94 @@ fixtures["long"] = async () => {
   delete d.t.headings;
   delete d.t.tables;
   await writeHtmlPdf("long", d, ".ruled td,td{border:1px solid #000}");
+};
+
+// Fonts for the embedding fixtures (SIL Open Font License; see fixtures/fonts/OFL-*.txt).
+const FONT_DIR = join(DIR, "fonts");
+
+fixtures["fonts-ttf"] = async () => {
+  const r = rng(31);
+  const t: Truth = { name: "fonts-ttf", description: "Text in PT Serif (OFL TrueType, a font nobody has installed), embedded whole by pdf-lib (fontkit cannot subset it under Bun)", paragraphs: [], order: true, headings: [{ text: "Typeset in PT Serif", level: 1 }], fonts: ["PT Serif"], pages: 1 };
+  const pdf = await PDFDocument.create();
+  pdf.registerFontkit(fontkit);
+  const regular = await pdf.embedFont(readFileSync(join(FONT_DIR, "PTSerif-Regular.ttf")), { subset: false });
+  const bold = await pdf.embedFont(readFileSync(join(FONT_DIR, "PTSerif-Bold.ttf")), { subset: false });
+  const page = pdf.addPage([612, 792]);
+  page.drawText("Typeset in PT Serif", { x: 72, y: 690, size: 24, font: bold });
+  t.paragraphs.push("Typeset in PT Serif");
+  let y = 650;
+  for (let i = 0; i < 3; i++) {
+    const text = para(r, 40);
+    t.paragraphs.push(text);
+    page.drawText(text, { x: 72, y, size: 12, font: regular, maxWidth: 468, lineHeight: 17 });
+    y -= 17 * Math.ceil(regular.widthOfTextAtSize(text, 12) / 440) + 12;
+  }
+  write(join(DIR, "fonts-ttf.pdf"), await pdf.save());
+  await writeTruth(t);
+};
+
+/** A Type1C (bare CFF) font program in a simple Type1 font dictionary: how LaTeX and dvips documents carry their fonts. */
+fixtures["fonts-cff"] = async () => {
+  const r = rng(37);
+  const t: Truth = { name: "fonts-cff", description: "Text in Source Serif 4 (OFL, CFF outlines) carried as a Type1C font program, the way LaTeX documents do", paragraphs: [], order: true, fonts: ["Source Serif 4"], pages: 1 };
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([612, 792]);
+  const ctx = pdf.context;
+  const load = (file: string, baseName: string) => {
+    const bytes = readFileSync(join(FONT_DIR, file));
+    const font = fontkit.create(bytes) as unknown as {
+      unitsPerEm: number; bbox: { minX: number; minY: number; maxX: number; maxY: number }; ascent: number; descent: number; capHeight: number;
+      glyphForCodePoint(c: number): { advanceWidth: number };
+      directory: { tables: Record<string, { offset: number; length: number }> };
+    };
+    const cff = font.directory.tables["CFF "];
+    const program = ctx.flateStream(bytes.subarray(cff.offset, cff.offset + cff.length), { Subtype: "Type1C" });
+    const scale = 1000 / font.unitsPerEm;
+    const widths = Array.from({ length: 95 }, (_, i) => Math.round(font.glyphForCodePoint(32 + i).advanceWidth * scale));
+    const descriptor = ctx.register(ctx.obj({
+      Type: "FontDescriptor", FontName: baseName, Flags: 34,
+      FontBBox: [font.bbox.minX, font.bbox.minY, font.bbox.maxX, font.bbox.maxY].map((v) => Math.round(v * scale)),
+      ItalicAngle: 0, Ascent: Math.round(font.ascent * scale), Descent: Math.round(font.descent * scale), CapHeight: Math.round(font.capHeight * scale), StemV: 80,
+      FontFile3: ctx.register(program),
+    }));
+    const dict = ctx.register(ctx.obj({ Type: "Font", Subtype: "Type1", BaseFont: baseName, FirstChar: 32, LastChar: 126, Widths: widths, FontDescriptor: descriptor, Encoding: "WinAnsiEncoding" }));
+    return { dict, widths };
+  };
+  const reg = load("SourceSerif4-Regular.otf", "SourceSerif4-Regular");
+  const bld = load("SourceSerif4-Bold.otf", "SourceSerif4-Bold");
+  page.node.setFontDictionary(PDFName.of("F1"), reg.dict);
+  page.node.setFontDictionary(PDFName.of("F2"), bld.dict);
+  const width = (s: string, f: typeof reg, size: number) => [...s].reduce((a, ch) => a + f.widths[ch.charCodeAt(0) - 32], 0) * size / 1000;
+  const wrap = (s: string, size: number, max: number) => {
+    const lines: string[] = [];
+    let cur = "";
+    for (const w of s.split(" ")) {
+      const next = cur ? cur + " " + w : w;
+      if (width(next, reg, size) > max) {
+        lines.push(cur);
+        cur = w;
+      } else cur = next;
+    }
+    return [...lines, cur];
+  };
+  const pdfString = (s: string) => "(" + s.replace(/[\\()]/g, "\\$&") + ")";
+  let ops = "";
+  ops += `BT /F2 24 Tf 72 690 Td ${pdfString("Carried as Type1C")} Tj ET\n`;
+  t.paragraphs.push("Carried as Type1C");
+  (t.headings ??= []).push({ text: "Carried as Type1C", level: 1 });
+  let y = 650;
+  for (let i = 0; i < 3; i++) {
+    const text = para(r, 40);
+    t.paragraphs.push(text);
+    for (const line of wrap(text, 12, 468)) {
+      ops += `BT /F1 12 Tf 72 ${y} Td ${pdfString(line)} Tj ET\n`;
+      y -= 17;
+    }
+    y -= 12;
+  }
+  page.node.set(PDFName.of("Contents"), ctx.register(ctx.flateStream(ops)));
+  write(join(DIR, "fonts-cff.pdf"), await pdf.save());
+  await writeTruth(t);
 };
 
 for (const [name, make] of Object.entries(fixtures)) {

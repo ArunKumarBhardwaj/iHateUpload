@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 
+import { obfuscate } from "./sfnt";
 import type {
   Block,
   DocModel,
@@ -316,10 +317,34 @@ const STYLES =
   `<w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/></w:style>` +
   `</w:styles>`;
 
-const SETTINGS =
-  `${XML_HEAD}<w:settings ${NS}><w:defaultTabStop w:val="720"/><w:compat>` +
+const settingsXml = (embedFonts: boolean) =>
+  `${XML_HEAD}<w:settings ${NS}>${embedFonts ? "<w:embedTrueTypeFonts/><w:saveSubsetFonts/>" : ""}<w:defaultTabStop w:val="720"/><w:compat>` +
   `<w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>` +
   `</w:compat></w:settings>`;
+
+/** A GUID that depends only on the font, so the same input gives the same file every time. */
+function fontKey(seed: string, data: Uint8Array): string {
+  let a = 0x811c9dc5;
+  let b = 0x01000193;
+  const mix = (n: number) => {
+    a = Math.imul(a ^ n, 0x01000193) >>> 0;
+    b = Math.imul(b + n + (a >>> 7), 0x85ebca6b) >>> 0;
+  };
+  for (const ch of seed) mix(ch.charCodeAt(0));
+  for (let i = 0; i < data.length; i += 7) mix(data[i]);
+  const bytes = new Uint8Array(16);
+  let x = a;
+  let y = b;
+  for (let i = 0; i < 16; i++) {
+    x = Math.imul(x ^ (y >>> 13), 0x2c1b3c6d) >>> 0;
+    y = Math.imul(y + x, 0x297a2d39) >>> 0;
+    bytes[i] = (x ^ y) & 0xff;
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
+  return `{${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}}`;
+}
 
 function levelXml(level: number, list: ListInfo): string {
   const bullet = list.kind === "bullet";
@@ -472,9 +497,36 @@ export async function writeDocx(
     if (last) body.push(sect);
   });
 
+  if (model.fonts?.length) {
+    const families = new Map<string, NonNullable<DocModel["fonts"]>>();
+    for (const f of model.fonts) (families.get(f.family) ?? families.set(f.family, []).get(f.family)!).push(f);
+    const fontRels: string[] = [];
+    let n = 0;
+    const entries = [...families].map(([family, faces]) => {
+      const embeds = faces.map((face) => {
+        const key = fontKey(`${family}|${face.bold}|${face.italic}`, face.data);
+        const file = `font${++n}.odttf`;
+        const id = `rId${n}`;
+        zip.file(`word/fonts/${file}`, obfuscate(face.data, key));
+        fontRels.push(`<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/font" Target="fonts/${file}"/>`);
+        const tagName = face.bold ? (face.italic ? "embedBoldItalic" : "embedBold") : face.italic ? "embedItalic" : "embedRegular";
+        return { tagName, xml: `<w:${tagName} r:id="${id}" w:fontKey="${key}" w:subsetted="1"/>` };
+      });
+      const order = ["embedRegular", "embedBold", "embedItalic", "embedBoldItalic"];
+      embeds.sort((p, q) => order.indexOf(p.tagName) - order.indexOf(q.tagName));
+      return `<w:font w:name="${esc(family)}"><w:charset w:val="00"/><w:family w:val="auto"/><w:pitch w:val="variable"/>${embeds.map((e) => e.xml).join("")}</w:font>`;
+    });
+    zip.file("word/fontTable.xml", `${XML_HEAD}<w:fonts ${NS}>${entries.join("")}</w:fonts>`);
+    zip.file(
+      "word/_rels/fontTable.xml.rels",
+      `${XML_HEAD}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${fontRels.join("")}</Relationships>`,
+    );
+    rels.push(`<Relationship Id="${next()}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/>`);
+  }
+
   zip.file("word/document.xml", `${XML_HEAD}<w:document ${NS}><w:body>${body.join("")}</w:body></w:document>`);
   zip.file("word/styles.xml", STYLES);
-  zip.file("word/settings.xml", SETTINGS);
+  zip.file("word/settings.xml", settingsXml(!!model.fonts?.length));
   zip.file("word/numbering.xml", numberingXml(lists));
   zip.file(
     "word/_rels/document.xml.rels",
@@ -491,6 +543,7 @@ export async function writeDocx(
     ["/docProps/core.xml", "application/vnd.openxmlformats-package.core-properties+xml"],
     ["/docProps/app.xml", "application/vnd.openxmlformats-officedocument.extended-properties+xml"],
   ];
+  if (model.fonts?.length) overrides.push(["/word/fontTable.xml", "application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"]);
   if (model.header.length) overrides.push(["/word/header1.xml", "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"]);
   if (model.footer.length) overrides.push(["/word/footer1.xml", "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"]);
   zip.file(
@@ -498,6 +551,7 @@ export async function writeDocx(
     `${XML_HEAD}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
       `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
       `<Default Extension="xml" ContentType="application/xml"/>` +
+      (model.fonts?.length ? '<Default Extension="odttf" ContentType="application/vnd.openxmlformats-officedocument.obfuscatedFont"/>' : "") +
       (hasPng ? '<Default Extension="png" ContentType="image/png"/>' : "") +
       (hasJpeg ? '<Default Extension="jpeg" ContentType="image/jpeg"/>' : "") +
       overrides.map(([part, type]) => `<Override PartName="${part}" ContentType="${type}"/>`).join("") +
