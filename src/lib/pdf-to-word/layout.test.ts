@@ -311,3 +311,10 @@ test("stretched word spacing in a justified line is not turned into a tab", () =
   expect(p.runs.some((r) => r.tab)).toBe(false);
   expect(text(p)).toBe("Configured Sanity.io CMS for content");
 });
+
+test("a short page keeps normal margins so Word has room to reflow", () => {
+  // One short line near the top-left: where the text ends is not where the page's margin is.
+  const [section] = layoutDocument([page([item("Text that lives on the second page.", 72, 72)])]).sections;
+  expect(section.margins.bottom).toBeLessThanOrEqual(section.margins.top + 1);
+  expect(section.margins.right).toBeLessThanOrEqual(section.margins.left * 1.5 + 1);
+});

@@ -388,11 +388,15 @@ export function layoutDocument(inputs: PageInput[]): DocModel {
 
     const hasContent = Number.isFinite(top);
     const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+    // Text rarely reaches the right or bottom margin (ragged lines, short pages), so where it
+    // ends overstates those margins. Cap them by the left/top ones so Word has room to reflow.
+    const left = clamp(work.colL, 18, input.width * 0.4);
+    const topMargin = hasContent ? clamp(top, 18, input.height * 0.4) : 72;
     const margins = {
-      left: clamp(work.colL, 18, input.width * 0.4),
-      right: clamp(input.width - work.colR, 18, input.width * 0.4),
-      top: hasContent ? clamp(top, 18, input.height * 0.4) : 72,
-      bottom: hasContent ? clamp(input.height - bottom - 14, 28, input.height * 0.4) : 72,
+      left,
+      right: clamp(input.width - work.colR, 18, Math.max(left * 1.5, 36)),
+      top: topMargin,
+      bottom: hasContent ? clamp(input.height - bottom - 14, 28, Math.max(topMargin, 36)) : 72,
     };
     return {
       width: input.width,
