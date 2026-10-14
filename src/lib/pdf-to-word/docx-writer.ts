@@ -41,6 +41,7 @@ function runXml(run: Run): string {
   }
   if (run.bold) props.push("<w:b/><w:bCs/>");
   if (run.italic) props.push("<w:i/><w:iCs/>");
+  if (run.strike) props.push("<w:strike/>");
   if (run.color && /^[0-9a-f]{6}$/i.test(run.color)) {
     props.push(`<w:color w:val="${run.color.toUpperCase()}"/>`);
   }
@@ -48,6 +49,11 @@ function runXml(run: Run): string {
     const half = Math.max(2, Math.round(run.size * 2));
     props.push(`<w:sz w:val="${half}"/><w:szCs w:val="${half}"/>`);
   }
+  if (run.underline) props.push('<w:u w:val="single"/>');
+  if (run.highlight && /^[0-9a-f]{6}$/i.test(run.highlight)) {
+    props.push(`<w:shd w:val="clear" w:color="auto" w:fill="${run.highlight.toUpperCase()}"/>`);
+  }
+  if (run.vertAlign) props.push(`<w:vertAlign w:val="${run.vertAlign}"/>`);
   const rPr = props.length ? `<w:rPr>${props.join("")}</w:rPr>` : "";
   if (run.field) {
     return `<w:fldSimple w:instr=" ${run.field} "><w:r>${rPr}<w:t>1</w:t></w:r></w:fldSimple>`;

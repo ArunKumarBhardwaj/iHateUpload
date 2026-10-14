@@ -11,7 +11,7 @@ function weight(ch: string): number {
 }
 
 /** Character index whose edge is closest to x, preferring word edges when one is near. */
-function indexAt(frag: Frag, x: number, isEdge: (i: number) => boolean): number {
+export function indexAt(frag: Frag, x: number, isEdge: (i: number) => boolean): number {
   const { text } = frag;
   const edges: number[] = [0];
   for (const ch of text) edges.push(edges[edges.length - 1] + weight(ch));

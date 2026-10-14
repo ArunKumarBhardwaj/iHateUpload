@@ -1,6 +1,7 @@
 import type { PDFPageProxy } from "pdfjs-dist";
 
 import { fontFlags } from "./fonts";
+import { indexAt } from "./links";
 import type { Bullet, Fill, PageImage, PageInput, Rule, TextItem } from "./lines";
 
 type Matrix = [number, number, number, number, number, number];
@@ -196,6 +197,12 @@ export async function extractPage(
   let fillColor = "000000";
   const colorStack: string[] = [];
   let inlineCount = 0;
+  // Where each piece of text starts on the page (user space) and the colour it is painted in.
+  const colored: { x: number; y: number; color: string; chars: number }[] = [];
+  let tm: Matrix = IDENTITY;
+  let tlm: Matrix = IDENTITY;
+  let leading = 0;
+  let fontSize = 0;
 
   const strokeOps = new Set([OPS.stroke, OPS.closeStroke, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke]);
   const fillOps = new Set([OPS.fill, OPS.eoFill, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke]);
@@ -226,6 +233,41 @@ export async function extractPage(
       fillColor = colorStack.pop() ?? fillColor;
     } else if (fn === OPS.setFillRGBColor && args && typeof args[0] === "string") {
       fillColor = (args[0] as string).replace("#", "").toLowerCase();
+    } else if (fn === OPS.beginText) {
+      tm = tlm = IDENTITY;
+    } else if (fn === OPS.setFont && args) {
+      fontSize = Number(args[1]) || 0;
+    } else if (fn === OPS.setTextMatrix && args) {
+      tm = tlm = [0, 1, 2, 3, 4, 5].map((k) => Number((args[0] as ArrayLike<number>)[k])) as Matrix;
+    } else if ((fn === OPS.moveText || fn === OPS.setLeadingMoveText) && args) {
+      if (fn === OPS.setLeadingMoveText) leading = -Number(args[1]);
+      tm = tlm = mul(tlm, [1, 0, 0, 1, Number(args[0]), Number(args[1])]);
+    } else if (fn === OPS.setLeading && args) leading = Number(args[0]);
+    else if (
+      fn === OPS.showText ||
+      fn === OPS.showSpacedText ||
+      fn === OPS.nextLineShowText ||
+      fn === OPS.nextLineSetSpacingShowText
+    ) {
+      if (fn === OPS.nextLineShowText || fn === OPS.nextLineSetSpacingShowText) {
+        tm = tlm = mul(tlm, [1, 0, 0, 1, 0, -leading]);
+      }
+      const [x, y] = apply(mul(ctm, tm), 0, 0);
+      let advance = 0;
+      let chars = 0;
+      const shown = (fn === OPS.nextLineSetSpacingShowText ? args?.[2] : args?.[0]) as unknown;
+      if (Array.isArray(shown)) {
+        for (const g of shown) {
+          if (typeof g === "number") advance -= (g * fontSize) / 1000;
+          else if (g && typeof g === "object") {
+            const glyph = g as { width?: number; unicode?: string };
+            advance += (glyph.width ?? 0) * fontSize * 0.001;
+            chars += glyph.unicode?.length ?? 0;
+          }
+        }
+      }
+      colored.push({ x, y, color: fillColor, chars });
+      tm = mul(tm, [1, 0, 0, 1, advance, 0]);
     }
     else if (fn === OPS.transform && args) ctm = mul(ctm, args as unknown as Matrix);
     else if (fn === OPS.paintFormXObjectBegin && args) {
@@ -296,6 +338,47 @@ export async function extractPage(
     return info;
   };
 
+  // Text is painted in the colour that was current where it starts; black is left unset.
+  // pdf.js joins neighbouring pieces into one item, so an item may need cutting where the colour changes.
+  const byRow = new Map<number, typeof colored>();
+  for (const c of colored) {
+    const key = Math.round(c.y);
+    (byRow.get(key) ?? byRow.set(key, []).get(key)!).push(c);
+  }
+  const colorPieces = (str: string, x: number, y: number, w: number) => {
+    const recs: typeof colored = [];
+    for (const key of [Math.round(y) - 1, Math.round(y), Math.round(y) + 1]) {
+      for (const c of byRow.get(key) ?? []) {
+        if (Math.abs(c.y - y) <= 1.5 && c.x >= x - 1.5 && c.x < x + w - 0.1) recs.push(c);
+      }
+    }
+    recs.sort((a, b) => a.x - b.x);
+    const runs: { x: number; color: string; chars: number }[] = [];
+    for (const r of recs) {
+      const prev = runs[runs.length - 1];
+      if (prev && prev.color === r.color) prev.chars += r.chars;
+      else runs.push({ x: r.x, color: r.color, chars: r.chars });
+    }
+    const paint = (c: string | undefined) => (c && c !== "000000" ? c : undefined);
+    if (runs.length <= 1) return [{ str, x, w, color: paint(runs[0]?.color) }];
+    const exact = runs.reduce((n, r) => n + r.chars, 0) === str.length;
+    const cuts = runs.map((r, i) => {
+      if (i === 0) return 0;
+      if (exact) return runs.slice(0, i).reduce((n, q) => n + q.chars, 0);
+      return indexAt({ text: str, x0: x, x1: x + w } as never, r.x, () => true);
+    });
+    const pieces: { str: string; x: number; w: number; color: string | undefined }[] = [];
+    runs.forEach((r, i) => {
+      const from = cuts[i];
+      const to = i + 1 < runs.length ? cuts[i + 1] : str.length;
+      if (to <= from) return;
+      const x0 = i === 0 ? x : exact ? r.x : x + (w * from) / str.length;
+      const x1 = to === str.length ? x + w : exact ? runs[i + 1].x : x + (w * to) / str.length;
+      pieces.push({ str: str.slice(from, to), x: x0, w: x1 - x0, color: paint(r.color) });
+    });
+    return pieces.length ? pieces : [{ str, x, w, color: undefined }];
+  };
+
   const items: TextItem[] = [];
   let chars = 0;
   let skippedRotated = 0;
@@ -311,17 +394,22 @@ export async function extractPage(
       continue;
     }
     const font = describe(raw.fontName);
-    items.push({
-      str: text,
-      x: m[4],
-      y: m[5],
-      w: raw.width > 0 ? raw.width : text.length * size * 0.5,
-      size,
-      font: font.name,
-      bold: font.bold,
-      italic: font.italic,
-      generic: font.generic,
-    });
+    const width = raw.width > 0 ? raw.width : text.length * size * 0.5;
+    const t = raw.transform as Matrix;
+    for (const piece of colorPieces(text, t[4], t[5], width)) {
+      items.push({
+        str: piece.str,
+        x: m[4] + (piece.x - t[4]) * vt[0],
+        y: m[5],
+        w: piece.w,
+        size,
+        font: font.name,
+        bold: font.bold,
+        italic: font.italic,
+        generic: font.generic,
+        color: piece.color,
+      });
+    }
   }
 
   // A picture the size of the page behind live text is a scan's backdrop, not content.

@@ -191,16 +191,25 @@ function toRuns(lines: Line[], marker: Acc["marker"]): Run[] {
         const hyphenated = prev && /\w-$/.test(prev.text) && /^[a-z]/.test(text);
         if (prev && !prev.tab && !hyphenated && !/\s$/.test(prev.text) && !/^\s/.test(text)) prev.text += " ";
       }
+      // Smaller text sitting off the line's baseline is super- or subscript. Word shrinks it
+      // itself, so the run keeps the size of the text around it.
+      const shift = frag.y === undefined ? 0 : frag.y - line.baseline;
+      const raised = frag.size < 0.95 * line.size && Math.abs(shift) >= 0.15 * line.size;
+      const vertAlign = raised ? (shift < 0 ? ("superscript" as const) : ("subscript" as const)) : undefined;
       const run: Run = {
         text,
         bold: frag.bold || undefined,
         italic: frag.italic || undefined,
-        size: Math.round(frag.size * 2) / 2,
+        underline: frag.underline || undefined,
+        strike: frag.strike || undefined,
+        highlight: frag.highlight,
+        vertAlign,
+        size: Math.round((vertAlign ? line.size : frag.size) * 2) / 2,
         font: wordFont(frag.font, frag.generic),
         color: frag.color,
         link: frag.link,
       };
-      const key = `${run.bold}|${run.italic}|${run.size}|${run.font}|${run.color}|${JSON.stringify(run.link)}`;
+      const key = `${run.bold}|${run.italic}|${run.size}|${run.font}|${run.color}|${run.underline}|${run.strike}|${run.highlight}|${run.vertAlign}|${JSON.stringify(run.link)}`;
       const prev = runs[runs.length - 1];
       if (prev && !prev.tab && !prev.field && key === lastKey) prev.text += text;
       else runs.push(run);

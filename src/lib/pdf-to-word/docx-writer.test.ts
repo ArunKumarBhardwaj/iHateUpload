@@ -337,3 +337,43 @@ test("shaded cells carry a fill", async () => {
   expect(xml.match(/<w:shd /g)).toHaveLength(1);
   expect(xml).toContain('<w:shd w:val="clear" w:color="auto" w:fill="D9E2F3"/>');
 });
+
+test("underline, strike, highlight and super/subscript are written in schema order", async () => {
+  const bytes = await writeDocx(
+    {
+      header: [],
+      footer: [],
+      notes: [],
+      sections: [
+        {
+          width: 600,
+          height: 800,
+          margins,
+          blocks: [
+            {
+              type: "p",
+              runs: [
+                { text: "u", underline: true },
+                { text: "s", strike: true },
+                { text: "h", highlight: "FFFF00" },
+                { text: "up", vertAlign: "superscript", color: "ff0000", size: 12 },
+                { text: "dn", vertAlign: "subscript" },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {},
+    "T",
+  );
+  const xml = await (await JSZip.loadAsync(bytes)).file("word/document.xml")!.async("string");
+  expect(xml).toContain('<w:rPr><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">u<');
+  expect(xml).toContain("<w:rPr><w:strike/></w:rPr>");
+  expect(xml).toContain('<w:shd w:val="clear" w:color="auto" w:fill="FFFF00"/>');
+  // Schema order: colour, size, underline, shading, then vertical alignment.
+  expect(xml).toContain(
+    '<w:rPr><w:color w:val="FF0000"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:vertAlign w:val="superscript"/></w:rPr>',
+  );
+  expect(xml).toContain('<w:vertAlign w:val="subscript"/>');
+});

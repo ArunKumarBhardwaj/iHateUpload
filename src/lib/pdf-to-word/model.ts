@@ -12,6 +12,11 @@ export type Run = {
   font?: string;
   /** Hex, no hash. */
   color?: string;
+  underline?: boolean;
+  strike?: boolean;
+  vertAlign?: "superscript" | "subscript";
+  /** Background colour behind the text as hex, no hash. */
+  highlight?: string;
   tab?: boolean;
   link?: LinkTarget;
   /** A live page-number field instead of text. */

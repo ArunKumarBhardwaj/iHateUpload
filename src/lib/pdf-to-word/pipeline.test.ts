@@ -144,3 +144,20 @@ test("bullets drawn as dots become real list items, nested by indent", async () 
   const numbering = await zip.file("word/numbering.xml")!.async("string");
   expect(numbering).toContain('w:ilvl="1"');
 });
+
+test("colour, underline, strike, highlight and raised text reach the docx runs", async () => {
+  const { makeFormattedPdf } = await import("./fixture");
+  const { xml } = await convert(await makeFormattedPdf());
+  const run = (t: string) => new RegExp(`<w:r>(<w:rPr>(?:(?!</w:rPr>).)*</w:rPr>)?<w:t[^>]*>${t}<`).exec(xml)?.[1] ?? "";
+  expect(run("red words")).toContain('<w:color w:val="FF0000"/>');
+  expect(run("blue")).toContain('<w:color w:val="0000FF"/>');
+  expect(run("Colours: ")).not.toContain("w:color");
+  expect(run("underlined")).toContain('<w:u w:val="single"/>');
+  expect(run("struck")).toContain("<w:strike/>");
+  expect(run("highlighted")).toContain('w:fill="FFFF00"');
+  expect(run("2")).toContain("w:vertAlign");
+  expect(xml).toContain('<w:vertAlign w:val="subscript"/>');
+  expect(xml).toContain('<w:vertAlign w:val="superscript"/>');
+  // The underline and strike lines were text formatting, not tables.
+  expect(xml).not.toContain("<w:tbl>");
+});

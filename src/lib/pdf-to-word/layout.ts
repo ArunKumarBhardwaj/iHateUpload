@@ -1,7 +1,8 @@
 import type { OutlineEntry } from "./annotations";
 import { applyBullets } from "./bullets";
+import { applyDecorations } from "./decorations";
 import { applyLinks } from "./links";
-import { buildLines, lineText, type Fill, type Line, type PageInput } from "./lines";
+import { buildLines, lineText, type Fill, type Line, type PageInput, type Rule } from "./lines";
 import type { Block, DocModel, ListInfo, ParagraphBlock, Run, Section, TableBlock } from "./model";
 import { imageEl, lineEl, readingOrder, tableEl, type El, type Region } from "./order";
 import {
@@ -341,10 +342,13 @@ export type LayoutOptions = {
 };
 
 export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {}): DocModel {
+  // Lines under, through or behind text belong to the text; the rest stay for tables.
+  const pageRules: Rule[][] = [];
   const lineSets = inputs.map((p) => {
     const lines = buildLines(p.items);
     applyBullets(lines, p.bullets);
     applyLinks(lines, p.links);
+    pageRules.push(applyDecorations(lines, p.rules, p.fills));
     return lines;
   });
   const { furniture, kept } = takeFurniture(inputs, lineSets);
@@ -362,7 +366,7 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
     const pageMax = raw.length ? Math.max(...raw.map((l) => l.x1)) : docRight;
     const colL = raw.length ? Math.min(docLeft || pageMin, pageMin) : 72;
     const colR = raw.length ? Math.max(docRight || pageMax, pageMax) : input.width - 72;
-    const ruled = detectRuledTables(raw, input.rules);
+    const ruled = detectRuledTables(raw, pageRules[index]);
     const loose = detectBorderlessTables(ruled.rest);
     const tables: TableEl[] = [...ruled.tables, ...loose.tables];
     const pageArea = input.width * input.height;

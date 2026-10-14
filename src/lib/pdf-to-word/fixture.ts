@@ -218,3 +218,36 @@ export async function makeDotListPdf(): Promise<Uint8Array> {
   });
   return doc.save();
 }
+
+/** One page of runs set in colour, underlined, struck through, highlighted, raised and lowered. */
+export async function makeFormattedPdf(): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.TimesRoman);
+  const page = doc.addPage([612, 792]);
+  const width = (t: string, size: number) => font.widthOfTextAtSize(t, size);
+  // Plain text, a red word, then a blue one, on one baseline.
+  page.drawText("Colours: ", { x: 72, y: 700, size: 12, font });
+  const redX = 72 + width("Colours: ", 12);
+  page.drawText("red words", { x: redX, y: 700, size: 12, font, color: rgb(1, 0, 0) });
+  page.drawText(" and ", { x: redX + width("red words", 12), y: 700, size: 12, font });
+  page.drawText("blue", { x: redX + width("red words and ", 12), y: 700, size: 12, font, color: rgb(0, 0, 1) });
+  // Underline and strike are lines drawn after the word.
+  page.drawText("Lines: ", { x: 72, y: 640, size: 12, font });
+  const uX = 72 + width("Lines: ", 12);
+  page.drawText("underlined", { x: uX, y: 640, size: 12, font });
+  page.drawLine({ start: { x: uX, y: 638.8 }, end: { x: uX + width("underlined", 12), y: 638.8 }, thickness: 0.8, color: rgb(0, 0, 0) });
+  const sX = uX + width("underlined ", 12);
+  page.drawText("struck", { x: sX, y: 640, size: 12, font });
+  page.drawLine({ start: { x: sX, y: 644 }, end: { x: sX + width("struck", 12), y: 644 }, thickness: 0.8, color: rgb(0, 0, 0) });
+  // A yellow box is painted first, then the word on top.
+  page.drawText("Marked: ", { x: 72, y: 580, size: 12, font });
+  const hX = 72 + width("Marked: ", 12);
+  page.drawRectangle({ x: hX, y: 577, width: width("highlighted", 12), height: 13, color: rgb(1, 1, 0) });
+  page.drawText("highlighted", { x: hX, y: 580, size: 12, font });
+  // Water H2O and E = mc^2: smaller text off the baseline.
+  page.drawText("H", { x: 72, y: 520, size: 12, font });
+  page.drawText("2", { x: 72 + width("H", 12), y: 517, size: 8, font });
+  page.drawText("O and mc", { x: 72 + width("H", 12) + width("2", 8), y: 520, size: 12, font });
+  page.drawText("2", { x: 72 + width("H", 12) + width("2", 8) + width("O and mc", 12), y: 525, size: 8, font });
+  return doc.save();
+}

@@ -520,3 +520,110 @@ test("bullet characters keep their look: dot, circle, square, dash, star", () =>
     expect(list[0].list).toMatchObject({ kind: "bullet", glyph });
   }
 });
+
+// ---- Run formatting: colour, underline, strike, highlight, super/subscript ----
+
+const runsOf = (all: Block[]) => paragraphs(all).flatMap((p) => p.runs);
+
+test("text colour from the page reaches the run", () => {
+  const all = blocks([
+    page([item("Plain ", 72, 100, 12), item("red words", 108, 100, 12, { color: "c00000" })]),
+  ]);
+  const runs = runsOf(all);
+  expect(runs.map((r) => [r.text, r.color])).toEqual([
+    ["Plain ", undefined],
+    ["red words", "c00000"],
+  ]);
+});
+
+test("a thin line just under the baseline is an underline, not a table rule", () => {
+  const rules: Rule[] = [{ x0: 108, x1: 168, y0: 101.2, y1: 101.2 }];
+  const all = blocks([page([item("Plain ", 72, 100, 12), item("underlined", 108, 100, 12, { w: 60 })], rules)]);
+  expect(all.every((b) => b.type === "p")).toBe(true);
+  expect(runsOf(all).map((r) => [r.text, !!r.underline])).toEqual([
+    ["Plain ", false],
+    ["underlined", true],
+  ]);
+});
+
+test("a thin line through the middle of the x-height is a strikethrough", () => {
+  const rules: Rule[] = [{ x0: 108, x1: 168, y0: 96.6, y1: 96.6 }];
+  const all = blocks([page([item("Plain ", 72, 100, 12), item("struck out", 108, 100, 12, { w: 60 })], rules)]);
+  const runs = runsOf(all);
+  expect(runs[1]).toMatchObject({ text: "struck out", strike: true });
+  expect(runs[1].underline).toBeFalsy();
+  expect(runs[0].strike).toBeFalsy();
+});
+
+test("a line that covers only part of a text piece splits it at the line's ends", () => {
+  // 10 characters at 6pt each; the underline covers characters 4 to 8.
+  const rules: Rule[] = [{ x0: 96, x1: 120, y0: 101.2, y1: 101.2 }];
+  const all = blocks([page([item("abcdeghkno", 72, 100, 12)], rules)]);
+  expect(runsOf(all).map((r) => [r.text, !!r.underline])).toEqual([
+    ["abcd", false],
+    ["eghk", true],
+    ["no", false],
+  ]);
+});
+
+test("a ruling line far from the text is left for tables and shapes", () => {
+  const rules: Rule[] = [{ x0: 72, x1: 400, y0: 112, y1: 112 }];
+  const all = blocks([page([item("Heading text here", 72, 100, 12)], rules)]);
+  expect(runsOf(all).every((r) => !r.underline && !r.strike)).toBe(true);
+});
+
+test("a filled box behind a phrase is a highlight with its exact colour", () => {
+  const fills = [{ x0: 108, x1: 168, y0: 90, y1: 103.5, color: "ffff00" }];
+  const all = blocks([
+    page([item("Marked ", 72, 100, 12, { w: 36 }), item("highlighted", 108, 100, 12, { w: 60 })], [], { fills }),
+  ]);
+  expect(runsOf(all).map((r) => [r.text, r.highlight])).toEqual([
+    ["Marked ", undefined],
+    ["highlighted", "FFFF00"],
+  ]);
+});
+
+test("a shaded table cell is shading, not a highlight on its text", () => {
+  const rules: Rule[] = [
+    { x0: 72, x1: 272, y0: 80, y1: 80 }, { x0: 72, x1: 272, y0: 120, y1: 120 }, { x0: 72, x1: 272, y0: 160, y1: 160 },
+    { x0: 72, x1: 72, y0: 80, y1: 160 }, { x0: 172, x1: 172, y0: 80, y1: 160 }, { x0: 272, x1: 272, y0: 80, y1: 160 },
+  ];
+  const fills = [{ x0: 72, x1: 172, y0: 80, y1: 120, color: "d9e2f3" }];
+  const all = blocks([
+    page(
+      [item("alpha", 80, 104, 12), item("beta", 180, 104, 12), item("gamma", 80, 144, 12), item("delta", 180, 144, 12)],
+      rules,
+      { fills },
+    ),
+  ]);
+  const table = all.find((b): b is TableBlock => b.type === "table")!;
+  expect(table.rows[0][0].shade).toBe("D9E2F3");
+  expect(table.rows[0][0].paragraphs[0].runs[0].highlight).toBeUndefined();
+});
+
+test("smaller text raised above the baseline is superscript, lowered is subscript", () => {
+  const all = blocks([
+    page([
+      item("E = mc", 72, 100, 12),
+      item("2", 102, 95.3, 10),
+      item(" and H", 108, 100, 12),
+      item("2", 138, 103.2, 10),
+      item("O", 144, 100, 12),
+    ]),
+  ]);
+  const runs = runsOf(all);
+  expect(runs.map((r) => [r.text, r.vertAlign])).toEqual([
+    ["E = mc", undefined],
+    ["2", "superscript"],
+    [" and H", undefined],
+    ["2", "subscript"],
+    ["O", undefined],
+  ]);
+  // Word shrinks super/subscript itself, so the run keeps the line's own size.
+  expect(runs[1].size).toBe(12);
+});
+
+test("text at another size on the same baseline is not raised or lowered", () => {
+  const runs = runsOf(blocks([page([item("big ", 72, 100, 18), item("small", 120, 100, 9)])]));
+  expect(runs.every((r) => !r.vertAlign)).toBe(true);
+});

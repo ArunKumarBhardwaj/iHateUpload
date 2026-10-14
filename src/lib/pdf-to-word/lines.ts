@@ -58,6 +58,12 @@ export type Frag = {
   italic: boolean;
   generic?: "serif" | "sans" | "mono";
   color?: string;
+  /** Baseline of this piece, measured down from the top of the page. */
+  y?: number;
+  underline?: boolean;
+  strike?: boolean;
+  /** Hex of a box painted behind the text. */
+  highlight?: string;
   /** True on the first piece after a wide gap in the same row. */
   tabBefore?: boolean;
   link?: { url: string } | { anchor: string };
@@ -252,6 +258,7 @@ function segments(items: TextItem[]): Frag[][] {
       italic: item.italic,
       generic: item.generic,
       color: item.color,
+      y: item.y,
     };
     const prev = current[current.length - 1];
     if (prev) {
