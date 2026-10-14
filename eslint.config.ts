@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Untracked design and prototype scratch, not app code.
     ".arena-pdf-edit/**",
     ".design/**",
+    // Agent worktrees are full repo copies.
+    ".claude/**",
   ]),
 ]);
 
