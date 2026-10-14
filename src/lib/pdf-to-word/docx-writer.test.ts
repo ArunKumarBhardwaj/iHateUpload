@@ -292,3 +292,48 @@ test("document properties land in docProps/core.xml", async () => {
   expect(core).toContain("<cp:keywords>a b</cp:keywords>");
   expect(core).toContain('<dcterms:created xsi:type="dcterms:W3CDTF">2024-03-05T10:20:30Z</dcterms:created>');
 });
+
+test("header rows of a table are marked to repeat", async () => {
+  const margins = { top: 50, right: 50, bottom: 50, left: 50 };
+  const cell = (t: string) => ({ paragraphs: [{ type: "p" as const, runs: [{ text: t }] }], colSpan: 1 });
+  const bytes = await writeDocx(
+    {
+      header: [],
+      footer: [],
+      notes: [],
+      sections: [
+        {
+          width: 600,
+          height: 800,
+          margins,
+          blocks: [{ type: "table", colWidths: [100], borders: true, indentLeft: 0, headerRows: 1, rows: [[cell("H")], [cell("a")]] }],
+        },
+      ],
+    },
+    {},
+    "T",
+  );
+  const xml = await (await JSZip.loadAsync(bytes)).file("word/document.xml")!.async("string");
+  expect(xml.match(/<w:tblHeader\/>/g)).toHaveLength(1);
+  expect(xml.indexOf("<w:tblHeader/>")).toBeLessThan(xml.indexOf(">H<"));
+});
+
+test("shaded cells carry a fill", async () => {
+  const margins = { top: 50, right: 50, bottom: 50, left: 50 };
+  const cell = (t: string, shade?: string) => ({ paragraphs: [{ type: "p" as const, runs: [{ text: t }] }], colSpan: 1, shade });
+  const bytes = await writeDocx(
+    {
+      header: [],
+      footer: [],
+      notes: [],
+      sections: [
+        { width: 600, height: 800, margins, blocks: [{ type: "table", colWidths: [100, 100], borders: true, indentLeft: 0, rows: [[cell("H", "D9E2F3"), cell("a")]] }] },
+      ],
+    },
+    {},
+    "T",
+  );
+  const xml = await (await JSZip.loadAsync(bytes)).file("word/document.xml")!.async("string");
+  expect(xml.match(/<w:shd /g)).toHaveLength(1);
+  expect(xml).toContain('<w:shd w:val="clear" w:color="auto" w:fill="D9E2F3"/>');
+});

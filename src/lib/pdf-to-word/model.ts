@@ -62,6 +62,8 @@ export type TableCell = {
   paragraphs: ParagraphBlock[];
   colSpan: number;
   vMerge?: "restart" | "continue";
+  /** Background colour as hex, no hash. */
+  shade?: string;
 };
 
 export type TableBlock = {
@@ -70,6 +72,8 @@ export type TableBlock = {
   rows: TableCell[][];
   borders: boolean;
   indentLeft: number;
+  /** Leading rows that repeat at the top of each page the table runs over. */
+  headerRows?: number;
 };
 
 export type Block = ParagraphBlock | ImageBlock | TableBlock;

@@ -16,6 +16,9 @@ export type TextItem = {
 
 export type Rule = { x0: number; y0: number; x1: number; y1: number };
 
+/** A painted block of colour, in points from the top left; colour is hex without a hash. */
+export type Fill = { x0: number; y0: number; x1: number; y1: number; color: string };
+
 export type PageImage = { ref: string; x: number; y: number; w: number; h: number };
 
 /** A clickable area of the page, in points from the top left. An anchor names a spot in the document. */
@@ -38,6 +41,7 @@ export type PageInput = {
   rules: Rule[];
   images: PageImage[];
   links?: PageLink[];
+  fills?: Fill[];
 };
 
 export type Frag = {

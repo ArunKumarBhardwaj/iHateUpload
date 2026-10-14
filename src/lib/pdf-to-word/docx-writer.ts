@@ -121,7 +121,7 @@ function tableXml(t: TableBlock, ctx: Ctx): string {
     : "";
   const grid = t.colWidths.map((w) => `<w:gridCol w:w="${tw(w)}"/>`).join("");
   const rows = t.rows
-    .map((row) => {
+    .map((row, rowIndex) => {
       let col = 0;
       const cells = row
         .map((cell) => {
@@ -131,13 +131,17 @@ function tableXml(t: TableBlock, ctx: Ctx): string {
           if (cell.colSpan > 1) props.push(`<w:gridSpan w:val="${cell.colSpan}"/>`);
           if (cell.vMerge === "restart") props.push('<w:vMerge w:val="restart"/>');
           if (cell.vMerge === "continue") props.push("<w:vMerge/>");
+          if (cell.shade && /^[0-9a-f]{6}$/i.test(cell.shade)) {
+            props.push(`<w:shd w:val="clear" w:color="auto" w:fill="${cell.shade.toUpperCase()}"/>`);
+          }
           const body = cell.paragraphs.length
             ? cell.paragraphs.map((p) => paragraphXml(p, ctx)).join("")
             : "<w:p/>";
           return `<w:tc><w:tcPr>${props.join("")}</w:tcPr>${body}</w:tc>`;
         })
         .join("");
-      return `<w:tr><w:trPr><w:cantSplit/></w:trPr>${cells}</w:tr>`;
+      const header = rowIndex < (t.headerRows ?? 0) ? "<w:tblHeader/>" : "";
+      return `<w:tr><w:trPr><w:cantSplit/>${header}</w:trPr>${cells}</w:tr>`;
     })
     .join("");
   return (

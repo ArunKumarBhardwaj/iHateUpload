@@ -1,6 +1,6 @@
 import type { OutlineEntry } from "./annotations";
 import { applyLinks } from "./links";
-import { buildLines, lineText, type Line, type PageInput } from "./lines";
+import { buildLines, lineText, type Fill, type Line, type PageInput } from "./lines";
 import type { Block, DocModel, ListInfo, ParagraphBlock, Run, Section, TableBlock } from "./model";
 import { imageEl, lineEl, readingOrder, tableEl, type El, type Region } from "./order";
 import {
@@ -9,7 +9,7 @@ import {
   type BuiltPara,
   type Stats,
 } from "./paragraphs";
-import { detectBorderlessTables, detectRuledTables, type TableEl } from "./tables";
+import { detectBorderlessTables, detectRuledTables, type GridCell, type TableEl } from "./tables";
 
 export type { PageInput, Rule, TextItem, PageImage } from "./lines";
 
@@ -192,7 +192,20 @@ function computeStats(pages: PageWork[]): Stats {
   return { bodySize, pitchRatio, headingSizes, bodyBold, chars: total };
 }
 
-function tableBlock(table: TableEl, stats: Stats, left: number): TableBlock {
+/** The colour painted over most of a cell, if any. The last one painted wins. */
+function shadeOf(cell: GridCell, fills: Fill[]): string | undefined {
+  const area = (cell.x1 - cell.x0) * (cell.y1 - cell.y0);
+  if (!(area > 0)) return undefined;
+  for (let i = fills.length - 1; i >= 0; i--) {
+    const f = fills[i];
+    const w = Math.min(f.x1, cell.x1) - Math.max(f.x0, cell.x0);
+    const h = Math.min(f.y1, cell.y1) - Math.max(f.y0, cell.y0);
+    if (w > 0 && h > 0 && (w * h) / area >= 0.7) return f.color.toUpperCase();
+  }
+  return undefined;
+}
+
+function tableBlock(table: TableEl, stats: Stats, left: number, fills: Fill[] = []): TableBlock {
   const rows = table.ys.length - 1;
   const cols = table.xs.length - 1;
   const out: TableBlock["rows"] = [];
@@ -217,6 +230,7 @@ function tableBlock(table: TableEl, stats: Stats, left: number): TableBlock {
           paragraphs: paragraphs.length ? paragraphs : [{ type: "p", runs: [] }],
           colSpan: cell.colSpan,
           vMerge: cell.rowSpan > 1 ? "restart" : undefined,
+          shade: shadeOf(cell, fills),
         });
       } else {
         row.push({ paragraphs: [{ type: "p", runs: [] }], colSpan: cell.colSpan, vMerge: "continue" });
@@ -243,6 +257,41 @@ function columnSpec(region: Region, colL: number, colR: number): NonNullable<Sec
   const starts = boxes.map((b, i) => (i === 0 ? colL : b.x0));
   const widths = starts.map((x, i) => Math.max(24, (i < starts.length - 1 ? starts[i + 1] - gap : colR) - x));
   return { widths, gap };
+}
+
+const cellText = (c: TableBlock["rows"][number][number]) =>
+  c.paragraphs.map((p) => p.runs.map((r) => r.text).join("")).join(" ").trim();
+const rowText = (row: TableBlock["rows"][number]) => row.map(cellText).join("\u0001");
+
+/** The table that closes one page and the one that opens the next are the same table when their grids agree. */
+function continuesTable(a: PageWork, b: PageWork, prev: Section, next: Section): boolean {
+  const last = a.ordered[a.ordered.length - 1];
+  const first = b.ordered[0];
+  if (last?.kind !== "table" || first?.kind !== "table") return false;
+  if (last.bottom < a.input.height * 0.7 || first.top > b.input.height * 0.3) return false;
+  if (prev.columns || next.columns || next.start === "continuous") return false;
+  if (prev.width !== next.width || prev.height !== next.height) return false;
+  const t1 = prev.blocks[prev.blocks.length - 1];
+  const t2 = next.blocks[0];
+  if (t1?.type !== "table" || t2?.type !== "table") return false;
+  return (
+    t1.colWidths.length === t2.colWidths.length &&
+    t1.borders === t2.borders &&
+    Math.abs(t1.indentLeft - t2.indentLeft) <= 4 &&
+    t1.colWidths.every((w, i) => Math.abs(w - t2.colWidths[i]) <= 3)
+  );
+}
+
+/** Move the next page's table rows (and whatever follows) onto the previous page's table. */
+function joinTables(prev: Section, next: Section) {
+  const t1 = prev.blocks[prev.blocks.length - 1] as TableBlock;
+  const t2 = next.blocks[0] as TableBlock;
+  const repeated = t1.rows.length > 1 && t2.rows.length > 0 && rowText(t1.rows[0]) === rowText(t2.rows[0]);
+  if (repeated && rowText(t1.rows[0]).replace(/\u0001/g, "").length > 0) {
+    t1.headerRows = Math.max(t1.headerRows ?? 0, 1);
+    t1.rows.push(...t2.rows.slice(1));
+  } else t1.rows.push(...t2.rows);
+  prev.blocks.push(...next.blocks.slice(1));
 }
 
 /** Put a bookmark on the paragraph each internal link points at: the first one at or below its height. */
@@ -361,7 +410,7 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
   // Every paragraph placed on a page with its top, so link and outline targets can find theirs.
   const placed: { block: ParagraphBlock; top: number; bottom: number }[][] = works.map(() => []);
 
-  const sections: Section[] = works.flatMap((work, workIndex) => {
+  const pageSections: Section[][] = works.map((work, workIndex) => {
     const { input } = work;
     const stats = pageStats[workIndex];
     let blocks: Block[] = [];
@@ -458,7 +507,7 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
       bottom = Math.max(bottom, el.bottom);
       const spaceBefore = prevBottom !== null && el.top - prevBottom > 1.5 ? el.top - prevBottom : undefined;
       if (el.kind === "table") {
-        blocks.push(tableBlock(el.table, stats, work.colL));
+        blocks.push(tableBlock(el.table, stats, work.colL, input.fills));
       } else {
         const maxW = Math.max(40, work.colR - work.colL);
         const scale = Math.min(1, maxW / el.image.w);
@@ -500,6 +549,14 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
     }));
   });
 
+  const sections: Section[] = [];
+  pageSections.forEach((secs, w) => {
+    const prev = sections[sections.length - 1];
+    if (w > 0 && prev && continuesTable(works[w - 1], works[w], prev, secs[0])) {
+      joinTables(prev, secs[0]);
+      sections.push(...secs.slice(1));
+    } else sections.push(...secs);
+  });
   placeBookmarks(inputs, placed);
   applyOutline(options.outline ?? [], placed);
   return { sections, header, footer, notes };

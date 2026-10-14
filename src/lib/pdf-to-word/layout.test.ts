@@ -410,3 +410,56 @@ test("the PDF outline sets heading levels, even for text set at body size", () =
   expect(paras.find((p) => text(p) === "Background")?.style).toBe("Heading2");
   expect(paras.filter((p) => p.style).length).toBe(1);
 });
+
+/** A ruled table of 3 columns whose rows start at `top`, each row holding the given texts. */
+function ruledTable(top: number, rows: string[][]): { items: TextItem[]; rules: Rule[] } {
+  const rules = grid(72, top, [120, 120, 120], rows.map(() => 24));
+  const items: TextItem[] = [];
+  rows.forEach((row, r) => row.forEach((t, c) => items.push(item(t, 72 + c * 120 + 8, top + r * 24 + 16))));
+  return { items, rules };
+}
+
+const cellTexts = (t: TableBlock) => t.rows.map((row) => row.map((c) => c.paragraphs.map(text).join("")));
+
+test("a table that carries on at the top of the next page becomes one table", () => {
+  const first = ruledTable(560, [["No", "Item", "Value"], ["1", "river", "48"], ["2", "dagger", "85"], ["3", "falcon", "12"], ["4", "orchard", "63"], ["5", "ladder", "70"], ["6", "willow", "21"]]);
+  const second = ruledTable(60, [["7", "ribbon", "34"], ["8", "zenith", "56"], ["9", "meadow", "90"]]);
+  const closing = item("The log ends here with a closing remark.", 72, 160);
+  const doc = layoutDocument([page(first.items, first.rules), page([...second.items, closing], second.rules)]);
+  const tables = doc.sections.flatMap((s) => s.blocks).filter((b): b is TableBlock => b.type === "table");
+  expect(tables).toHaveLength(1);
+  expect(cellTexts(tables[0]).map((r) => r[0])).toEqual(["No", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+  expect(tables[0].headerRows).toBeUndefined();
+  // The closing remark follows the table in the same section instead of starting a new page.
+  expect(doc.sections).toHaveLength(1);
+  expect(doc.sections[0].blocks.map((b) => b.type)).toEqual(["table", "p"]);
+});
+
+test("a repeated header row is dropped and marked as the header", () => {
+  const head = ["No", "Item", "Value"];
+  const first = ruledTable(560, [head, ["1", "river", "48"], ["2", "dagger", "85"], ["3", "falcon", "12"], ["4", "orchard", "63"], ["5", "ladder", "70"], ["6", "willow", "21"]]);
+  const second = ruledTable(60, [head, ["7", "ribbon", "34"], ["8", "zenith", "56"]]);
+  const doc = layoutDocument([page(first.items, first.rules), page(second.items, second.rules)]);
+  const [table] = doc.sections.flatMap((s) => s.blocks).filter((b): b is TableBlock => b.type === "table");
+  expect(table.headerRows).toBe(1);
+  expect(cellTexts(table).map((r) => r[0])).toEqual(["No", "1", "2", "3", "4", "5", "6", "7", "8"]);
+});
+
+test("tables with different columns on consecutive pages stay separate", () => {
+  const first = ruledTable(560, [["a", "b", "c"], ["1", "river", "48"], ["2", "dagger", "85"], ["3", "falcon", "12"], ["4", "orchard", "63"], ["5", "ladder", "70"], ["6", "willow", "21"]]);
+  const rules = grid(72, 60, [200, 200], [24, 24]);
+  const items = [item("x", 80, 76), item("y", 280, 76), item("z", 80, 100), item("w", 280, 100)];
+  const doc = layoutDocument([page(first.items, first.rules), page(items, rules)]);
+  expect(doc.sections.flatMap((s) => s.blocks).filter((b) => b.type === "table")).toHaveLength(2);
+});
+
+test("a coloured fill behind a table cell becomes its shading", () => {
+  const { items, rules } = ruledTable(100, [["No", "Item", "Value"], ["1", "river", "48"]]);
+  const fills = [
+    { x0: 72, x1: 192, y0: 100, y1: 124, color: "d9e2f3" },
+    { x0: 192, x1: 312, y0: 100, y1: 124, color: "d9e2f3" },
+  ];
+  const [table] = blocks([page(items, rules, { fills })]).filter((b): b is TableBlock => b.type === "table");
+  expect(table.rows[0].map((c) => c.shade)).toEqual(["D9E2F3", "D9E2F3", undefined]);
+  expect(table.rows[1].map((c) => c.shade)).toEqual([undefined, undefined, undefined]);
+});

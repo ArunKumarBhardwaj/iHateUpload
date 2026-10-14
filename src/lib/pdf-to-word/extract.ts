@@ -1,7 +1,7 @@
 import type { PDFPageProxy } from "pdfjs-dist";
 
 import { fontFlags } from "./fonts";
-import type { PageImage, PageInput, Rule, TextItem } from "./lines";
+import type { Fill, PageImage, PageInput, Rule, TextItem } from "./lines";
 
 type Matrix = [number, number, number, number, number, number];
 type Ops = Record<string, number>;
@@ -84,6 +84,25 @@ function ruleFrom(a: Point, b: Point): Rule | null {
   return null;
 }
 
+/** Filled rectangles that are big enough to be a background rather than a ruling line. */
+function fillsFromPath(data: ArrayLike<number>, m: Matrix, color: string): Fill[] {
+  const out: Fill[] = [];
+  for (const sub of subpaths(data)) {
+    const pts = sub.points.map(([x, y]) => apply(m, x, y));
+    const isBox =
+      pts.length === 4 ||
+      (pts.length === 5 && Math.hypot(pts[0][0] - pts[4][0], pts[0][1] - pts[4][1]) < 0.6);
+    if (!isBox) continue;
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    const box = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+    if (box.x1 - box.x0 > 2.5 && box.y1 - box.y0 > 2.5) out.push({ ...box, color });
+  }
+  return out;
+}
+
+const isWhite = (hex: string) => [0, 2, 4].every((i) => parseInt(hex.slice(i, i + 2), 16) >= 250);
+
 function rulesFromPath(
   data: ArrayLike<number>,
   m: Matrix,
@@ -151,6 +170,9 @@ export async function extractPage(
   let paintedImages = 0;
   let ctm: Matrix = IDENTITY;
   const stack: Matrix[] = [];
+  const fills: Fill[] = [];
+  let fillColor = "000000";
+  const colorStack: string[] = [];
   let inlineCount = 0;
 
   const strokeOps = new Set([OPS.stroke, OPS.closeStroke, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke]);
@@ -174,8 +196,15 @@ export async function extractPage(
   for (let i = 0; i < list.fnArray.length; i++) {
     const fn = list.fnArray[i];
     const args = list.argsArray[i] as unknown[] | null;
-    if (fn === OPS.save) stack.push(ctm);
-    else if (fn === OPS.restore) ctm = stack.pop() ?? IDENTITY;
+    if (fn === OPS.save) {
+      stack.push(ctm);
+      colorStack.push(fillColor);
+    } else if (fn === OPS.restore) {
+      ctm = stack.pop() ?? IDENTITY;
+      fillColor = colorStack.pop() ?? fillColor;
+    } else if (fn === OPS.setFillRGBColor && args && typeof args[0] === "string") {
+      fillColor = (args[0] as string).replace("#", "").toLowerCase();
+    }
     else if (fn === OPS.transform && args) ctm = mul(ctm, args as unknown as Matrix);
     else if (fn === OPS.paintFormXObjectBegin && args) {
       stack.push(ctm);
@@ -188,7 +217,12 @@ export async function extractPage(
       if (!stroke && !fill) continue;
       const raw = args[1] as unknown;
       const data = (Array.isArray(raw) ? raw[0] : raw) as ArrayLike<number> | undefined;
-      if (data) rules.push(...rulesFromPath(data, mul(vt, ctm), stroke, fill));
+      if (data) {
+        rules.push(...rulesFromPath(data, mul(vt, ctm), stroke, fill));
+        if (fill && /^[0-9a-f]{6}$/.test(fillColor) && !isWhite(fillColor)) {
+          fills.push(...fillsFromPath(data, mul(vt, ctm), fillColor));
+        }
+      }
     } else if (fn === OPS.paintImageXObject && args) {
       paintedImages++;
       placeImage(`${pageNo}:${args[0] as string}`, { kind: "object", id: args[0] as string });
@@ -272,7 +306,7 @@ export async function extractPage(
   for (const im of images) if (!kept.includes(im)) sources.delete(im.ref);
 
   return {
-    input: { width, height, items, rules, images: kept },
+    input: { width, height, items, rules, images: kept, fills },
     sources,
     chars,
     paintedImages,
