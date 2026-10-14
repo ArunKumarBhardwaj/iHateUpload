@@ -377,3 +377,63 @@ test("underline, strike, highlight and super/subscript are written in schema ord
   );
   expect(xml).toContain('<w:vertAlign w:val="subscript"/>');
 });
+
+test("shapes are written as page-anchored DrawingML with preset or custom geometry", async () => {
+  const para = (shapes: import("./model").Shape[]) => ({ type: "p" as const, runs: [{ text: "Text" }], shapes });
+  const bytes = await writeDocx(
+    {
+      header: [],
+      footer: [],
+      notes: [],
+      sections: [
+        {
+          width: 600,
+          height: 800,
+          margins,
+          blocks: [
+            para([
+              { kind: "rect", x: 10, y: 20, w: 120, h: 80, fill: "2E75B6", stroke: "1F4E79", strokeWidth: 3, behind: true },
+              { kind: "ellipse", x: 175, y: 15, w: 90, h: 90, fill: "C55A11", strokeWidth: 1, behind: true },
+              { kind: "line", x: 10, y: 50, w: 50, h: 50, flipV: true, stroke: "000000", strokeWidth: 2, behind: false },
+              {
+                kind: "path",
+                x: 320,
+                y: 20,
+                w: 120,
+                h: 80,
+                fill: "548235",
+                strokeWidth: 1,
+                behind: true,
+                paths: [[{ op: "M", pts: [0, 80] }, { op: "L", pts: [60, 0] }, { op: "C", pts: [70, 10, 80, 20, 120, 80] }, { op: "Z", pts: [] }]],
+              },
+            ]),
+          ],
+        },
+      ],
+    },
+    {},
+    "T",
+  );
+  const zip = await JSZip.loadAsync(bytes);
+  const xml = await zip.file("word/document.xml")!.async("string");
+  expect(xml.match(/<wps:wsp>/g)).toHaveLength(4);
+  expect(xml).toContain('xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"');
+  expect(xml).toContain('<wp:positionH relativeFrom="page"><wp:posOffset>127000</wp:posOffset></wp:positionH>');
+  expect(xml).toContain('<wp:positionV relativeFrom="page"><wp:posOffset>254000</wp:posOffset></wp:positionV>');
+  expect(xml).toContain('<a:prstGeom prst="rect">');
+  expect(xml).toContain('<a:prstGeom prst="ellipse">');
+  expect(xml).toContain('<a:prstGeom prst="line">');
+  expect(xml).toContain('flipV="1"');
+  expect(xml).toContain("<a:custGeom>");
+  expect(xml).toContain('<a:cubicBezTo>');
+  expect(xml).toContain('<a:solidFill><a:srgbClr val="2E75B6"/></a:solidFill>');
+  expect(xml).toContain('<a:ln w="38100"><a:solidFill><a:srgbClr val="1F4E79"/></a:solidFill></a:ln>');
+  expect(xml).toContain('<a:ln><a:noFill/></a:ln>');
+  expect(xml).toContain('behindDoc="1"');
+  expect(xml).toContain('behindDoc="0"');
+  // Anchored shapes come before the paragraph's text.
+  expect(xml.indexOf("<wps:wsp>")).toBeLessThan(xml.indexOf(">Text<"));
+  // Every part still parses.
+  const parser = new DOMParser({ onError: (level, message) => { throw new Error(`${level}: ${message}`); } });
+  parser.parseFromString(xml, "application/xml");
+});

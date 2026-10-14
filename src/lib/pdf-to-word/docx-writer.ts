@@ -8,6 +8,7 @@ import type {
   ParagraphBlock,
   Run,
   Section,
+  Shape,
   TableBlock,
 } from "./model";
 
@@ -29,7 +30,58 @@ function esc(text: string): string {
 }
 
 /** What the paragraph writers need from the package: hyperlink relationships and bookmark ids. */
-type Ctx = { linkRel?: (url: string) => string; bookmarkId: () => number };
+type Ctx = { linkRel?: (url: string) => string; bookmarkId: () => number; shapeId?: () => number };
+
+const colorFill = (hex: string | undefined, alpha: number | undefined) => {
+  if (!hex) return "<a:noFill/>";
+  const a = alpha !== undefined && alpha < 0.995 ? `<a:alpha val="${Math.round(Math.max(0, alpha) * 100000)}"/>` : "";
+  return `<a:solidFill><a:srgbClr val="${hex}"${a ? `>${a}</a:srgbClr>` : "/>"}</a:solidFill>`;
+};
+
+function geometryXml(shape: Shape): string {
+  if (shape.kind !== "path") return `<a:prstGeom prst="${shape.kind}"><a:avLst/></a:prstGeom>`;
+  const W = Math.max(1, emu(shape.w));
+  const H = Math.max(1, emu(shape.h));
+  const pt = (x: number, y: number) => `<a:pt x="${emu(x)}" y="${emu(y)}"/>`;
+  const steps = (shape.paths ?? []).flatMap((sub) =>
+    sub.map((seg) => {
+      const p = seg.pts;
+      if (seg.op === "M") return `<a:moveTo>${pt(p[0], p[1])}</a:moveTo>`;
+      if (seg.op === "L") return `<a:lnTo>${pt(p[0], p[1])}</a:lnTo>`;
+      if (seg.op === "C") return `<a:cubicBezTo>${pt(p[0], p[1])}${pt(p[2], p[3])}${pt(p[4], p[5])}</a:cubicBezTo>`;
+      return "<a:close/>";
+    }),
+  );
+  return (
+    `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/>` +
+    `<a:pathLst><a:path w="${W}" h="${H}">${steps.join("")}</a:path></a:pathLst></a:custGeom>`
+  );
+}
+
+/** A drawing pinned to the page at its own position, behind or over the text. */
+function shapeXml(shape: Shape, id: number): string {
+  const cx = emu(shape.w);
+  const cy = emu(shape.h);
+  const width = shape.stroke ? Math.max(1, emu(shape.strokeWidth)) : 0;
+  const dash = shape.dash ? '<a:prstDash val="dash"/>' : "";
+  const line = shape.stroke
+    ? `<a:ln w="${width}">${colorFill(shape.stroke, shape.strokeAlpha)}${dash}</a:ln>`
+    : "<a:ln><a:noFill/></a:ln>";
+  // The fill of an open line means nothing; it would only shade the gap between its ends.
+  const fill = shape.kind === "line" ? "<a:noFill/>" : colorFill(shape.fill, shape.fillAlpha);
+  return (
+    `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="${id}" ` +
+    `behindDoc="${shape.behind ? 1 : 0}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/>` +
+    `<wp:positionH relativeFrom="page"><wp:posOffset>${emu(shape.x)}</wp:posOffset></wp:positionH>` +
+    `<wp:positionV relativeFrom="page"><wp:posOffset>${emu(shape.y)}</wp:posOffset></wp:positionV>` +
+    `<wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/>` +
+    `<wp:docPr id="${id}" name="Shape ${id}"/><wp:cNvGraphicFramePr/>` +
+    `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+    `<wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm${shape.flipV ? ' flipV="1"' : ""}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
+    `${geometryXml(shape)}${fill}${line}</wps:spPr><wps:bodyPr/></wps:wsp>` +
+    `</a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>`
+  );
+}
 
 function runXml(run: Run): string {
   if (run.tab) return "<w:r><w:tab/></w:r>";
@@ -75,6 +127,8 @@ function paragraphProps(p: ParagraphBlock, sectPr = ""): string {
   if (p.spaceBefore || p.style) spacing.push(`w:before="${tw(p.spaceBefore ?? 0)}"`);
   if (p.style) spacing.push('w:after="0"');
   if (p.lineRatio) spacing.push(`w:line="${Math.round(p.lineRatio * 240)}" w:lineRule="auto"`);
+  // A paragraph that only carries drawings must not push the page content down.
+  if (p.shapes?.length && !p.runs.length) spacing.splice(0, spacing.length, 'w:before="0" w:after="0" w:line="20" w:lineRule="exact"');
   if (spacing.length) parts.push(`<w:spacing ${spacing.join(" ")}/>`);
   if (p.list) {
     parts.push(`<w:ind w:left="${tw(p.list.leftIndent)}" w:hanging="${tw(p.list.hanging)}"/>`);
@@ -113,7 +167,8 @@ function paragraphXml(p: ParagraphBlock, ctx: Ctx, sectPr = ""): string {
   const marks = (p.bookmarks ?? []).map((name) => ({ id: ctx.bookmarkId(), name }));
   const starts = marks.map((m) => `<w:bookmarkStart w:id="${m.id}" w:name="${esc(m.name)}"/>`).join("");
   const ends = marks.map((m) => `<w:bookmarkEnd w:id="${m.id}"/>`).join("");
-  return `<w:p>${paragraphProps(p, sectPr)}${colBreak}${starts}${runsXml(p.runs, ctx)}${ends}</w:p>`;
+  const shapes = (p.shapes ?? []).map((sh) => shapeXml(sh, ctx.shapeId?.() ?? 1)).join("");
+  return `<w:p>${paragraphProps(p, sectPr)}${colBreak}${starts}${shapes}${runsXml(p.runs, ctx)}${ends}</w:p>`;
 }
 
 const BORDER = '<w:{side} w:val="single" w:sz="4" w:space="0" w:color="000000"/>';
@@ -226,7 +281,8 @@ const NS =
   'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
   'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" ' +
   'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ' +
-  'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
+  'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" ' +
+  'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"';
 
 const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
 
@@ -328,8 +384,10 @@ export async function writeDocx(
   // Header and footer parts have relationships of their own, so links there stay plain text.
   const plain: Ctx = { bookmarkId: () => ++bookmarks };
   const linkIds = new Map<string, string>();
+  let shapeIds = 1000;
   const ctx: Ctx = {
     bookmarkId: plain.bookmarkId,
+    shapeId: () => ++shapeIds,
     linkRel: (url) => {
       let id = linkIds.get(url);
       if (!id) {

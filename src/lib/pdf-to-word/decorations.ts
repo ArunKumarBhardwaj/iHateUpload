@@ -65,8 +65,12 @@ function mark(hits: Hit[], x0: number, x1: number, extra: Partial<Frag>) {
  * They are marked on the pieces of text and the lines are dropped from the rules that tables read.
  * Fills stay where they are: a box that is a highlight may still be a table cell's background.
  */
-export function applyDecorations(lines: Line[], rules: Rule[], fills: Fill[] | undefined): Rule[] {
+export type Decorated = { rules: Rule[]; usedRules: Rule[]; usedFills: Fill[] };
+
+export function applyDecorations(lines: Line[], rules: Rule[], fills: Fill[] | undefined): Decorated {
   const kept: Rule[] = [];
+  const usedRules: Rule[] = [];
+  const usedFills: Fill[] = [];
   for (const rule of rules) {
     if (!horizontal(rule)) {
       kept.push(rule);
@@ -86,7 +90,8 @@ export function applyDecorations(lines: Line[], rules: Rule[], fills: Fill[] | u
       used = true;
       break;
     }
-    if (!used) kept.push(rule);
+    if (used) usedRules.push(rule);
+    else kept.push(rule);
   }
   for (const fill of fills ?? []) {
     const near = lines.filter((l) => l.baseline >= fill.y0 && l.baseline <= fill.y1 + l.size);
@@ -95,7 +100,10 @@ export function applyDecorations(lines: Line[], rules: Rule[], fills: Fill[] | u
       const h = fill.y1 - fill.y0;
       return fill.y0 <= y - 0.35 * frag.size && fill.y1 >= y && h <= 1.45 * frag.size && fill.y1 <= y + 0.6 * frag.size;
     });
-    if (hits) mark(hits, fill.x0, fill.x1, { highlight: fill.color.toUpperCase() });
+    if (hits) {
+      mark(hits, fill.x0, fill.x1, { highlight: fill.color.toUpperCase() });
+      usedFills.push(fill);
+    }
   }
-  return kept;
+  return { rules: kept, usedRules, usedFills };
 }

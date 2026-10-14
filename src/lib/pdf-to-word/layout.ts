@@ -1,9 +1,9 @@
 import type { OutlineEntry } from "./annotations";
 import { applyBullets } from "./bullets";
-import { applyDecorations } from "./decorations";
+import { applyDecorations, type Decorated } from "./decorations";
 import { applyLinks } from "./links";
-import { buildLines, lineText, type Fill, type Line, type PageInput, type Rule } from "./lines";
-import type { Block, DocModel, ListInfo, ParagraphBlock, Run, Section, TableBlock } from "./model";
+import { buildLines, lineText, type Fill, type Line, type PageInput } from "./lines";
+import type { Block, DocModel, ListInfo, ParagraphBlock, Run, Section, Shape, TableBlock } from "./model";
 import { imageEl, lineEl, readingOrder, tableEl, type El, type Region } from "./order";
 import {
   buildParagraphs,
@@ -11,6 +11,7 @@ import {
   type BuiltPara,
   type Stats,
 } from "./paragraphs";
+import { buildShapes } from "./shapes";
 import { detectBorderlessTables, detectRuledTables, type GridCell, type TableEl } from "./tables";
 
 export type { PageInput, Rule, TextItem, PageImage } from "./lines";
@@ -26,6 +27,8 @@ type PageWork = {
   ordered: El[];
   colL: number;
   colR: number;
+  shapes: Shape[];
+  shapeNote?: string;
 };
 
 type Furniture = { band: "header" | "footer"; rows: Line[][]; pageIndex: number };
@@ -343,12 +346,12 @@ export type LayoutOptions = {
 
 export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {}): DocModel {
   // Lines under, through or behind text belong to the text; the rest stay for tables.
-  const pageRules: Rule[][] = [];
+  const decorated: Decorated[] = [];
   const lineSets = inputs.map((p) => {
     const lines = buildLines(p.items);
     applyBullets(lines, p.bullets);
     applyLinks(lines, p.links);
-    pageRules.push(applyDecorations(lines, p.rules, p.fills));
+    decorated.push(applyDecorations(lines, p.rules, p.fills));
     return lines;
   });
   const { furniture, kept } = takeFurniture(inputs, lineSets);
@@ -366,7 +369,7 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
     const pageMax = raw.length ? Math.max(...raw.map((l) => l.x1)) : docRight;
     const colL = raw.length ? Math.min(docLeft || pageMin, pageMin) : 72;
     const colR = raw.length ? Math.max(docRight || pageMax, pageMax) : input.width - 72;
-    const ruled = detectRuledTables(raw, pageRules[index]);
+    const ruled = detectRuledTables(raw, decorated[index].rules);
     const loose = detectBorderlessTables(ruled.rest);
     const tables: TableEl[] = [...ruled.tables, ...loose.tables];
     const pageArea = input.width * input.height;
@@ -378,12 +381,21 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
       l.colR = colR;
     }
     const els: El[] = [...loose.rest.map(lineEl), ...tables.map(tableEl), ...images.map(imageEl)];
+    const drawn = buildShapes(input.shapes, {
+      width: input.width,
+      height: input.height,
+      tables: tables.map((t) => ({ x0: t.x0, y0: t.y0, x1: t.x1, y1: t.y1 })),
+      bullets: input.bullets,
+      used: decorated[index],
+    });
     return {
       input,
       lines: loose.rest,
       ordered: readingOrder(els, colL, colR),
       colL,
       colR,
+      shapes: drawn.shapes,
+      shapeNote: drawn.note,
     };
   });
 
@@ -398,6 +410,7 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
   const stats = docStats;
 
   const notes: string[] = [];
+  for (const w of works) if (w.shapeNote && !notes.includes(w.shapeNote)) notes.push(w.shapeNote);
   const header: ParagraphBlock[] = [];
   const footer: ParagraphBlock[] = [];
   const furnitureTops = { header: 0, footer: 0 };
@@ -544,6 +557,13 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
       prevBottom = el.bottom;
     }
     flush();
+
+    // Drawings are pinned to the page from the first paragraph, which is what leads the page.
+    if (work.shapes.length) {
+      const lead = pieces[0].blocks[0];
+      if (lead?.type === "p") lead.shapes = work.shapes;
+      else pieces[0].blocks.unshift({ type: "p", runs: [], shapes: work.shapes });
+    }
 
     const hasContent = Number.isFinite(top);
     const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));

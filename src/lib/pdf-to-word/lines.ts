@@ -22,6 +22,24 @@ export type Fill = { x0: number; y0: number; x1: number; y1: number; color: stri
 /** A list bullet the page draws as a shape instead of a character, in points from the top left. */
 export type Bullet = { x0: number; x1: number; y0: number; y1: number; kind: "disc" | "circle" | "square" };
 
+/** One step of a drawn path, in points from the top left of the page. C holds two control points and an end. */
+export type PathSeg = { op: "M" | "L" | "C" | "Z"; pts: number[] };
+
+/** A painted path as the page draws it: its outline and how it is filled and stroked. */
+export type PathShape = {
+  segs: PathSeg[];
+  /** Hex without a hash; omitted when the path is not filled. */
+  fill?: string;
+  stroke?: string;
+  /** Stroke width in points. */
+  width: number;
+  fillAlpha?: number;
+  strokeAlpha?: number;
+  dash?: boolean;
+  /** Nothing the page prints lies under this path, so it can sit behind the text. */
+  behind: boolean;
+};
+
 export type PageImage = { ref: string; x: number; y: number; w: number; h: number };
 
 /** A clickable area of the page, in points from the top left. An anchor names a spot in the document. */
@@ -46,6 +64,7 @@ export type PageInput = {
   links?: PageLink[];
   fills?: Fill[];
   bullets?: Bullet[];
+  shapes?: PathShape[];
 };
 
 export type Frag = {

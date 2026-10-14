@@ -627,3 +627,163 @@ test("text at another size on the same baseline is not raised or lowered", () =>
   const runs = runsOf(blocks([page([item("big ", 72, 100, 18), item("small", 120, 100, 9)])]));
   expect(runs.every((r) => !r.vertAlign)).toBe(true);
 });
+
+// ---- Vector shapes ----
+
+import type { PathShape } from "./lines";
+
+function boxPath(x0: number, y0: number, x1: number, y1: number, extra: Partial<PathShape> = {}): PathShape {
+  return {
+    segs: [
+      { op: "M", pts: [x0, y0] },
+      { op: "L", pts: [x1, y0] },
+      { op: "L", pts: [x1, y1] },
+      { op: "L", pts: [x0, y1] },
+      { op: "Z", pts: [] },
+    ],
+    width: 1,
+    behind: true,
+    ...extra,
+  };
+}
+
+/** A circle the way PDF writes it: four cubic curves. */
+function circlePath(cx: number, cy: number, r: number, extra: Partial<PathShape> = {}): PathShape {
+  const k = 0.5523 * r;
+  return {
+    segs: [
+      { op: "M", pts: [cx + r, cy] },
+      { op: "C", pts: [cx + r, cy + k, cx + k, cy + r, cx, cy + r] },
+      { op: "C", pts: [cx - k, cy + r, cx - r, cy + k, cx - r, cy] },
+      { op: "C", pts: [cx - r, cy - k, cx - k, cy - r, cx, cy - r] },
+      { op: "C", pts: [cx + k, cy - r, cx + r, cy - k, cx + r, cy] },
+      { op: "Z", pts: [] },
+    ],
+    width: 1,
+    behind: true,
+    ...extra,
+  };
+}
+
+const shapesOf = (pages: PageInput[]) =>
+  layoutDocument(pages)
+    .sections.flatMap((s) => s.blocks)
+    .flatMap((b) => (b.type === "p" ? (b.shapes ?? []) : []));
+
+test("drawn rectangle, circle, triangle and line become shapes on the page's first paragraph", () => {
+  const triangle: PathShape = {
+    segs: [
+      { op: "M", pts: [320, 100] },
+      { op: "L", pts: [380, 20] },
+      { op: "L", pts: [440, 100] },
+      { op: "Z", pts: [] },
+    ],
+    fill: "548235",
+    width: 1,
+    behind: true,
+  };
+  const line: PathShape = {
+    segs: [
+      { op: "M", pts: [10, 160] },
+      { op: "L", pts: [460, 160] },
+    ],
+    stroke: "7030a0",
+    width: 4,
+    behind: true,
+  };
+  const all = shapesOf([
+    page([item("Diagram", 72, 60, 12)], [], {
+      shapes: [
+        boxPath(10, 20, 130, 100, { fill: "2e75b6", stroke: "1f4e79", width: 3 }),
+        circlePath(220, 60, 45, { fill: "c55a11" }),
+        triangle,
+        line,
+      ],
+    }),
+  ]);
+  expect(all.map((s) => s.kind)).toEqual(["rect", "ellipse", "path", "line"]);
+  expect(all[0]).toMatchObject({ x: 10, y: 20, w: 120, h: 80, fill: "2E75B6", stroke: "1F4E79", strokeWidth: 3 });
+  expect(all[1]).toMatchObject({ x: 175, y: 15, w: 90, h: 90, fill: "C55A11" });
+  expect(all[1].stroke).toBeUndefined();
+  expect(all[2]).toMatchObject({ x: 320, y: 20, w: 120, h: 80, fill: "548235" });
+  expect(all[2].paths?.[0][1].pts).toEqual([60, 0]);
+  expect(all[3]).toMatchObject({ x: 10, y: 160, w: 450, h: 0, stroke: "7030A0", strokeWidth: 4 });
+});
+
+test("a line drawn from bottom left to top right is flipped, not re-pointed", () => {
+  const up: PathShape = {
+    segs: [{ op: "M", pts: [10, 100] }, { op: "L", pts: [60, 50] }],
+    stroke: "000000",
+    width: 1,
+    behind: false,
+  };
+  const [shape] = shapesOf([page([item("x", 72, 300)], [], { shapes: [up] })]);
+  expect(shape).toMatchObject({ kind: "line", x: 10, y: 50, w: 50, h: 50, flipV: true, behind: false });
+});
+
+test("a page with only a drawing still carries it, on an empty paragraph", () => {
+  const model = layoutDocument([page([], [], { shapes: [circlePath(100, 100, 20, { fill: "ff0000" })] })]);
+  const first = model.sections[0].blocks[0];
+  expect(first.type === "p" && first.shapes?.length).toBe(1);
+});
+
+test("table borders and cell shading are not shapes", () => {
+  const rules: Rule[] = [
+    { x0: 72, x1: 272, y0: 80, y1: 80 }, { x0: 72, x1: 272, y0: 120, y1: 120 }, { x0: 72, x1: 272, y0: 160, y1: 160 },
+    { x0: 72, x1: 72, y0: 80, y1: 160 }, { x0: 172, x1: 172, y0: 80, y1: 160 }, { x0: 272, x1: 272, y0: 80, y1: 160 },
+  ];
+  const fills = [{ x0: 72, x1: 172, y0: 80, y1: 120, color: "d9e2f3" }];
+  const shapes = [
+    boxPath(72, 80, 172, 120, { fill: "d9e2f3" }),
+    boxPath(72, 80, 272, 160, { stroke: "000000" }),
+    boxPath(400, 300, 480, 340, { fill: "ff0000" }),
+  ];
+  const got = shapesOf([
+    page(
+      [item("alpha", 80, 104, 12), item("beta", 180, 104, 12), item("gamma", 80, 144, 12), item("delta", 180, 144, 12)],
+      rules,
+      { fills, shapes },
+    ),
+  ]);
+  expect(got.map((s) => s.fill ?? s.stroke)).toEqual(["FF0000"]);
+});
+
+test("lines used as underline or highlight are not drawn a second time", () => {
+  const under: PathShape = {
+    segs: [{ op: "M", pts: [108, 101.2] }, { op: "L", pts: [168, 101.2] }],
+    stroke: "000000",
+    width: 0.8,
+    behind: true,
+  };
+  const mark = boxPath(200, 90, 260, 103.5, { fill: "ffff00" });
+  const rules: Rule[] = [{ x0: 108, x1: 168, y0: 101.2, y1: 101.2 }];
+  const fills = [{ x0: 200, x1: 260, y0: 90, y1: 103.5, color: "ffff00" }];
+  const got = shapesOf([
+    page([item("Plain ", 72, 100, 12), item("underlined", 108, 100, 12, { w: 60 }), item("marked", 200, 100, 12, { w: 60 })], rules, {
+      fills,
+      shapes: [under, mark],
+    }),
+  ]);
+  expect(got).toEqual([]);
+});
+
+test("a drawn bullet that became a list marker is not a shape", () => {
+  const dot = circlePath(66, 96.5, 2.5, { fill: "000000" });
+  const got = shapesOf([
+    page([item("Copper kettle", 72, 100, 12), item("Silver ladder", 72, 120, 12)], [], {
+      bullets: [{ x0: 63.5, x1: 68.5, y0: 94, y1: 99, kind: "disc" }],
+      shapes: [dot],
+    }),
+  ]);
+  expect(got).toEqual([]);
+});
+
+test("white fills, page backgrounds and swarms of tiny paths are left out", () => {
+  const white = boxPath(10, 10, 100, 100, { fill: "ffffff" });
+  const background = boxPath(0, 0, 612, 792, { fill: "f0f0f0" });
+  const swarm = Array.from({ length: 400 }, (_, i) => boxPath(10 + (i % 20) * 5, 200 + Math.floor(i / 20) * 5, 13 + (i % 20) * 5, 203 + Math.floor(i / 20) * 5, { fill: "000000" }));
+  expect(shapesOf([page([item("x", 72, 300)], [], { shapes: [white, background] })])).toEqual([]);
+  const model = layoutDocument([page([item("x", 72, 300)], [], { shapes: swarm })]);
+  expect(model.sections.flatMap((s) => s.blocks).flatMap((b) => (b.type === "p" ? (b.shapes ?? []) : []))).toEqual([]);
+  expect(model.notes.join(" ")).toMatch(/drawn|shape|graphic/i);
+});

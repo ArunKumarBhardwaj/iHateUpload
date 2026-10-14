@@ -161,3 +161,22 @@ test("colour, underline, strike, highlight and raised text reach the docx runs",
   // The underline and strike lines were text formatting, not tables.
   expect(xml).not.toContain("<w:tbl>");
 });
+
+test("drawn shapes become native Word shapes; tables, bullets and underlines do not", async () => {
+  const { makeShapesPdf, makeDotListPdf } = await import("./fixture");
+  const { xml } = await convert(await makeShapesPdf());
+  expect(xml.match(/<wps:wsp>/g)).toHaveLength(4);
+  expect(xml).toContain('prst="rect"');
+  expect(xml).toContain('prst="ellipse"');
+  expect(xml).toContain('prst="line"');
+  expect(xml).toContain('<a:srgbClr val="2E75B6"/>');
+  expect(xml).toContain('<a:srgbClr val="7030A0"/>');
+  // Same page text, none of it lost.
+  expect(textOf(xml).join(" ")).toContain("Diagram Page");
+  const sample = await convert(await makeSamplePdf());
+  expect(sample.xml).not.toContain("<wps:wsp>");
+  const dots = await convert(await makeDotListPdf());
+  expect(dots.xml).not.toContain("<wps:wsp>");
+  const fmt = await convert(await (await import("./fixture")).makeFormattedPdf());
+  expect(fmt.xml).not.toContain("<wps:wsp>");
+});

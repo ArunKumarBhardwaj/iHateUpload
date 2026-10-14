@@ -23,6 +23,27 @@ export type Run = {
   field?: "PAGE" | "NUMPAGES";
 };
 
+/** A drawn shape pinned to the page. Positions and sizes are points from the top left of the page. */
+export type Shape = {
+  kind: "rect" | "ellipse" | "line" | "path";
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** A line that runs from bottom left to top right. */
+  flipV?: boolean;
+  /** For "path": subpaths with points relative to the shape's own top left. */
+  paths?: { op: "M" | "L" | "C" | "Z"; pts: number[] }[][];
+  fill?: string;
+  stroke?: string;
+  strokeWidth: number;
+  fillAlpha?: number;
+  strokeAlpha?: number;
+  dash?: boolean;
+  /** Sits behind the text rather than over it. */
+  behind: boolean;
+};
+
 export type ListInfo = {
   /** Same instance means the same running list. */
   instance: number;
@@ -56,6 +77,8 @@ export type ParagraphBlock = {
   bookmarks?: string[];
   /** Starts in the next column of a multi-column section. */
   columnBreakBefore?: boolean;
+  /** Drawings pinned to the page, anchored at this paragraph. */
+  shapes?: Shape[];
 };
 
 export type ImageBlock = {

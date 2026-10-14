@@ -2,7 +2,7 @@ import type { PDFPageProxy } from "pdfjs-dist";
 
 import { fontFlags } from "./fonts";
 import { indexAt } from "./links";
-import type { Bullet, Fill, PageImage, PageInput, Rule, TextItem } from "./lines";
+import type { Bullet, Fill, PageImage, PageInput, PathSeg, PathShape, Rule, TextItem } from "./lines";
 
 type Matrix = [number, number, number, number, number, number];
 type Ops = Record<string, number>;
@@ -74,6 +74,46 @@ function subpaths(data: ArrayLike<number>): { points: Point[]; closed: boolean; 
   }
   return out.filter((p) => p.points.length >= 2);
 }
+
+/** Flat pdf.js path data to page-space steps; quadratic curves become cubic. */
+function pathSegs(data: ArrayLike<number>, m: Matrix): PathSeg[] {
+  const out: PathSeg[] = [];
+  let cur: Point = [0, 0];
+  const at = (x: number, y: number) => apply(m, x, y);
+  for (let i = 0; i < data.length; ) {
+    const op = data[i++];
+    if (op === 0) {
+      cur = at(data[i], data[i + 1]);
+      // A move straight after another move draws nothing.
+      if (out[out.length - 1]?.op === "M") out.pop();
+      out.push({ op: "M", pts: [...cur] });
+      i += 2;
+    } else if (op === 1) {
+      cur = at(data[i], data[i + 1]);
+      out.push({ op: "L", pts: [...cur] });
+      i += 2;
+    } else if (op === 2) {
+      const a = at(data[i], data[i + 1]);
+      const b = at(data[i + 2], data[i + 3]);
+      cur = at(data[i + 4], data[i + 5]);
+      out.push({ op: "C", pts: [...a, ...b, ...cur] });
+      i += 6;
+    } else if (op === 3) {
+      const q = at(data[i], data[i + 1]);
+      const end = at(data[i + 2], data[i + 3]);
+      const a: Point = [cur[0] + (2 / 3) * (q[0] - cur[0]), cur[1] + (2 / 3) * (q[1] - cur[1])];
+      const b: Point = [end[0] + (2 / 3) * (q[0] - end[0]), end[1] + (2 / 3) * (q[1] - end[1])];
+      cur = end;
+      out.push({ op: "C", pts: [...a, ...b, ...end] });
+      i += 4;
+    } else if (op === 4) out.push({ op: "Z", pts: [] });
+    else break;
+  }
+  return out;
+}
+
+const sameSegs = (a: PathSeg[], b: PathSeg[]) =>
+  a.length === b.length && a.every((s, i) => s.op === b[i].op && s.pts.every((v, k) => Math.abs(v - b[i].pts[k]) < 0.01));
 
 function ruleFrom(a: Point, b: Point): Rule | null {
   const dx = Math.abs(a[0] - b[0]);
@@ -196,9 +236,15 @@ export async function extractPage(
   const bullets: Bullet[] = [];
   let fillColor = "000000";
   const colorStack: string[] = [];
+  // Stroke state that save and restore carry along with the fill colour.
+  type Pen = { stroke: string; width: number; fillAlpha: number; strokeAlpha: number; dash: boolean };
+  let pen: Pen = { stroke: "000000", width: 1, fillAlpha: 1, strokeAlpha: 1, dash: false };
+  const penStack: Pen[] = [];
+  const paths: (PathShape & { order: number })[] = [];
+  let patternFill = false;
   let inlineCount = 0;
   // Where each piece of text starts on the page (user space) and the colour it is painted in.
-  const colored: { x: number; y: number; color: string; chars: number }[] = [];
+  const colored: { x: number; y: number; color: string; chars: number; order: number }[] = [];
   let tm: Matrix = IDENTITY;
   let tlm: Matrix = IDENTITY;
   let leading = 0;
@@ -228,11 +274,31 @@ export async function extractPage(
     if (fn === OPS.save) {
       stack.push(ctm);
       colorStack.push(fillColor);
+      penStack.push(pen);
     } else if (fn === OPS.restore) {
       ctm = stack.pop() ?? IDENTITY;
       fillColor = colorStack.pop() ?? fillColor;
+      pen = penStack.pop() ?? pen;
     } else if (fn === OPS.setFillRGBColor && args && typeof args[0] === "string") {
       fillColor = (args[0] as string).replace("#", "").toLowerCase();
+      patternFill = false;
+    } else if (fn === OPS.setStrokeRGBColor && args && typeof args[0] === "string") {
+      pen = { ...pen, stroke: (args[0] as string).replace("#", "").toLowerCase() };
+    } else if (fn === OPS.setLineWidth && args) {
+      pen = { ...pen, width: Number(args[0]) };
+    } else if (fn === OPS.setDash && args) {
+      pen = { ...pen, dash: Array.isArray(args[0]) && (args[0] as unknown[]).length > 0 };
+    } else if (fn === OPS.setFillColorN && args) {
+      // Gradients and tiled patterns cannot be a flat colour; their shapes are left unfilled.
+      patternFill = typeof args[0] === "string" && !/^#/.test(args[0] as string);
+    } else if (fn === OPS.setGState && args && Array.isArray(args[0])) {
+      for (const entry of args[0] as [string, unknown][]) {
+        const [key, value] = entry;
+        if (key === "LW") pen = { ...pen, width: Number(value) };
+        else if (key === "CA") pen = { ...pen, strokeAlpha: Number(value) };
+        else if (key === "ca") pen = { ...pen, fillAlpha: Number(value) };
+        else if (key === "D" && Array.isArray(value)) pen = { ...pen, dash: Array.isArray(value[0]) && value[0].length > 0 };
+      }
     } else if (fn === OPS.beginText) {
       tm = tlm = IDENTITY;
     } else if (fn === OPS.setFont && args) {
@@ -266,7 +332,7 @@ export async function extractPage(
           }
         }
       }
-      colored.push({ x, y, color: fillColor, chars });
+      colored.push({ x, y, color: fillColor, chars, order: i });
       tm = mul(tm, [1, 0, 0, 1, advance, 0]);
     }
     else if (fn === OPS.transform && args) ctm = mul(ctm, args as unknown as Matrix);
@@ -286,6 +352,31 @@ export async function extractPage(
         bullets.push(...bulletsFromPath(data, mul(vt, ctm), stroke, fill));
         if (fill && /^[0-9a-f]{6}$/.test(fillColor) && !isWhite(fillColor)) {
           fills.push(...fillsFromPath(data, mul(vt, ctm), fillColor));
+        }
+        if (paths.length < 2000) {
+          const m = mul(vt, ctm);
+          const segs = pathSegs(data, m);
+          const scale = Math.sqrt(Math.abs(m[0] * m[3] - m[1] * m[2]));
+          const solid = fill && !patternFill && /^[0-9a-f]{6}$/.test(fillColor);
+          const shape: PathShape & { order: number } = {
+            segs,
+            fill: solid ? fillColor : undefined,
+            stroke: stroke && /^[0-9a-f]{6}$/.test(pen.stroke) ? pen.stroke : undefined,
+            width: pen.width * scale,
+            fillAlpha: solid && pen.fillAlpha < 1 ? pen.fillAlpha : undefined,
+            strokeAlpha: stroke && pen.strokeAlpha < 1 ? pen.strokeAlpha : undefined,
+            dash: pen.dash || undefined,
+            behind: true,
+            order: i,
+          };
+          const last = paths[paths.length - 1];
+          // Chrome paints a shape's fill and its outline as two operations on one path.
+          if (last && shape.stroke && !shape.fill && last.fill && !last.stroke && sameSegs(last.segs, segs)) {
+            last.stroke = shape.stroke;
+            last.width = shape.width;
+            last.strokeAlpha = shape.strokeAlpha;
+            last.dash = shape.dash;
+          } else if (segs.length && (shape.fill || shape.stroke)) paths.push(shape);
         }
       }
     } else if (fn === OPS.paintImageXObject && args) {
@@ -416,8 +507,24 @@ export async function extractPage(
   const kept = images.filter((im) => !(chars >= 20 && im.w * im.h >= width * height * 0.85));
   for (const im of images) if (!kept.includes(im)) sources.delete(im.ref);
 
+  // A path with text already painted inside it is drawn over that text; any other can sit behind.
+  const origins = colored.map((c) => ({ order: c.order, at: apply(vt, c.x, c.y) }));
+  for (const p of paths) {
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (const seg of p.segs) {
+      for (let k = 0; k + 1 < seg.pts.length; k += 2) {
+        xs.push(seg.pts[k]);
+        ys.push(seg.pts[k + 1]);
+      }
+    }
+    if (!xs.length) continue;
+    const [x0, x1, y0, y1] = [Math.min(...xs) - 1, Math.max(...xs) + 1, Math.min(...ys) - 1, Math.max(...ys) + 1];
+    p.behind = !origins.some((o) => o.order < p.order && o.at[0] >= x0 && o.at[0] <= x1 && o.at[1] >= y0 && o.at[1] <= y1);
+  }
+
   return {
-    input: { width, height, items, rules, images: kept, fills, bullets },
+    input: { width, height, items, rules, images: kept, fills, bullets, shapes: paths },
     sources,
     chars,
     paintedImages,

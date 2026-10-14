@@ -251,3 +251,17 @@ export async function makeFormattedPdf(): Promise<Uint8Array> {
   page.drawText("2", { x: 72 + width("H", 12) + width("2", 8) + width("O and mc", 12), y: 525, size: 8, font });
   return doc.save();
 }
+
+/** A heading and four drawn shapes: a filled and outlined rectangle, a circle, a triangle and a line. */
+export async function makeShapesPdf(): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const page = doc.addPage([612, 792]);
+  page.drawText("Diagram Page", { x: 72, y: 700, size: 20, font });
+  page.drawRectangle({ x: 82, y: 560, width: 120, height: 80, color: rgb(46 / 255, 117 / 255, 182 / 255), borderColor: rgb(31 / 255, 78 / 255, 121 / 255), borderWidth: 3 });
+  page.drawCircle({ x: 292, y: 600, size: 45, color: rgb(0.77, 0.35, 0.07) });
+  page.drawSvgPath("M 0 0 L 60 80 L 120 0 Z", { x: 392, y: 640, color: rgb(0.33, 0.51, 0.2) });
+  page.drawLine({ start: { x: 82, y: 520 }, end: { x: 532, y: 520 }, thickness: 4, color: rgb(112 / 255, 48 / 255, 160 / 255) });
+  page.drawText("Caption: four shapes drawn as vectors.", { x: 72, y: 480, size: 12, font });
+  return doc.save();
+}
