@@ -158,8 +158,9 @@ function toRuns(lines: Line[], marker: Acc["marker"]): Run[] {
         size: Math.round(frag.size * 2) / 2,
         font: wordFont(frag.font, frag.generic),
         color: frag.color,
+        link: frag.link,
       };
-      const key = `${run.bold}|${run.italic}|${run.size}|${run.font}|${run.color}`;
+      const key = `${run.bold}|${run.italic}|${run.size}|${run.font}|${run.color}|${JSON.stringify(run.link)}`;
       const prev = runs[runs.length - 1];
       if (prev && !prev.tab && !prev.field && key === lastKey) prev.text += text;
       else runs.push(run);

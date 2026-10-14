@@ -1,3 +1,4 @@
+import { applyLinks } from "./links";
 import { buildLines, lineText, type Line, type PageInput } from "./lines";
 import type { Block, DocModel, ListInfo, ParagraphBlock, Run, Section, TableBlock } from "./model";
 import { imageEl, lineEl, readingOrder, tableEl, type El, type Region } from "./order";
@@ -246,7 +247,11 @@ function columnSpec(region: Region, colL: number, colR: number): NonNullable<Sec
 type ListState = { key: string; markerX: number; instance: number };
 
 export function layoutDocument(inputs: PageInput[]): DocModel {
-  const lineSets = inputs.map((p) => buildLines(p.items));
+  const lineSets = inputs.map((p) => {
+    const lines = buildLines(p.items);
+    applyLinks(lines, p.links);
+    return lines;
+  });
   const { furniture, kept } = takeFurniture(inputs, lineSets);
 
   // Margins shared by the pages: where text usually starts and ends.

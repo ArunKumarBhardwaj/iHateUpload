@@ -1,5 +1,8 @@
 /** What the layout step hands the writer. Lengths are PDF points unless a name says otherwise. */
 
+/** Where a link goes: an address on the web, or a bookmark in this document. */
+export type LinkTarget = { url: string } | { anchor: string };
+
 export type Run = {
   text: string;
   bold?: boolean;
@@ -10,6 +13,7 @@ export type Run = {
   /** Hex, no hash. */
   color?: string;
   tab?: boolean;
+  link?: LinkTarget;
   /** A live page-number field instead of text. */
   field?: "PAGE" | "NUMPAGES";
 };
@@ -39,6 +43,8 @@ export type ParagraphBlock = {
   lineRatio?: number;
   tabs?: { pos: number; kind: "left" | "center" | "right" }[];
   list?: ListInfo;
+  /** Bookmarks that start at this paragraph, so internal links can land here. */
+  bookmarks?: string[];
   /** Starts in the next column of a multi-column section. */
   columnBreakBefore?: boolean;
 };
@@ -82,7 +88,18 @@ export type Section = {
   footerDistance?: number;
 };
 
+/** Title, author and the like, from the PDF's own information. Dates are ISO 8601. */
+export type DocProperties = {
+  title?: string;
+  author?: string;
+  subject?: string;
+  keywords?: string;
+  created?: string;
+  modified?: string;
+};
+
 export type DocModel = {
+  properties?: DocProperties;
   sections: Section[];
   header: ParagraphBlock[];
   footer: ParagraphBlock[];

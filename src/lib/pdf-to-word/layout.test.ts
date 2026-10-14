@@ -358,3 +358,18 @@ test("a short title above the columns sits in its own full-width section", () =>
   expect(doc.sections[0].blocks.map(text)).toEqual(["Short Title"]);
   expect(paragraphs(doc.sections[1].blocks).map((b) => b.columnBreakBefore)).toEqual([undefined, true]);
 });
+
+test("text under a link rectangle becomes a linked run", () => {
+  const line = "For details please read the documentation before starting.";
+  const doc = layoutDocument([
+    page([item(line, 72, 100), ...filler(130)], [], {
+      links: [{ x0: 176.5, x1: 297.5, top: 91, bottom: 103, url: "https://example.com/docs" }],
+    }),
+  ]);
+  const [p] = paragraphs(doc.sections[0].blocks);
+  expect(p.runs.map((r) => [r.text, r.link])).toEqual([
+    ["For details please ", undefined],
+    ["read the documentation", { url: "https://example.com/docs" }],
+    [" before starting.", undefined],
+  ]);
+});

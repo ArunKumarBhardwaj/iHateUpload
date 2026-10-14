@@ -18,12 +18,26 @@ export type Rule = { x0: number; y0: number; x1: number; y1: number };
 
 export type PageImage = { ref: string; x: number; y: number; w: number; h: number };
 
+/** A clickable area of the page, in points from the top left. An anchor names a spot in the document. */
+export type PageLink = {
+  x0: number;
+  x1: number;
+  top: number;
+  bottom: number;
+  url?: string;
+  anchor?: Anchor;
+};
+
+/** A place in the document: the page (counting from 0) and how far down it is. */
+export type Anchor = { name: string; page: number; y: number };
+
 export type PageInput = {
   width: number;
   height: number;
   items: TextItem[];
   rules: Rule[];
   images: PageImage[];
+  links?: PageLink[];
 };
 
 export type Frag = {
@@ -38,6 +52,7 @@ export type Frag = {
   color?: string;
   /** True on the first piece after a wide gap in the same row. */
   tabBefore?: boolean;
+  link?: { url: string } | { anchor: string };
 };
 
 export type Line = {
