@@ -12,9 +12,9 @@
    "headings": 1,
    "lists": 1,
    "tables": 1,
-   "runs": 0.5517241379310345,
+   "runs": 1,
    "images": 1,
-   "vectors": 0,
+   "vectors": 1,
    "links": 1,
    "columns": 1,
    "fonts": 0.5,
@@ -58,7 +58,7 @@
   }
  },
  "overall": {
-  "ours": 0.9372235100936928,
+  "ours": 0.9579131652661064,
   "rival": 0.9425538965586233,
   "rival-exact": 0.6991015156062426
  },
@@ -77,16 +77,16 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 187,
-     "min": 166,
-     "max": 201
+     "med": 183,
+     "min": 180,
+     "max": 187
     },
     "hashes": [
-     "f64b38cca1e5",
-     "f64b38cca1e5",
-     "f64b38cca1e5",
-     "f64b38cca1e5",
-     "f64b38cca1e5"
+     "c5f3494c73f1",
+     "c5f3494c73f1",
+     "c5f3494c73f1",
+     "c5f3494c73f1",
+     "c5f3494c73f1"
     ]
    },
    "rival": {
@@ -149,16 +149,16 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 200,
-     "min": 181,
-     "max": 201
+     "med": 201,
+     "min": 169,
+     "max": 205
     },
     "hashes": [
-     "aed8dadc56ef",
-     "aed8dadc56ef",
-     "aed8dadc56ef",
-     "aed8dadc56ef",
-     "aed8dadc56ef"
+     "cb7ff414acc3",
+     "cb7ff414acc3",
+     "cb7ff414acc3",
+     "cb7ff414acc3",
+     "cb7ff414acc3"
     ]
    },
    "rival": {
@@ -219,16 +219,16 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 204,
-     "min": 197,
-     "max": 206
+     "med": 194,
+     "min": 187,
+     "max": 204
     },
     "hashes": [
-     "1a9256bb6a90",
-     "1a9256bb6a90",
-     "1a9256bb6a90",
-     "1a9256bb6a90",
-     "1a9256bb6a90"
+     "bcf25d6a06a7",
+     "bcf25d6a06a7",
+     "bcf25d6a06a7",
+     "bcf25d6a06a7",
+     "bcf25d6a06a7"
     ]
    },
    "rival": {
@@ -289,16 +289,16 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 196,
-     "min": 167,
-     "max": 301
+     "med": 203,
+     "min": 190,
+     "max": 287
     },
     "hashes": [
-     "bc459b52740e",
-     "bc459b52740e",
-     "bc459b52740e",
-     "bc459b52740e",
-     "bc459b52740e"
+     "9473940ad77c",
+     "9473940ad77c",
+     "9473940ad77c",
+     "9473940ad77c",
+     "9473940ad77c"
     ]
    },
    "rival": {
@@ -359,16 +359,16 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 302,
-     "min": 286,
-     "max": 326
+     "med": 303,
+     "min": 287,
+     "max": 306
     },
     "hashes": [
-     "cecf8338b956",
-     "cecf8338b956",
-     "cecf8338b956",
-     "cecf8338b956",
-     "cecf8338b956"
+     "5c434048a390",
+     "5c434048a390",
+     "5c434048a390",
+     "5c434048a390",
+     "5c434048a390"
     ]
    },
    "rival": {
@@ -428,16 +428,16 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 190,
-     "min": 170,
-     "max": 209
+     "med": 202,
+     "min": 183,
+     "max": 216
     },
     "hashes": [
-     "5fbf908862ef",
-     "5fbf908862ef",
-     "5fbf908862ef",
-     "5fbf908862ef",
-     "5fbf908862ef"
+     "5694254ace14",
+     "5694254ace14",
+     "5694254ace14",
+     "5694254ace14",
+     "5694254ace14"
     ]
    },
    "rival": {
@@ -496,16 +496,16 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 197,
+     "med": 201,
      "min": 167,
-     "max": 205
+     "max": 206
     },
     "hashes": [
-     "876b7309cdb0",
-     "876b7309cdb0",
-     "876b7309cdb0",
-     "876b7309cdb0",
-     "876b7309cdb0"
+     "a18cc95e05fd",
+     "a18cc95e05fd",
+     "a18cc95e05fd",
+     "a18cc95e05fd",
+     "a18cc95e05fd"
     ]
    },
    "rival": {
@@ -563,14 +563,14 @@
     "detail": {},
     "time": {
      "n": 3,
-     "med": 413,
-     "min": 402,
-     "max": 417
+     "med": 425,
+     "min": 423,
+     "max": 430
     },
     "hashes": [
-     "c9de03817cc4",
-     "c9de03817cc4",
-     "c9de03817cc4"
+     "87767e7b4d18",
+     "87767e7b4d18",
+     "87767e7b4d18"
     ]
    },
    "rival": {
@@ -610,27 +610,27 @@
   },
   "rich-formatting": {
    "ours": {
-    "overall": 0.810344827586207,
+    "overall": 0.9,
     "features": {
      "text": 1,
      "editability": 1,
      "headings": 1,
-     "runs": 0.5517241379310345,
+     "runs": 1,
      "fonts": 0.5
     },
     "detail": {},
     "time": {
      "n": 5,
-     "med": 203,
-     "min": 187,
-     "max": 230
+     "med": 202,
+     "min": 168,
+     "max": 203
     },
     "hashes": [
-     "f12ac64ccc21",
-     "f12ac64ccc21",
-     "f12ac64ccc21",
-     "f12ac64ccc21",
-     "f12ac64ccc21"
+     "f59068226baa",
+     "f59068226baa",
+     "f59068226baa",
+     "f59068226baa",
+     "f59068226baa"
     ]
    },
    "rival": {
@@ -690,16 +690,16 @@
     "detail": {},
     "time": {
      "n": 5,
-     "med": 912,
-     "min": 905,
-     "max": 1917
+     "med": 913,
+     "min": 908,
+     "max": 1922
     },
     "hashes": [
-     "977be4e9c21c",
-     "977be4e9c21c",
-     "977be4e9c21c",
-     "977be4e9c21c",
-     "977be4e9c21c"
+     "670d86247c74",
+     "670d86247c74",
+     "670d86247c74",
+     "670d86247c74",
+     "670d86247c74"
     ]
    },
    "rival": {
@@ -760,16 +760,16 @@
     },
     "time": {
      "n": 5,
-     "med": 201,
-     "min": 183,
+     "med": 200,
+     "min": 184,
      "max": 206
     },
     "hashes": [
-     "2f30ff2eaf7d",
-     "2f30ff2eaf7d",
-     "2f30ff2eaf7d",
-     "2f30ff2eaf7d",
-     "2f30ff2eaf7d"
+     "aac0dbb7af53",
+     "aac0dbb7af53",
+     "aac0dbb7af53",
+     "aac0dbb7af53",
+     "aac0dbb7af53"
     ]
    },
    "rival": {
@@ -837,16 +837,16 @@
     },
     "time": {
      "n": 5,
-     "med": 299,
-     "min": 277,
-     "max": 306
+     "med": 303,
+     "min": 282,
+     "max": 307
     },
     "hashes": [
-     "32f1ca8b7972",
-     "32f1ca8b7972",
-     "32f1ca8b7972",
-     "32f1ca8b7972",
-     "32f1ca8b7972"
+     "c2fabfe621e3",
+     "c2fabfe621e3",
+     "c2fabfe621e3",
+     "c2fabfe621e3",
+     "c2fabfe621e3"
     ]
    },
    "rival": {
@@ -917,16 +917,16 @@
     },
     "time": {
      "n": 5,
-     "med": 203,
+     "med": 201,
      "min": 187,
-     "max": 211
+     "max": 206
     },
     "hashes": [
-     "d27fffe7cadc",
-     "d27fffe7cadc",
-     "d27fffe7cadc",
-     "d27fffe7cadc",
-     "d27fffe7cadc"
+     "4152d629b8eb",
+     "4152d629b8eb",
+     "4152d629b8eb",
+     "4152d629b8eb",
+     "4152d629b8eb"
     ]
    },
    "rival": {
@@ -984,27 +984,27 @@
   },
   "vectors": {
    "ours": {
-    "overall": 0.8,
+    "overall": 1,
     "features": {
      "text": 1,
      "order": 1,
      "editability": 1,
      "headings": 1,
-     "vectors": 0
+     "vectors": 1
     },
     "detail": {},
     "time": {
      "n": 5,
-     "med": 202,
-     "min": 175,
-     "max": 205
+     "med": 200,
+     "min": 184,
+     "max": 203
     },
     "hashes": [
-     "9d3bc000bce7",
-     "9d3bc000bce7",
-     "9d3bc000bce7",
-     "9d3bc000bce7",
-     "9d3bc000bce7"
+     "1240e7287cee",
+     "1240e7287cee",
+     "1240e7287cee",
+     "1240e7287cee",
+     "1240e7287cee"
     ]
    },
    "rival": {
@@ -1054,20 +1054,6 @@
   }
  },
  "gaps": [
-  {
-   "f": "vectors",
-   "k": "vectors",
-   "ours": 0,
-   "theirs": 0.75,
-   "gap": 0.75
-  },
-  {
-   "f": "rich-formatting",
-   "k": "runs",
-   "ours": 0.5517241379310345,
-   "theirs": 1,
-   "gap": 0.4482758620689655
-  },
   {
    "f": "columns",
    "k": "text",
@@ -1336,6 +1322,13 @@
   },
   {
    "f": "rich-formatting",
+   "k": "runs",
+   "ours": 1,
+   "theirs": 1,
+   "gap": 0
+  },
+  {
+   "f": "rich-formatting",
    "k": "fonts",
    "ours": 0.5,
    "theirs": 0.5,
@@ -1508,6 +1501,13 @@
    "ours": 1,
    "theirs": 0.8333333333333333,
    "gap": -0.16666666666666674
+  },
+  {
+   "f": "vectors",
+   "k": "vectors",
+   "ours": 1,
+   "theirs": 0.75,
+   "gap": -0.25
   },
   {
    "f": "lists-headings",
