@@ -1,7 +1,7 @@
 import type { PDFPageProxy } from "pdfjs-dist";
 
 import { fontFlags } from "./fonts";
-import type { Fill, PageImage, PageInput, Rule, TextItem } from "./lines";
+import type { Bullet, Fill, PageImage, PageInput, Rule, TextItem } from "./lines";
 
 type Matrix = [number, number, number, number, number, number];
 type Ops = Record<string, number>;
@@ -43,26 +43,28 @@ const apply = (m: Matrix, x: number, y: number): [number, number] => [
 type Point = [number, number];
 
 /** Flat pdf.js path data to subpaths of points, with whether each was closed. */
-function subpaths(data: ArrayLike<number>): { points: Point[]; closed: boolean }[] {
-  const out: { points: Point[]; closed: boolean }[] = [];
-  let current: { points: Point[]; closed: boolean } | null = null;
+function subpaths(data: ArrayLike<number>): { points: Point[]; closed: boolean; curved: boolean }[] {
+  const out: { points: Point[]; closed: boolean; curved: boolean }[] = [];
+  let current: { points: Point[]; closed: boolean; curved: boolean } | null = null;
   for (let i = 0; i < data.length; ) {
     const op = data[i++];
     if (op === 0) {
-      current = { points: [[data[i], data[i + 1]]], closed: false };
+      current = { points: [[data[i], data[i + 1]]], closed: false, curved: false };
       out.push(current);
       i += 2;
     } else if (op === 1) {
       if (!current) {
-        current = { points: [], closed: false };
+        current = { points: [], closed: false, curved: false };
         out.push(current);
       }
       current.points.push([data[i], data[i + 1]]);
       i += 2;
     } else if (op === 2) {
+      if (current) current.curved = true;
       current?.points.push([data[i + 4], data[i + 5]]);
       i += 6;
     } else if (op === 3) {
+      if (current) current.curved = true;
       current?.points.push([data[i + 2], data[i + 3]]);
       i += 4;
     } else if (op === 4) {
@@ -97,6 +99,25 @@ function fillsFromPath(data: ArrayLike<number>, m: Matrix, color: string): Fill[
     const ys = pts.map((p) => p[1]);
     const box = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
     if (box.x1 - box.x0 > 2.5 && box.y1 - box.y0 > 2.5) out.push({ ...box, color });
+  }
+  return out;
+}
+
+/** Small dots and squares: what browsers draw in place of a list bullet character. */
+function bulletsFromPath(data: ArrayLike<number>, m: Matrix, stroke: boolean, fill: boolean): Bullet[] {
+  const out: Bullet[] = [];
+  for (const sub of subpaths(data)) {
+    const pts = sub.points.map(([x, y]) => apply(m, x, y));
+    if (pts.length < 4) continue;
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    const box = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+    const w = box.x1 - box.x0;
+    const h = box.y1 - box.y0;
+    const small = w >= 2.5 && w <= 9 && h >= 2.5 && h <= 9 && Math.abs(w - h) <= 1.2;
+    if (!small) continue;
+    if (sub.curved) out.push({ ...box, kind: fill ? "disc" : "circle" });
+    else if (fill && !stroke && pts.length <= 5) out.push({ ...box, kind: "square" });
   }
   return out;
 }
@@ -171,6 +192,7 @@ export async function extractPage(
   let ctm: Matrix = IDENTITY;
   const stack: Matrix[] = [];
   const fills: Fill[] = [];
+  const bullets: Bullet[] = [];
   let fillColor = "000000";
   const colorStack: string[] = [];
   let inlineCount = 0;
@@ -219,6 +241,7 @@ export async function extractPage(
       const data = (Array.isArray(raw) ? raw[0] : raw) as ArrayLike<number> | undefined;
       if (data) {
         rules.push(...rulesFromPath(data, mul(vt, ctm), stroke, fill));
+        bullets.push(...bulletsFromPath(data, mul(vt, ctm), stroke, fill));
         if (fill && /^[0-9a-f]{6}$/.test(fillColor) && !isWhite(fillColor)) {
           fills.push(...fillsFromPath(data, mul(vt, ctm), fillColor));
         }
@@ -306,7 +329,7 @@ export async function extractPage(
   for (const im of images) if (!kept.includes(im)) sources.delete(im.ref);
 
   return {
-    input: { width, height, items, rules, images: kept, fills },
+    input: { width, height, items, rules, images: kept, fills, bullets },
     sources,
     chars,
     paintedImages,

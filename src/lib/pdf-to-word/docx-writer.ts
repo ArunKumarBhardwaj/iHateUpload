@@ -58,7 +58,7 @@ function runXml(run: Run): string {
 function paragraphProps(p: ParagraphBlock, sectPr = ""): string {
   const parts: string[] = [];
   if (p.style) parts.push(`<w:pStyle w:val="${p.style}"/>`);
-  if (p.list) parts.push(`<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${p.list.instance}"/></w:numPr>`);
+  if (p.list) parts.push(`<w:numPr><w:ilvl w:val="${p.list.level}"/><w:numId w:val="${p.list.instance}"/></w:numPr>`);
   if (p.tabs?.length) {
     parts.push(
       `<w:tabs>${p.tabs.map((t) => `<w:tab w:val="${t.kind}" w:pos="${tw(t.pos)}"/>`).join("")}</w:tabs>`,
@@ -259,19 +259,37 @@ const SETTINGS =
   `<w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>` +
   `</w:compat></w:settings>`;
 
-function numberingXml(lists: Map<number, ListInfo>): string {
+function levelXml(level: number, list: ListInfo): string {
+  const bullet = list.kind === "bullet";
+  const fmt = bullet ? "bullet" : list.kind;
+  const text = bullet ? (list.glyph ?? "•") : `%${level + 1}${list.suffix || "."}`;
+  const font = bullet ? '<w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:hint="default"/></w:rPr>' : "";
+  return (
+    `<w:lvl w:ilvl="${level}"><w:start w:val="${bullet ? 1 : Math.max(1, list.start)}"/><w:numFmt w:val="${fmt}"/>` +
+    `<w:lvlText w:val="${esc(text)}"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="${tw(list.leftIndent)}" ` +
+    `w:hanging="${tw(list.hanging)}"/></w:pPr>${font}</w:lvl>`
+  );
+}
+
+/** One numbering per list; the levels seen get their own look and the gaps between are filled in. */
+function numberingXml(lists: Map<number, Map<number, ListInfo>>): string {
   const abstracts: string[] = [];
   const nums: string[] = [];
-  for (const [instance, list] of [...lists].sort((a, b) => a[0] - b[0])) {
-    const bullet = list.kind === "bullet";
-    const fmt = bullet ? "bullet" : list.kind;
-    const text = bullet ? "•" : `%1${list.suffix || "."}`;
-    const font = bullet ? '<w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:hint="default"/></w:rPr>' : "";
+  for (const [instance, levels] of [...lists].sort((a, b) => a[0] - b[0])) {
+    const deepest = Math.max(...levels.keys());
+    const lvls: string[] = [];
+    for (let level = 0; level <= deepest; level++) {
+      let info = levels.get(level);
+      if (!info) {
+        // A level nobody used: borrow the nearest used one, shifted by the step between levels.
+        const near = [...levels.keys()].sort((a, b) => Math.abs(a - level) - Math.abs(b - level))[0];
+        const base = levels.get(near)!;
+        info = { ...base, leftIndent: Math.max(12, base.leftIndent + (level - near) * 30) };
+      }
+      lvls.push(levelXml(level, info));
+    }
     abstracts.push(
-      `<w:abstractNum w:abstractNumId="${instance}"><w:multiLevelType w:val="singleLevel"/>` +
-        `<w:lvl w:ilvl="0"><w:start w:val="${bullet ? 1 : Math.max(1, list.start)}"/><w:numFmt w:val="${fmt}"/>` +
-        `<w:lvlText w:val="${text}"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="${tw(list.leftIndent)}" ` +
-        `w:hanging="${tw(list.hanging)}"/></w:pPr>${font}</w:lvl></w:abstractNum>`,
+      `<w:abstractNum w:abstractNumId="${instance}"><w:multiLevelType w:val="${deepest ? "multilevel" : "singleLevel"}"/>${lvls.join("")}</w:abstractNum>`,
     );
     nums.push(`<w:num w:numId="${instance}"><w:abstractNumId w:val="${instance}"/></w:num>`);
   }
@@ -349,9 +367,11 @@ export async function writeDocx(
     return part;
   };
 
-  const lists = new Map<number, ListInfo>();
+  const lists = new Map<number, Map<number, ListInfo>>();
   const collect = (p: ParagraphBlock) => {
-    if (p.list && !lists.has(p.list.instance)) lists.set(p.list.instance, p.list);
+    if (!p.list) return;
+    const levels = lists.get(p.list.instance) ?? lists.set(p.list.instance, new Map()).get(p.list.instance)!;
+    if (!levels.has(p.list.level)) levels.set(p.list.level, p.list);
   };
 
   let docId = 0;

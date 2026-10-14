@@ -19,6 +19,9 @@ export type Rule = { x0: number; y0: number; x1: number; y1: number };
 /** A painted block of colour, in points from the top left; colour is hex without a hash. */
 export type Fill = { x0: number; y0: number; x1: number; y1: number; color: string };
 
+/** A list bullet the page draws as a shape instead of a character, in points from the top left. */
+export type Bullet = { x0: number; x1: number; y0: number; y1: number; kind: "disc" | "circle" | "square" };
+
 export type PageImage = { ref: string; x: number; y: number; w: number; h: number };
 
 /** A clickable area of the page, in points from the top left. An anchor names a spot in the document. */
@@ -42,6 +45,7 @@ export type PageInput = {
   images: PageImage[];
   links?: PageLink[];
   fills?: Fill[];
+  bullets?: Bullet[];
 };
 
 export type Frag = {
@@ -80,11 +84,21 @@ export type Marker = {
   start: number;
   /** Characters of the line text the marker (and the space after it) covers. */
   length: number;
+  /** The character a bullet is shown with. */
+  glyph?: string;
 };
 
 const BULLET_GLYPHS = "•●○◦▪■▫‣⁃□∙";
 const BULLET_PUA = /^[]/;
 const DASH_GLYPHS = "-–—*·";
+
+/** Bullet characters Word can show as they are; anything else (private-use symbols) becomes a plain dot. */
+function bulletGlyph(ch: string): string {
+  if ("•◦▪‣-–*○■".includes(ch)) return ch;
+  if ("●∙·".includes(ch)) return "•";
+  if ("▫□".includes(ch)) return "▪";
+  return "•";
+}
 
 export function matchMarker(text: string): Marker | null {
   const trimmed = text.replace(/^\s+/, "");
@@ -93,11 +107,11 @@ export function matchMarker(text: string): Marker | null {
   const first = trimmed[0];
   if (BULLET_GLYPHS.includes(first) || BULLET_PUA.test(trimmed)) {
     const space = /^\s*/.exec(trimmed.slice(1))?.[0].length ?? 0;
-    return { kind: "bullet", suffix: "", start: 1, length: lead + 1 + space };
+    return { kind: "bullet", suffix: "", start: 1, length: lead + 1 + space, glyph: bulletGlyph(first) };
   }
   if (DASH_GLYPHS.includes(first) && (trimmed.length === 1 || /^\s/.test(trimmed.slice(1)))) {
     const space = /^\s*/.exec(trimmed.slice(1))?.[0].length ?? 0;
-    return { kind: "bullet", suffix: "", start: 1, length: lead + 1 + space };
+    return { kind: "bullet", suffix: "", start: 1, length: lead + 1 + space, glyph: bulletGlyph(first) };
   }
   const digits = /^(\d{1,3})([.)])(\s+|$)/.exec(trimmed);
   if (digits) {

@@ -1,4 +1,5 @@
 import type { OutlineEntry } from "./annotations";
+import { applyBullets } from "./bullets";
 import { applyLinks } from "./links";
 import { buildLines, lineText, type Fill, type Line, type PageInput } from "./lines";
 import type { Block, DocModel, ListInfo, ParagraphBlock, Run, Section, TableBlock } from "./model";
@@ -332,7 +333,7 @@ function applyOutline(outline: OutlineEntry[], placed: { block: ParagraphBlock; 
   }
 }
 
-type ListState = { key: string; markerX: number; instance: number };
+type ListState = { key: string; markerX: number; instance: number; level: number };
 
 export type LayoutOptions = {
   /** The PDF's own outline: its entries name headings and their depth. */
@@ -342,6 +343,7 @@ export type LayoutOptions = {
 export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {}): DocModel {
   const lineSets = inputs.map((p) => {
     const lines = buildLines(p.items);
+    applyBullets(lines, p.bullets);
     applyLinks(lines, p.links);
     return lines;
   });
@@ -435,23 +437,37 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
         placed[workIndex].push({ block, top: meta.firstTop, bottom: meta.lastBottom });
 
         if (meta.marker) {
-          const key = `${meta.marker.kind}|${meta.marker.suffix}`;
-          active = active.filter((a) => a.markerX <= meta.marker!.markerX + 1);
-          let state = active.find((a) => a.key === key && Math.abs(a.markerX - meta.marker!.markerX) <= 4);
+          const m = meta.marker;
+          const key = `${m.kind}|${m.suffix}|${m.glyph ?? ""}`;
+          // Markers further right than the one before are a deeper level of that list.
+          active = active.filter((a) => a.markerX <= m.markerX + 4);
+          let state = active.find((a) => Math.abs(a.markerX - m.markerX) <= 4);
           let isNew = false;
+          if (state && state.key !== key) {
+            active = active.filter((a) => a.markerX < state!.markerX - 4);
+            state = undefined;
+          }
           if (!state) {
-            state = { key, markerX: meta.marker.markerX, instance: ++instance };
+            const parent = active[active.length - 1];
+            state = {
+              key,
+              markerX: m.markerX,
+              instance: parent ? parent.instance : ++instance,
+              level: parent ? parent.level + 1 : 0,
+            };
             active.push(state);
             isNew = true;
           }
-          const leftIndent = Math.max(12, meta.marker.textX - meta.colL);
+          const leftIndent = Math.max(12, m.textX - meta.colL);
           const info: ListInfo = {
             instance: state.instance,
-            kind: meta.marker.kind,
-            suffix: meta.marker.suffix,
-            start: isNew ? meta.marker.start : 1,
+            level: Math.min(8, state.level),
+            kind: m.kind,
+            glyph: m.glyph,
+            suffix: m.suffix,
+            start: isNew ? m.start : 1,
             leftIndent,
-            hanging: Math.min(leftIndent, Math.max(10, meta.marker.textX - meta.marker.markerX)),
+            hanging: Math.min(leftIndent, Math.max(10, m.textX - m.markerX)),
           };
           block.list = info;
         } else {

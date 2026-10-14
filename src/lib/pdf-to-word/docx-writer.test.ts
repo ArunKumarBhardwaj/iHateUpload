@@ -35,12 +35,12 @@ function model(): DocModel {
           {
             type: "p",
             runs: [{ text: "One" }],
-            list: { instance: 1, kind: "bullet", suffix: "", start: 1, leftIndent: 36, hanging: 18 },
+            list: { instance: 1, level: 0, kind: "bullet", suffix: "", start: 1, leftIndent: 36, hanging: 18 },
           },
           {
             type: "p",
             runs: [{ text: "Two" }],
-            list: { instance: 2, kind: "decimal", suffix: ".", start: 3, leftIndent: 36, hanging: 18 },
+            list: { instance: 2, level: 0, kind: "decimal", suffix: ".", start: 3, leftIndent: 36, hanging: 18 },
           },
           {
             type: "table",

@@ -21,7 +21,11 @@ export type Run = {
 export type ListInfo = {
   /** Same instance means the same running list. */
   instance: number;
+  /** Nesting depth, 0 for the outermost items. Levels of one instance share a numbering. */
+  level: number;
   kind: "bullet" | "decimal" | "lowerLetter" | "upperLetter";
+  /** The character a bullet is shown with. */
+  glyph?: string;
   /** "." or ")" for numbered kinds. */
   suffix: string;
   /** First number shown, for numbered kinds. */

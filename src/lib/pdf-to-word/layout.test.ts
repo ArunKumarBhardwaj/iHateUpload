@@ -463,3 +463,20 @@ test("a coloured fill behind a table cell becomes its shading", () => {
   expect(table.rows[0].map((c) => c.shade)).toEqual(["D9E2F3", "D9E2F3", undefined]);
   expect(table.rows[1].map((c) => c.shade)).toEqual([undefined, undefined, undefined]);
 });
+
+/** Items for a bulleted list as Chrome prints it: the bullet is a drawn dot, not text. */
+function dotted(top: number, texts: string[], x = 84) {
+  const items = texts.map((t, i) => item(t, x, top + i * 20));
+  const bullets = texts.map((_, i) => ({ x0: x - 14, x1: x - 9, y0: top + i * 20 - 8, y1: top + i * 20 - 3, kind: "disc" as const }));
+  return { items, bullets };
+}
+
+test("drawn bullet dots turn single-line items into one list paragraph each", () => {
+  const { items, bullets } = dotted(200, ["Copper kettle", "Silver ladder", "Marble anchor"]);
+  const all = paragraphs(blocks([page([...filler(100), ...items], [], { bullets })]));
+  const list = all.filter((p) => p.list);
+  expect(list.map(text)).toEqual(["Copper kettle", "Silver ladder", "Marble anchor"]);
+  expect(new Set(list.map((p) => p.list!.instance)).size).toBe(1);
+  expect(list[0].list!.kind).toBe("bullet");
+  expect(list[0].list!.glyph).toBe("•");
+});

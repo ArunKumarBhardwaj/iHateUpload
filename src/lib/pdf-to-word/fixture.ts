@@ -190,3 +190,31 @@ export async function makeLinkedPdf(): Promise<Uint8Array> {
   doc.catalog.set(PDFName.of("Outlines"), outlines);
   return doc.save();
 }
+
+/** A list whose bullets are drawn as dots, the way browsers print them, with a nested level and a numbered list. */
+export async function makeDotListPdf(): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const page = doc.addPage([612, 792]);
+  page.drawText("Shopping Items", { x: 72, y: 700, size: 18, font: bold });
+  const rows: [string, number][] = [
+    ["Copper kettle", 0],
+    ["Silver ladder", 0],
+    ["Timber bundles", 1],
+    ["Feather pillows", 1],
+    ["Marble anchor", 0],
+  ];
+  rows.forEach(([text, level], i) => {
+    const x = 102 + level * 30;
+    const y = 660 - i * 20;
+    page.drawCircle({ x: x - 12, y: y + 3.5, size: 2.5, color: rgb(0, 0, 0) });
+    page.drawText(text, { x, y, size: 12, font });
+  });
+  page.drawText("Procedure", { x: 72, y: 520, size: 18, font: bold });
+  ["Open the gate", "Light the candle", "Check the compass"].forEach((text, i) => {
+    page.drawText(`${i + 1}.`, { x: 90, y: 480 - i * 20, size: 12, font });
+    page.drawText(text, { x: 108, y: 480 - i * 20, size: 12, font });
+  });
+  return doc.save();
+}

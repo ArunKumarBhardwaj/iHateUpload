@@ -128,3 +128,19 @@ test("links, bookmarks, outline headings and document properties survive convers
   expect(core).toMatch(/<cp:keywords>alpha.+beta<\/cp:keywords>/);
   expect(core).toContain("2024-03-05T10:20:30Z");
 });
+
+test("bullets drawn as dots become real list items, nested by indent", async () => {
+  const { makeDotListPdf } = await import("./fixture");
+  const { xml, zip } = await convert(await makeDotListPdf());
+  const paras = xml.split("<w:p>").slice(1);
+  const item = (t: string) => paras.find((p) => p.includes(`>${t}<`))!;
+  const lvl = (t: string) => /<w:ilvl w:val="(\d)"\/><w:numId w:val="(\d+)"/.exec(item(t))!;
+  expect(lvl("Copper kettle")[1]).toBe("0");
+  expect(lvl("Timber bundles")[1]).toBe("1");
+  expect(lvl("Marble anchor")[1]).toBe("0");
+  // One list with two levels, so Word keeps the nesting.
+  expect(new Set(["Copper kettle", "Timber bundles", "Marble anchor"].map((t) => lvl(t)[2])).size).toBe(1);
+  expect(lvl("Open the gate")[2]).not.toBe(lvl("Copper kettle")[2]);
+  const numbering = await zip.file("word/numbering.xml")!.async("string");
+  expect(numbering).toContain('w:ilvl="1"');
+});
