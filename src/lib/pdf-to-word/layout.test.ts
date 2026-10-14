@@ -787,3 +787,9 @@ test("white fills, page backgrounds and swarms of tiny paths are left out", () =
   expect(model.sections.flatMap((s) => s.blocks).flatMap((b) => (b.type === "p" ? (b.shapes ?? []) : []))).toEqual([]);
   expect(model.notes.join(" ")).toMatch(/drawn|shape|graphic/i);
 });
+
+test("an underline a little longer than its text (a link's trailing space) is still an underline", () => {
+  const rules: Rule[] = [{ x0: 108, x1: 174, y0: 101.2, y1: 101.2 }];
+  const runs = runsOf(blocks([page([item("Plain ", 72, 100, 12, { w: 30 }), item("linked text", 108, 100, 12, { w: 60 })], rules)]));
+  expect(runs.find((r) => r.text === "linked text")?.underline).toBe(true);
+});

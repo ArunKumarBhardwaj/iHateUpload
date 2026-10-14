@@ -36,7 +36,7 @@ function cut(frag: Frag, from: number, to: number, mark: Partial<Frag>): Frag[] 
 type Hit = { line: Line; frag: Frag };
 
 /** Pieces of text whose x-range the span [x0, x1] overlaps and that pass `fits`; null when the span overshoots them. */
-function hitsFor(lines: Line[], x0: number, x1: number, fits: (frag: Frag, line: Line) => boolean): Hit[] | null {
+function hitsFor(lines: Line[], x0: number, x1: number, fits: (frag: Frag, line: Line) => boolean, reach = REACH): Hit[] | null {
   const hits: Hit[] = [];
   for (const line of lines) {
     if (line.x1 < x0 || line.x0 > x1) continue;
@@ -49,7 +49,7 @@ function hitsFor(lines: Line[], x0: number, x1: number, fits: (frag: Frag, line:
   if (!hits.length) return null;
   const left = Math.min(...hits.map((h) => h.frag.x0));
   const right = Math.max(...hits.map((h) => h.frag.x1));
-  if (x0 < left - REACH || x1 > right + REACH) return null;
+  if (x0 < left - reach || x1 > right + reach) return null;
   return hits;
 }
 
@@ -84,7 +84,8 @@ export function applyDecorations(lines: Line[], rules: Rule[], fills: Fill[] | u
       const hits = hitsFor(near, x0, x1, (frag) => {
         const d = (rule.y0 - (frag.y as number)) / frag.size;
         return kind === "underline" ? d >= 0.03 && d <= 0.3 : d >= -0.45 && d <= -0.15;
-      });
+        // Splitting a piece at a link leaves its extent a character or two off, so allow for that.
+      }, Math.max(REACH, 0.5 * (near[0]?.size ?? 0)));
       if (!hits) continue;
       mark(hits, x0, x1, { [kind]: true });
       used = true;
