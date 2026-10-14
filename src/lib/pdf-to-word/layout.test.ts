@@ -346,3 +346,15 @@ test("a single-column page gets no columns", () => {
   expect(doc.sections).toHaveLength(1);
   expect(doc.sections[0].columns).toBeUndefined();
 });
+
+test("a short title above the columns sits in its own full-width section", () => {
+  const items: TextItem[] = [item("Short Title", 72, 80, 20, { bold: true })];
+  for (let i = 0; i < 4; i++) {
+    items.push(item(`Left ${i} text in first column here`, 72, 130 + i * 14));
+    items.push(item(`Right ${i} text in second column here`, 330, 130 + i * 14));
+  }
+  const doc = layoutDocument([page(items)]);
+  expect(doc.sections.map((s) => s.columns?.widths.length)).toEqual([undefined, 2]);
+  expect(doc.sections[0].blocks.map(text)).toEqual(["Short Title"]);
+  expect(paragraphs(doc.sections[1].blocks).map((b) => b.columnBreakBefore)).toEqual([undefined, true]);
+});

@@ -73,6 +73,25 @@ function splitVertical(els: El[]): El[][] | null {
   return groups;
 }
 
+/**
+ * A short title can sit over one column without reaching across the gutter. When the group
+ * only splits into columns once a few rows at its top are set aside, those rows are a band
+ * of their own.
+ */
+function peelHead(els: El[]): [El[], El[]] | null {
+  const sorted = [...els].sort((a, b) => a.top - b.top || a.x0 - b.x0);
+  for (let i = 1; i < sorted.length; i++) {
+    const head = sorted.slice(0, i);
+    if (head.length > 3 || distinctRows(head) > 2) return null;
+    const rest = sorted.slice(i);
+    const headBottom = Math.max(...head.map((e) => e.bottom));
+    const lineHeight = Math.max(...head.map((e) => e.bottom - e.top));
+    if (Math.min(...rest.map((e) => e.top)) < headBottom + lineHeight) continue;
+    if (splitVertical(rest)) return [head, rest];
+  }
+  return null;
+}
+
 function splitHorizontal(els: El[]): [El[], El[]] | null {
   const sorted = [...els].sort((a, b) => a.top - b.top || a.x0 - b.x0);
   let reach = -Infinity;
@@ -109,6 +128,12 @@ export function readingOrder(els: El[], colL: number, colR: number): El[] {
         el.line.colR = r;
       }
       out.push(el);
+      return;
+    }
+    const head = peelHead(group);
+    if (head) {
+      visit(head[0], l, r, region);
+      visit(head[1], l, r, region);
       return;
     }
     const columns = splitVertical(group);
