@@ -1,3 +1,4 @@
+import type { OutlineEntry } from "./annotations";
 import { applyLinks } from "./links";
 import { buildLines, lineText, type Line, type PageInput } from "./lines";
 import type { Block, DocModel, ListInfo, ParagraphBlock, Run, Section, TableBlock } from "./model";
@@ -245,7 +246,7 @@ function columnSpec(region: Region, colL: number, colR: number): NonNullable<Sec
 }
 
 /** Put a bookmark on the paragraph each internal link points at: the first one at or below its height. */
-function placeBookmarks(inputs: PageInput[], placed: { block: ParagraphBlock; top: number }[][]) {
+function placeBookmarks(inputs: PageInput[], placed: { block: ParagraphBlock; top: number; bottom: number }[][]) {
   const seen = new Set<string>();
   for (const input of inputs) {
     for (const link of input.links ?? []) {
@@ -254,16 +255,42 @@ function placeBookmarks(inputs: PageInput[], placed: { block: ParagraphBlock; to
       seen.add(anchor.name);
       const onPage = placed[anchor.page];
       if (!onPage?.length) continue;
-      const below = onPage.filter((p) => p.top >= anchor.y - 6).sort((a, b) => a.top - b.top)[0];
+      const below = onPage.filter((p) => p.bottom >= anchor.y - 2).sort((a, b) => a.top - b.top)[0];
       const target = below ?? [...onPage].sort((a, b) => b.top - a.top)[0];
       (target.block.bookmarks ??= []).push(anchor.name);
     }
   }
 }
 
+const plain = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+const blockText = (b: ParagraphBlock) => plain(b.runs.map((r) => r.text).join(""));
+
+/** The outline is the author's own list of headings, so its entries set the heading levels. */
+function applyOutline(outline: OutlineEntry[], placed: { block: ParagraphBlock; top: number; bottom: number }[][]) {
+  for (const entry of outline) {
+    const onPage = placed[entry.anchor.page];
+    const want = plain(entry.title);
+    if (!onPage?.length || want.length < 2) continue;
+    const near = onPage.filter((p) => p.bottom >= entry.anchor.y - 2).sort((a, b) => a.top - b.top);
+    const matches = (p: { block: ParagraphBlock }) => {
+      const got = blockText(p.block);
+      return got.length > 0 && (got === want || got.startsWith(want) || want.startsWith(got));
+    };
+    const hit = near.find(matches) ?? onPage.find(matches);
+    if (!hit || hit.block.list) continue;
+    const levels = ["Heading1", "Heading2", "Heading3", "Heading4", "Heading5", "Heading6"] as const;
+    hit.block.style = levels[Math.min(entry.level, 5)];
+  }
+}
+
 type ListState = { key: string; markerX: number; instance: number };
 
-export function layoutDocument(inputs: PageInput[]): DocModel {
+export type LayoutOptions = {
+  /** The PDF's own outline: its entries name headings and their depth. */
+  outline?: OutlineEntry[];
+};
+
+export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {}): DocModel {
   const lineSets = inputs.map((p) => {
     const lines = buildLines(p.items);
     applyLinks(lines, p.links);
@@ -332,7 +359,7 @@ export function layoutDocument(inputs: PageInput[]): DocModel {
   let instance = 0;
   let active: ListState[] = [];
   // Every paragraph placed on a page with its top, so link and outline targets can find theirs.
-  const placed: { block: ParagraphBlock; top: number }[][] = works.map(() => []);
+  const placed: { block: ParagraphBlock; top: number; bottom: number }[][] = works.map(() => []);
 
   const sections: Section[] = works.flatMap((work, workIndex) => {
     const { input } = work;
@@ -356,7 +383,7 @@ export function layoutDocument(inputs: PageInput[]): DocModel {
         const { block, meta } = para;
         top = Math.min(top, meta.firstTop);
         bottom = Math.max(bottom, meta.lastBottom);
-        placed[workIndex].push({ block, top: meta.firstTop });
+        placed[workIndex].push({ block, top: meta.firstTop, bottom: meta.lastBottom });
 
         if (meta.marker) {
           const key = `${meta.marker.kind}|${meta.marker.suffix}`;
@@ -474,5 +501,6 @@ export function layoutDocument(inputs: PageInput[]): DocModel {
   });
 
   placeBookmarks(inputs, placed);
+  applyOutline(options.outline ?? [], placed);
   return { sections, header, footer, notes };
 }

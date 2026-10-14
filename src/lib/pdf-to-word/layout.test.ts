@@ -394,3 +394,19 @@ test("an internal link gets a bookmark on the paragraph at its destination", () 
   expect(paras.filter((p) => p.bookmarks).length).toBe(1);
   expect(paras[0].runs[0].link).toEqual({ anchor: "sec2" });
 });
+
+test("the PDF outline sets heading levels, even for text set at body size", () => {
+  const doc = layoutDocument(
+    [
+      page([
+        ...filler(100),
+        item("Background", 72, 200),
+        item("Details of the work done are described in the next lines of body text.", 72, 230),
+      ]),
+    ],
+    { outline: [{ title: "Background", level: 1, anchor: { name: "bg", page: 0, y: 190 } }] },
+  );
+  const paras = paragraphs(doc.sections[0].blocks);
+  expect(paras.find((p) => text(p) === "Background")?.style).toBe("Heading2");
+  expect(paras.filter((p) => p.style).length).toBe(1);
+});

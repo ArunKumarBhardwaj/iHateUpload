@@ -34,7 +34,7 @@ export type ListInfo = {
 export type ParagraphBlock = {
   type: "p";
   runs: Run[];
-  style?: "Heading1" | "Heading2" | "Heading3";
+  style?: "Heading1" | "Heading2" | "Heading3" | "Heading4" | "Heading5" | "Heading6";
   align?: "center" | "right";
   indentLeft?: number;
   firstLine?: number;

@@ -108,3 +108,23 @@ test("a page without a text layer is read with OCR and flows like text", async (
   expect(xml).not.toContain("<wp:inline");
   expect(result.notes.join(" ")).toContain("OCR");
 });
+
+test("links, bookmarks, outline headings and document properties survive conversion", async () => {
+  const { makeLinkedPdf } = await import("./fixture");
+  const { xml, zip } = await convert(await makeLinkedPdf());
+  const rels = await zip.file("word/_rels/document.xml.rels")!.async("string");
+  expect(xml).toMatch(/<w:hyperlink r:id="rId\d+" w:history="1">.*?>manual<\/w:t>/);
+  expect(rels).toContain('Target="https://example.com/manual" TargetMode="External"');
+  const anchor = /<w:hyperlink w:anchor="([^"]+)" w:history="1">.*?>details page<\/w:t>/.exec(xml)?.[1];
+  expect(anchor).toBeDefined();
+  expect(xml).toContain(`w:name="${anchor}"/>`);
+  // The outline makes "Details" a Heading 1 and "More" a Heading 2.
+  expect(xml).toMatch(/w:val="Heading1"\/>.*?>Details</);
+  expect(xml).toMatch(/w:val="Heading2"\/>.*?>More</);
+  const core = await zip.file("docProps/core.xml")!.async("string");
+  expect(core).toContain("<dc:title>Link Sampler</dc:title>");
+  expect(core).toContain("<dc:creator>Ada Writer</dc:creator>");
+  expect(core).toContain("<dc:subject>Testing links</dc:subject>");
+  expect(core).toMatch(/<cp:keywords>alpha.+beta<\/cp:keywords>/);
+  expect(core).toContain("2024-03-05T10:20:30Z");
+});

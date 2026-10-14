@@ -241,6 +241,9 @@ const STYLES =
   headingStyle("Heading1", "heading 1", 40, 0) +
   headingStyle("Heading2", "heading 2", 32, 1) +
   headingStyle("Heading3", "heading 3", 26, 2) +
+  headingStyle("Heading4", "heading 4", 24, 3) +
+  headingStyle("Heading5", "heading 5", 22, 4) +
+  headingStyle("Heading6", "heading 6", 22, 5) +
   `<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:basedOn w:val="DefaultParagraphFont"/>` +
   `<w:uiPriority w:val="99"/><w:unhideWhenUsed/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>` +
   `<w:style w:type="paragraph" w:styleId="Header"><w:name w:val="header"/><w:basedOn w:val="Normal"/></w:style>` +
@@ -421,13 +424,20 @@ export async function writeDocx(
       `</Relationships>`,
   );
   const now = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+  const props = model.properties ?? {};
+  const created = props.created ?? now;
+  const tag = (name: string, value: string | undefined) => (value ? `<${name}>${esc(value)}</${name}>` : "");
   zip.file(
     "docProps/core.xml",
     `${XML_HEAD}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" ` +
       `xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" ` +
-      `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${esc(title)}</dc:title>` +
-      `<dc:creator>iHateUpload</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>` +
-      `<dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`,
+      `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
+      tag("dc:title", props.title ?? title) +
+      tag("dc:subject", props.subject) +
+      tag("dc:creator", props.author ?? "iHateUpload") +
+      tag("cp:keywords", props.keywords) +
+      `<dcterms:created xsi:type="dcterms:W3CDTF">${created}</dcterms:created>` +
+      `<dcterms:modified xsi:type="dcterms:W3CDTF">${props.modified ?? now}</dcterms:modified></cp:coreProperties>`,
   );
   zip.file(
     "docProps/app.xml",

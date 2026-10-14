@@ -1,25 +1,45 @@
 import type { Frag, Line, PageLink } from "./lines";
 
-/** Where along a piece of text an x position falls, as a character index. */
-function charAt(frag: Frag, x: number): number {
-  const span = Math.max(1e-6, frag.x1 - frag.x0);
-  const at = Math.round(((x - frag.x0) / span) * frag.text.length);
-  return Math.min(frag.text.length, Math.max(0, at));
+/** Rough relative widths of letters in a proportional font, to place a cut inside a piece of text. */
+function weight(ch: string): number {
+  if ("iljtfI.,:;'|!".includes(ch)) return 0.45;
+  if (ch === " ") return 0.5;
+  if ("r()-J".includes(ch)) return 0.65;
+  if ("mwMW@%".includes(ch)) return 1.45;
+  if (/[A-Z]/.test(ch)) return 1.15;
+  return 1;
 }
 
-/** Link rectangles end at word edges, but character widths are only estimated, so slide to the nearest edge. */
-function snap(text: string, at: number, isEdge: (i: number) => boolean): number {
-  for (let d = 0; d <= 2; d++) {
-    for (const i of [at - d, at + d]) if (i >= 0 && i <= text.length && isEdge(i)) return i;
-  }
-  return at;
+/** Character index whose edge is closest to x, preferring word edges when one is near. */
+function indexAt(frag: Frag, x: number, isEdge: (i: number) => boolean): number {
+  const { text } = frag;
+  const edges: number[] = [0];
+  for (const ch of text) edges.push(edges[edges.length - 1] + weight(ch));
+  const unit = Math.max(1e-6, (frag.x1 - frag.x0) / edges[edges.length - 1]);
+  const target = (x - frag.x0) / unit;
+  let best = 0;
+  let bestEdge = -1;
+  let bestAny = Infinity;
+  let any = 0;
+  edges.forEach((at, i) => {
+    const d = Math.abs(at - target);
+    if (d < bestAny) {
+      bestAny = d;
+      any = i;
+    }
+    if (isEdge(i) && (bestEdge < 0 || d < best)) {
+      best = d;
+      bestEdge = i;
+    }
+  });
+  return bestEdge >= 0 && best <= 3 ? bestEdge : any;
 }
 
 function split(frag: Frag, link: PageLink): Frag[] {
   if (frag.link) return [frag];
   const { text } = frag;
-  let a = snap(text, charAt(frag, link.x0), (i) => i === 0 || (text[i - 1] === " " && text[i] !== " "));
-  let b = snap(text, charAt(frag, link.x1), (i) => i === text.length || (text[i] === " " && text[i - 1] !== " "));
+  let a = indexAt(frag, link.x0, (i) => i === 0 || (/[\s(\["'“‘]/.test(text[i - 1]) && text[i] !== " "));
+  let b = indexAt(frag, link.x1, (i) => i === text.length || (/[\s.,;:!?)\]"'”’]/.test(text[i]) && text[i - 1] !== " "));
   while (a < b && text[a] === " ") a++;
   while (b > a && text[b - 1] === " ") b--;
   if (b <= a) return [frag];

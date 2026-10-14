@@ -134,3 +134,59 @@ export async function makeSamplePdf(): Promise<Uint8Array> {
   });
   return doc.save();
 }
+
+/**
+ * Two pages: a web link, an internal link (explicit destination) and a named one on page one;
+ * "Details" and its sub-heading "More" on page two, listed in the outline; title, author and subject set.
+ */
+export async function makeLinkedPdf(): Promise<Uint8Array> {
+  const { PDFName, PDFNumber, PDFString } = await import("@cantoo/pdf-lib");
+  const doc = await PDFDocument.create();
+  doc.setTitle("Link Sampler");
+  doc.setAuthor("Ada Writer");
+  doc.setSubject("Testing links");
+  doc.setKeywords(["alpha", "beta"]);
+  doc.setCreationDate(new Date("2024-03-05T10:20:30Z"));
+  const regular = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const first = doc.addPage([612, 792]);
+  const second = doc.addPage([612, 792]);
+  const ctx = doc.context;
+
+  first.drawText("Read the manual or jump to the details page.", { x: 72, y: 700, size: 12, font: regular });
+  const link = (x: number, y: number, w: number, extra: Record<string, unknown>) => {
+    const annot = ctx.register(
+      ctx.obj({ Type: "Annot", Subtype: "Link", Rect: [x, y - 3, x + w, y + 10], Border: [0, 0, 0], ...extra }),
+    );
+    first.node.addAnnot(annot);
+  };
+  const width = (t: string) => regular.widthOfTextAtSize(t, 12);
+  link(72 + width("Read the "), 700, width("manual"), {
+    A: ctx.obj({ S: "URI", URI: PDFString.of("https://example.com/manual") }),
+  });
+  link(72 + width("Read the manual or jump to the "), 700, width("details page"), {
+    Dest: ctx.obj([second.ref, PDFName.of("XYZ"), 72, 710, null]),
+  });
+
+  second.drawText("Details", { x: 72, y: 700, size: 22, font: bold });
+  second.drawText("Some text under the details heading, set at body size.", { x: 72, y: 670, size: 12, font: regular });
+  second.drawText("More", { x: 72, y: 620, size: 22, font: bold });
+  second.drawText("A last line of body text sits here under the sub-heading.", { x: 72, y: 590, size: 12, font: regular });
+
+  const item = (title: string, y: number) =>
+    ctx.register(
+      ctx.obj({ Title: PDFString.of(title), Dest: [second.ref, PDFName.of("XYZ"), 72, y + 20, null] }),
+    );
+  const details = item("Details", 700);
+  const more = item("More", 620);
+  const outlines = ctx.register(ctx.obj({ Type: "Outlines" }));
+  const set = (ref: typeof details, entries: Record<string, unknown>) => {
+    const dict = ctx.lookup(ref) as unknown as { set(k: unknown, v: unknown): void };
+    for (const [k, v] of Object.entries(entries)) dict.set(PDFName.of(k), v);
+  };
+  set(details, { Parent: outlines, First: more, Last: more, Count: PDFNumber.of(1) });
+  set(more, { Parent: details });
+  set(outlines, { First: details, Last: details, Count: PDFNumber.of(2) });
+  doc.catalog.set(PDFName.of("Outlines"), outlines);
+  return doc.save();
+}

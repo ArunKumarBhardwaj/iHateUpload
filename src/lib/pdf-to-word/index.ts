@@ -1,5 +1,6 @@
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 
+import { createResolver, readLinks, readOutline, readProperties } from "./annotations";
 import { writeDocx } from "./docx-writer";
 import { extractPage, type ImageSource } from "./extract";
 import { layoutDocument, type PageInput } from "./layout";
@@ -62,6 +63,7 @@ export async function convertPdf(
     return { bytes: await writeDocx(model, media, title), notes, pages: total };
   }
 
+  const resolve = createResolver(pdf);
   const inputs: PageInput[] = [];
   const scanned: number[] = [];
   const unreadable: number[] = [];
@@ -73,7 +75,7 @@ export async function convertPdf(
     const page = await pdf.getPage(n);
     const extracted = await extractPage(page, deps.OPS, n);
     rotatedSkipped += extracted.skippedRotated;
-    let input = extracted.input;
+    let input = { ...extracted.input, links: await readLinks(page, resolve) };
 
     if (extracted.chars < SCAN_CHARS && extracted.paintedImages > 0) {
       scanned.push(n);
@@ -98,7 +100,8 @@ export async function convertPdf(
     onProgress(base + share * 0.95);
   }
 
-  const model = layoutDocument(inputs);
+  const model = layoutDocument(inputs, { outline: await readOutline(pdf, resolve) });
+  model.properties = await readProperties(pdf);
   // A picture that could not be decoded would leave a hole, so drop its block.
   for (const section of model.sections) {
     section.blocks = section.blocks.filter((b) => b.type !== "image" || media[b.ref]);

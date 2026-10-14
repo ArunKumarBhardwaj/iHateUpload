@@ -271,3 +271,24 @@ test("linked runs become hyperlinks with relationships, and bookmarks mark the t
   expect(xml).toMatch(/<w:bookmarkStart w:id="\d+" w:name="sec2"\/><w:r>.*Section Two.*<\/w:r><w:bookmarkEnd w:id="\d+"\/>/);
   expect(await zip.file("word/styles.xml")!.async("string")).toContain('w:styleId="Hyperlink"');
 });
+
+test("document properties land in docProps/core.xml", async () => {
+  const margins = { top: 50, right: 50, bottom: 50, left: 50 };
+  const bytes = await writeDocx(
+    {
+      header: [],
+      footer: [],
+      notes: [],
+      properties: { title: "Real & Title", author: "Ada", subject: "S", keywords: "a b", created: "2024-03-05T10:20:30Z" },
+      sections: [{ width: 600, height: 800, margins, blocks: [{ type: "p", runs: [{ text: "x" }] }] }],
+    },
+    {},
+    "file-name",
+  );
+  const core = await (await JSZip.loadAsync(bytes)).file("docProps/core.xml")!.async("string");
+  expect(core).toContain("<dc:title>Real &amp; Title</dc:title>");
+  expect(core).toContain("<dc:creator>Ada</dc:creator>");
+  expect(core).toContain("<dc:subject>S</dc:subject>");
+  expect(core).toContain("<cp:keywords>a b</cp:keywords>");
+  expect(core).toContain('<dcterms:created xsi:type="dcterms:W3CDTF">2024-03-05T10:20:30Z</dcterms:created>');
+});
