@@ -10,6 +10,7 @@ const MOST_USED: ToolId[] = [
   "compress-pdf",
   "merge-pdf",
   "word-to-pdf",
+  "pdf-to-word",
   "pdf-to-jpg",
   "heic-to-jpg",
   "compress-to-size",

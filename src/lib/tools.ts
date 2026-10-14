@@ -24,6 +24,7 @@ export type ToolId =
   | "n-up"
   | "page-size"
   | "pdf-to-png"
+  | "pdf-to-word"
   | "watermark-pdf"
   | "page-numbers"
   | "flatten-pdf"
@@ -75,6 +76,7 @@ export type ToolDefinition = {
     | "rotate"
     | "split"
     | "pdf-image"
+    | "pdf-to-word"
     | "organize"
     | "resize"
     | "compress"
@@ -191,6 +193,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "pdf-image",
+  },
+  {
+    id: "pdf-to-word",
+    slug: "pdf-to-word",
+    title: "PDF to Word",
+    shortTitle: "PDF → Word",
+    description:
+      "Turn a PDF into a Word file you can edit. Paragraphs, lists, tables and pictures stay in order.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Convert to Word",
+    seoTitle: "PDF to Word Converter Free — No Upload",
+    seoDescription:
+      "Convert PDF to editable Word (.docx) online free. Keeps headings, lists, tables and pictures, reads scanned pages, and runs in your browser — no upload, no watermark.",
+    seoHowTo: [
+      "Drop one or more PDF files into the workspace.",
+      "Pick Editable text or Exact look, then click Convert to Word.",
+      "Download the .docx. Nothing was uploaded.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "pdf-to-word",
   },
   {
     id: "pdf-to-png",

@@ -86,6 +86,10 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Pick how to cut the PDF. Each piece is its own file.";
     case "pdf-image":
       return "Higher DPI is sharper and bigger. Leave the pages box empty for every page.";
+    case "pdf-to-word":
+      return options.mode === "editable"
+        ? "Paragraphs, headings, lists, tables and pictures become real Word content. Pages with no text are read with OCR."
+        : "Each page becomes one picture in the Word file. It looks the same, but the text cannot be edited.";
     case "resize":
       return "Set the longest edge in pixels. The aspect ratio stays as it is.";
     case "organize":
@@ -342,6 +346,55 @@ export function OptionsPanel({
               autoComplete="off"
             />
           </Field>
+        </div>
+      );
+
+    case "pdf-to-word":
+      return (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Result</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["editable", "Editable text"],
+                  ["exact", "Exact look"],
+                ] as const
+              ).map(([mode, title]) => (
+                <Button
+                  key={mode}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.mode === mode ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, mode })}
+                >
+                  {title}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {options.mode === "editable" ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-ink">Language of scanned pages</p>
+              <div className="flex flex-wrap gap-2">
+                {OCR_LANGUAGES.map((language) => (
+                  <Button
+                    key={language.id}
+                    type="button"
+                    size="sm"
+                    className={OPTION_BUTTON}
+                    variant={options.language === language.id ? "default" : "outline"}
+                    disabled={disabled}
+                    onClick={() => onOptions({ ...options, language: language.id })}
+                  >
+                    {language.title}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       );
 

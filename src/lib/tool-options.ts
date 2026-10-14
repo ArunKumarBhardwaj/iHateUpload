@@ -50,6 +50,9 @@ export type SplitMode = "pages" | "ranges" | "half" | "size";
 
 export type PdfImageDpi = 72 | 144 | 300;
 
+/** Editable text flows like a Word document; exact look keeps each page as a picture. */
+export type PdfToWordMode = "editable" | "exact";
+
 export type NumberFormat = "n" | "page" | "n-of" | "page-of" | "roman";
 
 export type NumberSize = "small" | "medium" | "large";
@@ -72,6 +75,7 @@ export type ToolOptions =
       /** Empty or "all" converts every page. */
       range: string;
     }
+  | { kind: "pdf-to-word"; mode: PdfToWordMode; language: string }
   | { kind: "organize"; pageOrder: number[] }
   | { kind: "resize"; maxEdge: number }
   | { kind: "compress"; level: CompressLevel; targetKb: number | null }
@@ -416,6 +420,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "split", mode: "pages", ranges: "", maxMb: 5 };
     case "pdf-image":
       return { kind: "pdf-image", dpi: 144, range: "" };
+    case "pdf-to-word":
+      return { kind: "pdf-to-word", mode: "editable", language: "eng" };
     case "organize":
       return { kind: "organize", pageOrder: [] };
     case "resize":
@@ -527,6 +533,7 @@ export function optionsReady(
     case "scan":
     case "rotate":
     case "pdf-image":
+    case "pdf-to-word":
       return true;
     case "split":
       return options.mode === "ranges"

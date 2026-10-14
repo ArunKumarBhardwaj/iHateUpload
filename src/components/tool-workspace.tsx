@@ -173,6 +173,10 @@ async function runTool(
       return processPageSize(files, onProgress, options);
     case "pdf-to-png":
       return processPdfToPng(files, onProgress, options);
+    case "pdf-to-word":
+      return import("@/lib/pdf-to-word/process").then((engine) =>
+        engine.processPdfToWord(files, onProgress, options),
+      );
     case "watermark-pdf":
     case "page-numbers":
       return processAnnotatePdf(files, onProgress, options);
@@ -210,6 +214,7 @@ function downloadLabel(results: ResultItem[]) {
   if (type.includes("png")) return "Download PNG";
   if (type.includes("jpeg") || type.includes("jpg")) return "Download JPG";
   if (type.includes("zip")) return "Download zip";
+  if (type.includes("wordprocessingml")) return "Download Word file";
   if (type.includes("text")) return "Download text";
   return "Download file";
 }

@@ -29,6 +29,7 @@ const FIRST_CHOICES: ToolId[] = [
   "sign-pdf",
   "organize-pdf",
   "pdf-to-jpg",
+  "pdf-to-word",
   "split-pdf",
   "heic-to-jpg",
   "heic-to-pdf",
