@@ -40,3 +40,6 @@ bun-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.scratch/
+bench/pdf-to-word/results/
+bench/pdf-to-word/fixtures/long.*

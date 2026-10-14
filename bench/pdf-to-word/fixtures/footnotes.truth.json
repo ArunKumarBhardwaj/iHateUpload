@@ -1,0 +1,23 @@
+{
+  "name": "footnotes",
+  "description": "Superscript references with footnote text at the page bottom",
+  "paragraphs": [
+    "Annual Review",
+    "Quartz wagon violet opal quartz paper quartz wagon kettle mirror opal island. Cobalt harbor candle ribbon basket anchor umbrella silver violet umbrella island opal lagoon. Velvet yellow lantern window glacier yonder thunder letter hollow whisper.1",
+    "Umbrella opal letter opal mosaic anchor stone paper nectar needle pepper meadow. Glacier bridge amber window kettle zephyr yonder island ladder whisper window glacier. Ivory compass saddle whisper nectar harbor silver zephyr yellow silver marble.2",
+    "1 Source: the harbor survey of last spring.",
+    "2 Figures rounded to the nearest unit."
+  ],
+  "pages": 1,
+  "order": true,
+  "footnotes": [
+    "Source: the harbor survey of last spring.",
+    "Figures rounded to the nearest unit."
+  ],
+  "headings": [
+    {
+      "text": "Annual Review",
+      "level": 1
+    }
+  ]
+}

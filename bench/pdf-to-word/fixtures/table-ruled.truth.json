@@ -1,0 +1,119 @@
+{
+  "name": "table-ruled",
+  "description": "Ruled table with merged title, shaded header, rowspan and colspan",
+  "paragraphs": [
+    "Sales Summary",
+    "The table below lists regional results.",
+    "Regional Results",
+    "Region",
+    "Q1",
+    "Q2",
+    "Q3",
+    "North",
+    "120",
+    "135",
+    "150",
+    "140",
+    "155",
+    "170",
+    "South",
+    "Combined across two quarters",
+    "98",
+    "West",
+    "75",
+    "80",
+    "91",
+    "Figures are in thousands."
+  ],
+  "pages": 1,
+  "order": true,
+  "headings": [
+    {
+      "text": "Sales Summary",
+      "level": 1
+    }
+  ],
+  "tables": [
+    {
+      "rows": [
+        [
+          {
+            "text": "Regional Results",
+            "cs": 4,
+            "shaded": true
+          }
+        ],
+        [
+          {
+            "text": "Region",
+            "shaded": true
+          },
+          {
+            "text": "Q1",
+            "shaded": true
+          },
+          {
+            "text": "Q2",
+            "shaded": true
+          },
+          {
+            "text": "Q3",
+            "shaded": true
+          }
+        ],
+        [
+          {
+            "text": "North",
+            "rs": 2
+          },
+          {
+            "text": "120"
+          },
+          {
+            "text": "135"
+          },
+          {
+            "text": "150"
+          }
+        ],
+        [
+          {
+            "text": "140"
+          },
+          {
+            "text": "155"
+          },
+          {
+            "text": "170"
+          }
+        ],
+        [
+          {
+            "text": "South"
+          },
+          {
+            "text": "Combined across two quarters",
+            "cs": 2
+          },
+          {
+            "text": "98"
+          }
+        ],
+        [
+          {
+            "text": "West"
+          },
+          {
+            "text": "75"
+          },
+          {
+            "text": "80"
+          },
+          {
+            "text": "91"
+          }
+        ]
+      ]
+    }
+  ]
+}

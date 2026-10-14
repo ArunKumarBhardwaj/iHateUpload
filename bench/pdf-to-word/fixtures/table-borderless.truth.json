@@ -1,0 +1,107 @@
+{
+  "name": "table-borderless",
+  "description": "Aligned columns with no ruling lines",
+  "paragraphs": [
+    "Price List",
+    "Items are aligned in columns without borders.",
+    "Item",
+    "Weight",
+    "Price",
+    "Copper kettle",
+    "2.4 kg",
+    "$45.00",
+    "Silver ladder",
+    "5.1 kg",
+    "$120.00",
+    "Marble anchor",
+    "9.8 kg",
+    "$310.00",
+    "Velvet ribbon",
+    "0.1 kg",
+    "$4.50",
+    "Amber lantern",
+    "1.2 kg",
+    "$29.00",
+    "Prices exclude shipping."
+  ],
+  "pages": 1,
+  "order": true,
+  "headings": [
+    {
+      "text": "Price List",
+      "level": 1
+    }
+  ],
+  "tables": [
+    {
+      "rows": [
+        [
+          {
+            "text": "Item"
+          },
+          {
+            "text": "Weight"
+          },
+          {
+            "text": "Price"
+          }
+        ],
+        [
+          {
+            "text": "Copper kettle"
+          },
+          {
+            "text": "2.4 kg"
+          },
+          {
+            "text": "$45.00"
+          }
+        ],
+        [
+          {
+            "text": "Silver ladder"
+          },
+          {
+            "text": "5.1 kg"
+          },
+          {
+            "text": "$120.00"
+          }
+        ],
+        [
+          {
+            "text": "Marble anchor"
+          },
+          {
+            "text": "9.8 kg"
+          },
+          {
+            "text": "$310.00"
+          }
+        ],
+        [
+          {
+            "text": "Velvet ribbon"
+          },
+          {
+            "text": "0.1 kg"
+          },
+          {
+            "text": "$4.50"
+          }
+        ],
+        [
+          {
+            "text": "Amber lantern"
+          },
+          {
+            "text": "1.2 kg"
+          },
+          {
+            "text": "$29.00"
+          }
+        ]
+      ]
+    }
+  ]
+}

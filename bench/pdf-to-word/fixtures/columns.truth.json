@@ -1,0 +1,35 @@
+{
+  "name": "columns",
+  "description": "Two-column article under a full-width title",
+  "paragraphs": [
+    "The Harbor Report",
+    "Morning Tide",
+    "River pepper yonder willow ribbon wagon falcon island zenith kettle needle forest feather. Letter needle garden basket ivory thunder morning market island. Kernel thunder copper breeze saddle ivory morning falcon kettle ivory zenith pocket. Letter velvet feather lantern letter falcon umbrella silver meadow window yellow prairie pocket zenith. Feather compass cobalt vessel timber dagger timber nectar unity silver market prairie.",
+    "Quiver oyster unity ember harbor cobalt vessel forest yonder harbor. Silver feather velvet breeze oyster quartz paper lagoon opal ribbon harbor. Raven thunder letter amber saddle velvet silver forest garden compass. Amber silver oyster pepper copper kernel lantern zenith vessel prairie river candle stone. Orchard falcon prairie bridge lantern prairie kernel kernel valley bridge letter feather quartz thunder quiver. Summit.",
+    "Zephyr breeze pocket anchor compass copper meadow unity willow harbor orchard paper market jasper. Lantern letter mosaic compass raven pepper island dagger whisper lantern quartz. Kernel window copper zephyr amber market velvet jungle quiver amber marble whisper wagon river. Quartz tunnel zephyr silver garden lagoon forest ember ribbon zephyr thunder saddle timber paper engine. Cobalt window pepper anchor jasper meadow.",
+    "Evening Market",
+    "Zenith yonder stone prairie engine basket wagon pepper. Ember forest ribbon willow yellow quartz market harbor yellow pocket letter. Wagon stone garden market feather cobalt amber kernel amber cobalt willow stone prairie. Stone mosaic quartz tunnel anchor engine paper cobalt anchor stone oyster saddle dagger prairie needle. Garden basket glacier copper quiver jasper bridge candle ember market lagoon willow orchard.",
+    "Opal yellow ladder violet jungle copper letter unity amber window violet violet letter letter vessel. River needle velvet yonder zephyr mirror river zephyr market jasper. Candle amber raven violet umbrella feather yellow tunnel jasper quiver basket ivory falcon pocket harbor. Anchor vessel oyster zephyr jungle engine ivory yellow jasper silver river kernel jasper valley velvet. Market pocket window compass unity.",
+    "Feather breeze letter amber kernel breeze ladder engine feather timber. Summit zenith wagon morning zephyr yellow violet summit marble summit window. Lantern river oyster ladder kernel compass lagoon summit island morning saddle. Anchor willow amber pepper mirror market feather morning saddle market tunnel orchard. Valley forest ribbon compass thunder zephyr violet paper basket harbor jasper quartz. Mirror river letter whisper."
+  ],
+  "pages": 1,
+  "headings": [
+    {
+      "text": "The Harbor Report",
+      "level": 1
+    },
+    {
+      "text": "Morning Tide",
+      "level": 2
+    },
+    {
+      "text": "Evening Market",
+      "level": 2
+    }
+  ],
+  "columns": 2,
+  "order": true,
+  "fonts": [
+    "Georgia"
+  ]
+}

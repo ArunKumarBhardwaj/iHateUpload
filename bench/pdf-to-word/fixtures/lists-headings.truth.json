@@ -1,0 +1,81 @@
+{
+  "name": "lists-headings",
+  "description": "Three heading levels, bullet, numbered and nested lists",
+  "paragraphs": [
+    "Planning Guide",
+    "Orchard valley paper pocket oyster paper yonder yellow dagger ivory marble glacier quiver quartz hollow. Needle glacier unity yonder ladder whisper kernel meadow hollow pepper whisper. River mirror quartz ivory.",
+    "Shopping Items",
+    "Copper kettle",
+    "Silver ladder",
+    "Marble anchor",
+    "Velvet ribbon",
+    "Amber lantern",
+    "Procedure",
+    "Open the harbor gate",
+    "Light the candle",
+    "Check the compass",
+    "Raise the sail",
+    "Close the logbook",
+    "Nested Notes",
+    "Forest supplies",
+    "Timber bundles",
+    "Feather pillows",
+    "Valley supplies",
+    "Pepper sacks",
+    "Quartz stones",
+    "Lagoon feather orchard saddle garden yellow ribbon saddle. Vessel opal timber whisper morning breeze needle garden ivory. River mirror summit dagger saddle yonder thunder ivory marble ladder ember river pocket."
+  ],
+  "pages": 1,
+  "order": true,
+  "headings": [
+    {
+      "text": "Planning Guide",
+      "level": 1
+    },
+    {
+      "text": "Shopping Items",
+      "level": 2
+    },
+    {
+      "text": "Procedure",
+      "level": 2
+    },
+    {
+      "text": "Nested Notes",
+      "level": 3
+    }
+  ],
+  "lists": [
+    {
+      "type": "bullet",
+      "items": [
+        "Copper kettle",
+        "Silver ladder",
+        "Marble anchor",
+        "Velvet ribbon",
+        "Amber lantern"
+      ]
+    },
+    {
+      "type": "number",
+      "items": [
+        "Open the harbor gate",
+        "Light the candle",
+        "Check the compass",
+        "Raise the sail",
+        "Close the logbook"
+      ]
+    },
+    {
+      "type": "bullet",
+      "items": [
+        "Forest supplies",
+        "Timber bundles",
+        "Feather pillows",
+        "Valley supplies",
+        "Pepper sacks",
+        "Quartz stones"
+      ]
+    }
+  ]
+}

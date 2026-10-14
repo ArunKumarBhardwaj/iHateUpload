@@ -1,0 +1,48 @@
+{
+  "name": "links",
+  "description": "External hyperlinks, an internal link, headings",
+  "paragraphs": [
+    "Link Collection",
+    "For details please read the documentation before starting.",
+    "See also the pricing page for plans.",
+    "A long resource is linked here.",
+    "Market kettle paper ivory mirror needle harbor meadow saddle morning paper ember mirror. Quiver velvet dagger thunder cobalt pepper nectar quartz river quiver compass unity ivory island. Letter marble falcon river river mirror prairie wagon cobalt kernel umbrella umbrella garden.",
+    "Jump to section two for more.",
+    "Write to team@example.com anytime.",
+    "Section Two",
+    "Quartz nectar feather ladder needle tunnel jasper opal breeze anchor. Dagger ladder yonder quiver ember cobalt vessel ivory window garden quartz prairie whisper. Thunder ladder saddle umbrella basket hollow candle vessel amber hollow ivory garden. Letter dagger jasper yellow zenith zenith yonder umbrella raven vessel lagoon. Yellow vessel basket violet."
+  ],
+  "pages": 1,
+  "links": [
+    {
+      "url": "https://example.com/docs",
+      "text": "read the documentation"
+    },
+    {
+      "url": "https://example.org/pricing?plan=pro",
+      "text": "pricing page"
+    },
+    {
+      "url": "https://example.net/a/very/long/path/to/resource",
+      "text": "long resource"
+    },
+    {
+      "url": "#sec2",
+      "text": "Jump to section two"
+    },
+    {
+      "url": "mailto:team@example.com",
+      "text": "team@example.com"
+    }
+  ],
+  "headings": [
+    {
+      "text": "Link Collection",
+      "level": 1
+    },
+    {
+      "text": "Section Two",
+      "level": 2
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "images",
+  "description": "Three raster images: inline, wrapped by text, inline",
+  "paragraphs": [
+    "Photo Notes",
+    "Opal forest mosaic falcon dagger meadow timber forest zephyr. Violet ribbon unity thunder glacier zephyr marble quartz raven prairie kettle quiver morning. Orchard window quiver copper pepper needle paper nectar.",
+    "Figure 1 first inline picture.",
+    "Figure 2 wrapped picture",
+    "Morning garden needle compass breeze thunder saddle vessel tunnel harbor pepper velvet quartz. Umbrella wagon quartz amber needle candle unity violet zephyr saddle amber yonder timber stone. Bridge breeze zephyr yonder glacier summit kernel pocket dagger willow silver unity cobalt. Whisper ivory velvet falcon prairie garden umbrella saddle velvet quartz ribbon needle morning mosaic. Tunnel vessel nectar market valley violet cobalt morning meadow raven zephyr river ladder. Morning engine candle morning thunder mosaic letter opal. Nectar anchor vessel quartz vessel mosaic mirror lantern timber unity paper marble whisper. Jungle island.",
+    "Figure 3 last inline picture."
+  ],
+  "pages": 1,
+  "order": true,
+  "images": {
+    "count": 3,
+    "labels": [
+      "1",
+      "2",
+      "3"
+    ]
+  },
+  "headings": [
+    {
+      "text": "Photo Notes",
+      "level": 1
+    }
+  ]
+}

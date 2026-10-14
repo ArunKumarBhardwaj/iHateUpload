@@ -1,0 +1,287 @@
+{
+  "name": "rich-formatting",
+  "description": "Bold/italic/underline/strike/colour/size/sup/sub/highlight and three font families",
+  "paragraphs": [
+    "Formatting Showcase",
+    "Plain intro and bold words then italic words then bold italic done.",
+    "We have underlined text and struck out text and both lines here.",
+    "Colours: red words and blue words and green words end.",
+    "Sizes: small normal large huge back.",
+    "Water is H2O and energy is E = mc2 plus xi and 103.",
+    "Marked: highlighted phrase and bold highlighted end.",
+    "Serif line in Georgia for the record.",
+    "Monospace line in Courier New for code.",
+    "Sans line in Arial for headlines."
+  ],
+  "pages": 1,
+  "fonts": [
+    "Georgia",
+    "Courier New",
+    "Arial"
+  ],
+  "headings": [
+    {
+      "text": "Formatting Showcase",
+      "level": 1
+    }
+  ],
+  "runs": [
+    [
+      {
+        "text": "Plain intro and ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "bold words",
+        "b": true,
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": " then ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "italic words",
+        "i": true,
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": " then ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "bold italic",
+        "b": true,
+        "i": true,
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": " done.",
+        "size": 12,
+        "color": "000000"
+      }
+    ],
+    [
+      {
+        "text": "We have ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "underlined text",
+        "u": true,
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": " and ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "struck out text",
+        "s": true,
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": " and ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "both lines",
+        "u": true,
+        "s": true,
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": " here.",
+        "size": 12,
+        "color": "000000"
+      }
+    ],
+    [
+      {
+        "text": "Colours: ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "red words",
+        "color": "c00000",
+        "size": 12
+      },
+      {
+        "text": " and ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "blue words",
+        "color": "0044cc",
+        "size": 12
+      },
+      {
+        "text": " and ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "green words",
+        "color": "007a33",
+        "size": 12
+      },
+      {
+        "text": " end.",
+        "size": 12,
+        "color": "000000"
+      }
+    ],
+    [
+      {
+        "text": "Sizes: ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "small",
+        "size": 9,
+        "color": "000000"
+      },
+      {
+        "text": " normal ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "large",
+        "size": 18,
+        "color": "000000"
+      },
+      {
+        "text": " ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "huge",
+        "size": 24,
+        "color": "000000"
+      },
+      {
+        "text": " back.",
+        "size": 12,
+        "color": "000000"
+      }
+    ],
+    [
+      {
+        "text": "Water is H",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "2",
+        "sub": true,
+        "color": "000000"
+      },
+      {
+        "text": "O and energy is E = mc",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "2",
+        "sup": true,
+        "color": "000000"
+      },
+      {
+        "text": " plus x",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "i",
+        "sub": true,
+        "color": "000000"
+      },
+      {
+        "text": " and 10",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "3",
+        "sup": true,
+        "color": "000000"
+      },
+      {
+        "text": ".",
+        "size": 12,
+        "color": "000000"
+      }
+    ],
+    [
+      {
+        "text": "Marked: ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "highlighted phrase",
+        "hl": true,
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": " and ",
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": "bold highlighted",
+        "hl": true,
+        "b": true,
+        "size": 12,
+        "color": "000000"
+      },
+      {
+        "text": " end.",
+        "size": 12,
+        "color": "000000"
+      }
+    ],
+    [
+      {
+        "text": "Serif line in Georgia for the record.",
+        "font": "Georgia",
+        "size": 12,
+        "color": "000000"
+      }
+    ],
+    [
+      {
+        "text": "Monospace line in Courier New for code.",
+        "font": "Courier New",
+        "size": 12,
+        "color": "000000"
+      }
+    ],
+    [
+      {
+        "text": "Sans line in Arial for headlines.",
+        "font": "Arial",
+        "size": 12,
+        "color": "000000"
+      }
+    ]
+  ]
+}

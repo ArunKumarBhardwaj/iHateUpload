@@ -1,0 +1,18 @@
+{
+  "name": "scanned",
+  "description": "Raster-only page (no text layer): text is only in the picture",
+  "paragraphs": [
+    "Meeting Minutes",
+    "Morning quartz harbor bridge ivory ribbon saddle lantern cobalt kernel compass pocket morning. Glacier thunder mirror dagger breeze saddle wagon tunnel feather garden garden quiver velvet. Zephyr wagon window pocket lagoon engine vessel velvet engine falcon morning. Falcon bridge ivory lantern lagoon timber whisper morning.",
+    "Lagoon tunnel ember silver mirror timber violet nectar paper. Vessel meadow paper cobalt letter whisper ivory breeze saddle breeze mosaic glacier jungle garden. Oyster zephyr market vessel window saddle engine velvet mirror saddle letter mirror kernel. Ivory unity feather summit compass thunder saddle velvet. Wagon."
+  ],
+  "pages": 1,
+  "order": true,
+  "scanned": true,
+  "headings": [
+    {
+      "text": "Meeting Minutes",
+      "level": 1
+    }
+  ]
+}

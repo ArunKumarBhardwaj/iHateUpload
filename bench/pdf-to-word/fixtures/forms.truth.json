@@ -1,0 +1,37 @@
+{
+  "name": "forms",
+  "description": "AcroForm with three text fields and one checkbox (pdf-lib)",
+  "paragraphs": [
+    "Registration Form",
+    "Full name:",
+    "Email:",
+    "Subscribe to newsletter:",
+    "Comments:"
+  ],
+  "order": true,
+  "headings": [
+    {
+      "text": "Registration Form",
+      "level": 1
+    }
+  ],
+  "formFields": [
+    {
+      "type": "text",
+      "name": "fullname"
+    },
+    {
+      "type": "text",
+      "name": "email"
+    },
+    {
+      "type": "checkbox",
+      "name": "subscribe"
+    },
+    {
+      "type": "text",
+      "name": "comments"
+    }
+  ],
+  "pages": 1
+}
