@@ -78,8 +78,10 @@ export type Line = {
   colR: number;
 };
 
+export type MarkerKind = "bullet" | "decimal" | "lowerLetter" | "upperLetter" | "lowerRoman" | "upperRoman";
+
 export type Marker = {
-  kind: "bullet" | "decimal" | "lowerLetter" | "upperLetter";
+  kind: MarkerKind;
   suffix: string;
   start: number;
   /** Characters of the line text the marker (and the space after it) covers. */
@@ -98,6 +100,54 @@ function bulletGlyph(ch: string): string {
   if ("●∙·".includes(ch)) return "•";
   if ("▫□".includes(ch)) return "▪";
   return "•";
+}
+
+const ROMAN_VALUES: Record<string, number> = { i: 1, v: 5, x: 10, l: 50, c: 100 };
+const ROMAN = /^(?=[ivxlc])(c{0,1})(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})$/;
+
+function romanValue(token: string): number | null {
+  const lower = token.toLowerCase();
+  if (!ROMAN.test(lower)) return null;
+  let total = 0;
+  for (let i = 0; i < lower.length; i++) {
+    const v = ROMAN_VALUES[lower[i]];
+    const next = ROMAN_VALUES[lower[i + 1]] ?? 0;
+    total += v < next ? -v : v;
+  }
+  return total;
+}
+
+/**
+ * Every way the start of a line can be read as a list marker. Bullets, numbers and "a)" are
+ * certain; "a.", "i." and "IV." could be a word or an initial, so they are flagged and need a
+ * neighbour that counts on from them.
+ */
+export function markerCandidates(text: string): { marker: Marker; ambiguous: boolean }[] {
+  const certain = matchMarker(text);
+  if (certain) return [{ marker: certain, ambiguous: false }];
+  const trimmed = text.replace(/^\s+/, "");
+  const lead = text.length - trimmed.length;
+  const m = /^([A-Za-z]{1,5})([.)])(\s+\S|\s*$)/.exec(trimmed);
+  if (!m) return [];
+  const [whole, token, suffix] = m;
+  const length = lead + token.length + 1 + (/^\s*/.exec(whole.slice(token.length + 1))?.[0].length ?? 0);
+  const out: { marker: Marker; ambiguous: boolean }[] = [];
+  const roman = romanValue(token);
+  const upper = token === token.toUpperCase();
+  if (token.length === 1 && suffix === ".") {
+    const code = token.toLowerCase().charCodeAt(0) - 96;
+    out.push({
+      marker: { kind: upper ? "upperLetter" : "lowerLetter", suffix, start: code, length },
+      ambiguous: true,
+    });
+  }
+  if (roman !== null && (token === token.toLowerCase() || upper)) {
+    out.push({
+      marker: { kind: upper ? "upperRoman" : "lowerRoman", suffix, start: roman, length },
+      ambiguous: true,
+    });
+  }
+  return out;
 }
 
 export function matchMarker(text: string): Marker | null {
@@ -208,7 +258,7 @@ function segments(items: TextItem[]): Frag[][] {
       const gap = frag.x0 - prev.x1;
       const size = Math.max(prev.size, frag.size);
       const markerGap =
-        current.length === 1 && matchMarker(prev.text) !== null && gap < size * 6;
+        current.length === 1 && markerCandidates(prev.text).length > 0 && gap < size * 6;
       if (gap > Math.max(8, size * 1.4) && !markerGap) {
         out.push(current);
         current = [];

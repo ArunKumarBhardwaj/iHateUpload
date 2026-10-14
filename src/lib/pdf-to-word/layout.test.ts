@@ -480,3 +480,43 @@ test("drawn bullet dots turn single-line items into one list paragraph each", ()
   expect(list[0].list!.kind).toBe("bullet");
   expect(list[0].list!.glyph).toBe("•");
 });
+
+/** Rows of "marker  text" at the given x, the way a word processor prints a list. */
+function marked(top: number, markers: string[], texts: string[], x = 80): TextItem[] {
+  return markers.flatMap((m, i) => [item(m, x, top + i * 18), item(texts[i], x + 30, top + i * 18)]);
+}
+const listOf = (items: TextItem[]) => paragraphs(blocks([page([...filler(60), ...items])])).filter((p) => p.list);
+
+test("1) and a. markers make numbered and lettered lists that keep their suffix", () => {
+  const paren = listOf(marked(200, ["1)", "2)", "3)"], ["Alpha item", "Beta item", "Gamma item"]));
+  expect(paren.map(text)).toEqual(["Alpha item", "Beta item", "Gamma item"]);
+  expect(paren[0].list).toMatchObject({ kind: "decimal", suffix: ")" });
+
+  const dotted = listOf(marked(200, ["a.", "b.", "c."], ["Alpha item", "Beta item", "Gamma item"]));
+  expect(dotted.map(text)).toEqual(["Alpha item", "Beta item", "Gamma item"]);
+  expect(dotted[0].list).toMatchObject({ kind: "lowerLetter", suffix: "." });
+
+  const upper = listOf(marked(200, ["A.", "B."], ["Alpha item", "Beta item"]));
+  expect(upper[0].list).toMatchObject({ kind: "upperLetter", suffix: "." });
+});
+
+test("roman numerals make roman lists, including a first item of i.", () => {
+  const roman = listOf(marked(200, ["i.", "ii.", "iii.", "iv."], ["One", "Two", "Three", "Four"]));
+  expect(roman.map(text)).toEqual(["One", "Two", "Three", "Four"]);
+  expect(roman[0].list).toMatchObject({ kind: "lowerRoman", suffix: ".", start: 1 });
+  expect(new Set(roman.map((p) => p.list!.instance)).size).toBe(1);
+});
+
+test("a lone initial or letter is not a list", () => {
+  const all = paragraphs(blocks([page([...filler(60), item("J. Smith wrote the first report on this.", 72, 200), item("a. then something else entirely", 72, 260)])]));
+  expect(all.filter((p) => p.list)).toHaveLength(0);
+  expect(all.map(text)).toContain("J. Smith wrote the first report on this.");
+});
+
+test("bullet characters keep their look: dot, circle, square, dash, star", () => {
+  for (const glyph of ["•", "◦", "▪", "-", "*"]) {
+    const list = listOf(marked(200, [glyph, glyph], ["Alpha item", "Beta item"]));
+    expect(list).toHaveLength(2);
+    expect(list[0].list).toMatchObject({ kind: "bullet", glyph });
+  }
+});

@@ -1,5 +1,5 @@
 import { wordFont } from "./fonts";
-import { lineText, matchMarker, type Frag, type Line, type Marker } from "./lines";
+import { lineText, markerCandidates, type Frag, type Line, type Marker } from "./lines";
 import type { ParagraphBlock, Run } from "./model";
 
 export type Stats = {
@@ -80,8 +80,48 @@ function stripChars(frags: Frag[], count: number): Frag[] {
   return out;
 }
 
-function markerOf(line: Line): (Marker & { markerX: number; textX: number }) | null {
-  const marker = matchMarker(lineText(line));
+/**
+ * The marker each line starts with. Uncertain ones ("a.", "iv.") only count when the nearest
+ * marked line before or after counts on from them in the same style.
+ */
+function resolveMarkers(lines: Line[]): Map<Line, Marker> {
+  const cands = lines.map((l) => markerCandidates(lineText(l)));
+  const out = new Map<Line, Marker>();
+  const near = (from: number, step: number): number | null => {
+    for (let k = from + step, seen = 0; k >= 0 && k < lines.length && seen < 6; k += step, seen++) {
+      if (cands[k].length) return k;
+    }
+    return null;
+  };
+  lines.forEach((line, i) => {
+    const list = cands[i];
+    if (!list.length) return;
+    if (!list[0].ambiguous) {
+      out.set(line, list[0].marker);
+      return;
+    }
+    const neighbours = [near(i, -1), near(i, 1)].filter((k): k is number => k !== null);
+    for (const { marker } of list) {
+      const agrees = neighbours.some((k) =>
+        cands[k].some(
+          (c) =>
+            c.marker.kind === marker.kind &&
+            c.marker.suffix === marker.suffix &&
+            Math.abs(c.marker.start - marker.start) === 1 &&
+            Math.abs(lines[k].x0 - line.x0) <= 6,
+        ),
+      );
+      if (agrees) {
+        out.set(line, marker);
+        return;
+      }
+    }
+  });
+  return out;
+}
+
+function markerOf(line: Line, markers: Map<Line, Marker>): (Marker & { markerX: number; textX: number }) | null {
+  const marker = markers.get(line);
   if (!marker) return null;
   const rest = stripChars(line.frags, marker.length);
   const textX = rest.length ? rest[0].x0 : line.x0 + 14;
@@ -103,10 +143,10 @@ function pitchOf(acc: Acc): number | null {
   return diffs[Math.floor(diffs.length / 2)];
 }
 
-function continues(acc: Acc, cur: Line, stats: Stats, lists: boolean): boolean {
+function continues(acc: Acc, cur: Line, stats: Stats, lists: boolean, markers: Map<Line, Marker>): boolean {
   const prev = acc.lines[acc.lines.length - 1];
   if (Math.abs(cur.size - prev.size) > 0.15 * prev.size) return false;
-  if (lists && matchMarker(lineText(cur))) return false;
+  if (lists && markers.has(cur)) return false;
   const pitch = cur.baseline - prev.baseline;
   if (pitch < 0.5 * prev.size) return false;
   const known = pitchOf(acc);
@@ -200,10 +240,12 @@ export function buildParagraphs(
 ): BuiltPara[] {
   const accs: Acc[] = [];
   let acc: Acc | null = null;
-  for (const line of mergeRows(ordered)) {
-    if (acc && continues(acc, line, stats, options.lists)) acc.lines.push(line);
+  const rows = mergeRows(ordered);
+  const markers = options.lists ? resolveMarkers(rows) : new Map<Line, Marker>();
+  for (const line of rows) {
+    if (acc && continues(acc, line, stats, options.lists, markers)) acc.lines.push(line);
     else {
-      acc = { lines: [line], marker: options.lists ? markerOf(line) : null };
+      acc = { lines: [line], marker: options.lists ? markerOf(line, markers) : null };
       accs.push(acc);
     }
   }

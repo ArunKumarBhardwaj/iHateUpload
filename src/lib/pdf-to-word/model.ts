@@ -23,7 +23,7 @@ export type ListInfo = {
   instance: number;
   /** Nesting depth, 0 for the outermost items. Levels of one instance share a numbering. */
   level: number;
-  kind: "bullet" | "decimal" | "lowerLetter" | "upperLetter";
+  kind: "bullet" | "decimal" | "lowerLetter" | "upperLetter" | "lowerRoman" | "upperRoman";
   /** The character a bullet is shown with. */
   glyph?: string;
   /** "." or ")" for numbered kinds. */
