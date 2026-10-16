@@ -26,14 +26,14 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 | | Count |
 |---|---|
 | ✅ We are better (measured) | 11 rows |
-| 🟰 Equal (measured) | 8 rows |
-| ⚠️ They are better | 7 rows |
+| 🟰 Equal (measured) | 9 rows |
+| ⚠️ They are better | 6 rows |
 | ❔ Shared, not compared yet | 18 rows |
 | ➕ Only we have | 15 tools (section 3) |
 | ❌ Only they have | 24 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
-Biggest gaps: Word to PDF fidelity to the docx's fonts and table widths, PDF to Excel / PowerPoint, Repair, Fill form, auto PII redaction, Bates numbering, workflows.
+Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, auto PII redaction, Bates numbering, workflows.
 
 ---
 
@@ -90,7 +90,7 @@ Biggest gaps: Word to PDF fidelity to the docx's fonts and table widths, PDF to 
 | Flatten PDF | Yes | Yes | ❔ | |
 | OCR PDF | Tesseract 7, 11 languages, skips pages that already have text, .txt output | Tesseract 5, ~22 languages, auto-detect, page range | 🟰 | 42/42 words both, ~2.4 s vs 2.6 s. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Metadata | Strip only | Edit | ⚠️ | Their edit-pdf-metadata page, 2026-10-17 |
-| Word to PDF | Headings, bold/italic/underline, lists, tables with header repeat, images, real links, page breaks; selectable text; ~74 ms | Same formatting, selectable text; follows the docx's fonts, heading colours, table widths/shading and image sizes more faithfully | ⚠️ | Narrowed from "plain text only". Same synthetic docx, both rendered: theirs closer to Word on fonts, colours, table width, image size; ours roomier. `.scratch/head-to-head-2026-10-17.md` + lead check, 2026-10-17 |
+| Word to PDF | Follows the docx: theme fonts (Calibri→Carlito, Cambria→Caladea), heading colours, spacing, table width/grid/shading, image size; lists, links, page breaks; selectable text; ~0.07 s | Same fidelity on the test file, selectable text; ~0.8 s; smaller files | 🟰 | Same synthetic docx rendered side by side: same line breaks, colours, table and image. Ours faster, theirs smaller (108 KB vs 226 KB, we embed fonts whole). Lead check, 2026-10-17 |
 | Excel / PowerPoint to PDF | Yes | Yes | ❔ | |
 | Markdown / CSV / HTML to PDF | Yes | Yes | ❔ | |
 | Scan to PDF (camera) | Yes | Yes | ❔ | |
