@@ -338,6 +338,61 @@ test("shaded cells carry a fill", async () => {
   expect(xml).toContain('<w:shd w:val="clear" w:color="auto" w:fill="D9E2F3"/>');
 });
 
+test("a table writes row heights, a fixed layout, cell padding, centring and cell borders", async () => {
+  const margins = { top: 50, right: 50, bottom: 50, left: 50 };
+  const para = (t: string, align?: "right") => ({ type: "p" as const, runs: [{ text: t }], align });
+  const bytes = await writeDocx(
+    {
+      header: [],
+      footer: [],
+      notes: [],
+      sections: [
+        {
+          width: 600,
+          height: 800,
+          margins,
+          blocks: [
+            {
+              type: "table",
+              colWidths: [100, 60],
+              borders: false,
+              borderColor: "d0d0d0",
+              indentLeft: 0,
+              rowHeights: [24, 30],
+              padding: { top: 0.5, bottom: 0.5, left: 4, right: 3 },
+              spaceBefore: 12,
+              rows: [
+                [
+                  { paragraphs: [para("H")], colSpan: 1, vAlign: "center", borders: { bottom: true } },
+                  { paragraphs: [para("n", "right")], colSpan: 1, borders: { bottom: true } },
+                ],
+                [
+                  { paragraphs: [para("a")], colSpan: 1, vAlign: "center", borders: { top: true, left: true } },
+                  { paragraphs: [para("b")], colSpan: 1 },
+                ],
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {},
+    "T",
+  );
+  const xml = await (await JSZip.loadAsync(bytes)).file("word/document.xml")!.async("string");
+  expect(xml).toContain('<w:trHeight w:val="470" w:hRule="atLeast"/>');
+  expect(xml).toContain('<w:trHeight w:val="590" w:hRule="atLeast"/>');
+  expect(xml).toContain('<w:tblLayout w:type="fixed"/>');
+  expect(xml).toContain('<w:tblCellMar><w:top w:w="10" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="10" w:type="dxa"/><w:right w:w="60" w:type="dxa"/></w:tblCellMar>');
+  expect(xml.match(/<w:vAlign w:val="center"\/>/g)).toHaveLength(2);
+  expect(xml).toContain('<w:tcBorders><w:bottom w:val="single" w:sz="4" w:space="0" w:color="D0D0D0"/></w:tcBorders>');
+  expect(xml).toContain('<w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="D0D0D0"/><w:left w:val="single" w:sz="4" w:space="0" w:color="D0D0D0"/></w:tcBorders>');
+  expect(xml).not.toContain("<w:tblBorders>");
+  // The gap above the table is a paragraph of exactly that height.
+  expect(xml.indexOf('w:line="240" w:lineRule="exact"')).toBeLessThan(xml.indexOf("<w:tbl>"));
+  new DOMParser().parseFromString(xml, "text/xml");
+});
+
 test("underline, strike, highlight and super/subscript are written in schema order", async () => {
   const bytes = await writeDocx(
     {

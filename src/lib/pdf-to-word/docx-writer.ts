@@ -171,6 +171,12 @@ function paragraphProps(p: ParagraphBlock, sectPr = ""): string {
     parts.push(`<w:ind ${ind.join(" ")}/>`);
   }
   if (p.align) parts.push(`<w:jc w:val="${p.align}"/>`);
+  // The paragraph mark counts toward the line's height, so it takes the size of the text when that is smaller than the default.
+  const sizes = p.runs.filter((r) => !r.tab && !r.field && r.text).map((r) => r.size ?? 11);
+  if (sizes.length && Math.max(...sizes) < 11) {
+    const half = Math.max(2, Math.round(Math.max(...sizes) * 2));
+    parts.push(`<w:rPr><w:sz w:val="${half}"/><w:szCs w:val="${half}"/></w:rPr>`);
+  }
   if (sectPr) parts.push(sectPr);
   return parts.length ? `<w:pPr>${parts.join("")}</w:pPr>` : "";
 }
@@ -203,15 +209,24 @@ function paragraphXml(p: ParagraphBlock, ctx: Ctx, sectPr = ""): string {
   return `<w:p>${paragraphProps(p, sectPr)}${colBreak}${starts}${shapes}${runsXml(p.runs, ctx)}${ends}</w:p>`;
 }
 
-const BORDER = '<w:{side} w:val="single" w:sz="4" w:space="0" w:color="000000"/>';
+const BORDER = '<w:{side} w:val="single" w:sz="4" w:space="0" w:color="{color}"/>';
+const SIDES = ["top", "left", "bottom", "right"] as const;
 
-function tableXml(t: TableBlock, ctx: Ctx): string {
+const hexColor = (c: string | undefined) => (c && /^[0-9a-f]{6}$/i.test(c) ? c.toUpperCase() : "000000");
+
+function tableXml(t: TableBlock, ctx: Ctx, giveBack = 0.5): string {
   const total = t.colWidths.reduce((a, b) => a + b, 0);
+  const color = hexColor(t.borderColor);
   const borders = t.borders
     ? `<w:tblBorders>${["top", "left", "bottom", "right", "insideH", "insideV"]
-        .map((side) => BORDER.replace("{side}", side))
+        .map((side) => BORDER.replace("{side}", side).replace("{color}", color))
         .join("")}</w:tblBorders>`
     : "";
+  const pad = t.padding;
+  const mar = pad
+    ? `<w:tblCellMar><w:top w:w="${tw(pad.top)}" w:type="dxa"/><w:left w:w="${tw(pad.left)}" w:type="dxa"/>` +
+      `<w:bottom w:w="${tw(pad.bottom)}" w:type="dxa"/><w:right w:w="${tw(pad.right)}" w:type="dxa"/></w:tblCellMar>`
+    : `<w:tblCellMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar>`;
   const grid = t.colWidths.map((w) => `<w:gridCol w:w="${tw(w)}"/>`).join("");
   const rows = t.rows
     .map((row, rowIndex) => {
@@ -224,25 +239,40 @@ function tableXml(t: TableBlock, ctx: Ctx): string {
           if (cell.colSpan > 1) props.push(`<w:gridSpan w:val="${cell.colSpan}"/>`);
           if (cell.vMerge === "restart") props.push('<w:vMerge w:val="restart"/>');
           if (cell.vMerge === "continue") props.push("<w:vMerge/>");
+          const edges = SIDES.filter((side) => cell.borders?.[side]);
+          if (edges.length) {
+            props.push(`<w:tcBorders>${edges.map((side) => BORDER.replace("{side}", side).replace("{color}", color)).join("")}</w:tcBorders>`);
+          }
           if (cell.shade && /^[0-9a-f]{6}$/i.test(cell.shade)) {
             props.push(`<w:shd w:val="clear" w:color="auto" w:fill="${cell.shade.toUpperCase()}"/>`);
           }
+          if (cell.vAlign) props.push(`<w:vAlign w:val="${cell.vAlign}"/>`);
           const body = cell.paragraphs.length
             ? cell.paragraphs.map((p) => paragraphXml(p, ctx)).join("")
             : "<w:p/>";
           return `<w:tc><w:tcPr>${props.join("")}</w:tcPr>${body}</w:tc>`;
         })
         .join("");
+      // Some renderers add the cell padding on top of the row height, so give part of it back (all of it in a text box, which cannot grow).
+      const height = t.rowHeights?.[rowIndex];
+      const trHeight = height
+        ? `<w:trHeight w:val="${tw(Math.max(1, height - (pad ? (pad.top + pad.bottom) * giveBack : 0)))}" w:hRule="atLeast"/>`
+        : "";
       const header = rowIndex < (t.headerRows ?? 0) ? "<w:tblHeader/>" : "";
-      return `<w:tr><w:trPr><w:cantSplit/>${header}</w:trPr>${cells}</w:tr>`;
+      return `<w:tr><w:trPr><w:cantSplit/>${trHeight}${header}</w:trPr>${cells}</w:tr>`;
     })
     .join("");
   return (
     `<w:tbl><w:tblPr><w:tblW w:w="${tw(total)}" w:type="dxa"/>` +
     `<w:tblInd w:w="${tw(t.indentLeft)}" w:type="dxa"/>${borders}<w:tblLayout w:type="fixed"/>` +
-    `<w:tblCellMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar>` +
-    `<w:tblLook w:val="0000"/></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${rows}</w:tbl>`
+    `${mar}<w:tblLook w:val="0000"/></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${rows}</w:tbl>`
   );
+}
+
+/** A table has no space-before, so the gap above it is a paragraph of exactly that height. */
+function tableGapXml(t: TableBlock): string {
+  if (!t.spaceBefore || t.spaceBefore < 1) return "";
+  return `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="${tw(t.spaceBefore)}" w:lineRule="exact"/></w:pPr></w:p>`;
 }
 
 type ImagePart = { rId: string; file: string; mime: string; data: Uint8Array };
@@ -288,7 +318,7 @@ function textBoxXml(item: ExactItem, ctx: Ctx, id: number): string {
   const { box, block } = item;
   const inner =
     block.type === "table"
-      ? `${tableXml(block, ctx)}<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr></w:p>`
+      ? `${tableXml(block, ctx, 1)}<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr></w:p>`
       : paragraphXml(block as ParagraphBlock, ctx);
   const cx = emu(box.w + 4);
   const cy = emu(box.h + 3);
@@ -609,6 +639,7 @@ export async function writeDocx(
       } else {
         block.rows.forEach((row) => row.forEach((c) => c.paragraphs.forEach(collect)));
         if (pieces.length && pieces[pieces.length - 1].startsWith("<w:tbl>")) pieces.push(tinyParagraph(""));
+        if (block.spaceBefore) pieces.push(tableGapXml(block));
         pieces.push(tableXml(block, ctx));
       }
     });

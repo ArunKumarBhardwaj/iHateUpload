@@ -99,6 +99,10 @@ export type TableCell = {
   vMerge?: "restart" | "continue";
   /** Background colour as hex, no hash. */
   shade?: string;
+  /** Text sits in the middle of the cell rather than at its top. */
+  vAlign?: "center";
+  /** Rules on this cell's edges, for tables that do not draw every edge. */
+  borders?: { top?: boolean; bottom?: boolean; left?: boolean; right?: boolean };
 };
 
 export type TableBlock = {
@@ -109,6 +113,14 @@ export type TableBlock = {
   indentLeft: number;
   /** Leading rows that repeat at the top of each page the table runs over. */
   headerRows?: number;
+  /** Hex colour of the rules, no hash; black when missing. */
+  borderColor?: string;
+  /** Each row's height on the page in points; rows grow past it if their text needs more. */
+  rowHeights?: number[];
+  /** Space between a cell's edge and its text, in points. */
+  padding?: { top: number; bottom: number; left: number; right: number };
+  /** Gap above the table in points, since a table has no space-before of its own. */
+  spaceBefore?: number;
 };
 
 export type Block = ParagraphBlock | ImageBlock | TableBlock;

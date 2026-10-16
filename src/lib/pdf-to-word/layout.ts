@@ -12,7 +12,7 @@ import {
   type Stats,
 } from "./paragraphs";
 import { buildShapes } from "./shapes";
-import { detectBorderlessTables, detectRuledTables, type GridCell, type TableEl } from "./tables";
+import { columnAlign, detectBorderlessTables, detectRuledTables, type ColumnAlign, type GridCell, type TableEl } from "./tables";
 
 export type { PageInput, Rule, TextItem, PageImage } from "./lines";
 
@@ -224,6 +224,37 @@ function shadeOf(cell: GridCell, fills: Fill[]): string | undefined {
 function tableBlock(table: TableEl, stats: Stats, left: number, fills: Fill[] = []): TableBlock {
   const rows = table.ys.length - 1;
   const cols = table.xs.length - 1;
+  const extent = (lines: Line[]) => ({
+    x0: Math.min(...lines.map((l) => l.x0)),
+    x1: Math.max(...lines.map((l) => l.x1)),
+  });
+  // How each column lines up on the page, from its single cells that hold text.
+  const aligns: ColumnAlign[] = Array.from({ length: cols }, (_, c) =>
+    columnAlign(
+      table.cells
+        .filter((k) => k.col === c && k.colSpan === 1 && k.rowSpan === 1 && k.lines.length)
+        .map((k) => extent(k.lines)),
+    ),
+  );
+  // Padding is what the page leaves between a cell's edge and its text.
+  const padLeft: number[] = [];
+  const padRight: number[] = [];
+  for (const cell of table.cells) {
+    if (cell.colSpan !== 1 || !cell.lines.length) continue;
+    const e = extent(cell.lines);
+    if (aligns[cell.col] === "left") padLeft.push(e.x0 - cell.x0);
+    else if (aligns[cell.col] === "right") padRight.push(cell.x1 - e.x1);
+  }
+  const clampPad = (v: number) => Math.min(8, Math.max(2, v));
+  const padL = clampPad(padLeft.length ? median(padLeft) : 3);
+  const padR = clampPad(padRight.length ? median(padRight) : padL);
+  for (const cell of table.cells) {
+    for (const line of cell.lines) {
+      line.colL = cell.x0 + padL;
+      line.colR = Math.max(line.colL + 1, cell.x1 - padR);
+    }
+  }
+
   const out: TableBlock["rows"] = [];
   for (let r = 0; r < rows; r++) {
     const row: TableBlock["rows"][number] = [];
@@ -242,16 +273,38 @@ function tableBlock(table: TableEl, stats: Stats, left: number, fills: Fill[] = 
         const paragraphs = buildParagraphs(lines, stats, { lists: false, headings: false }).map(
           (p) => p.block,
         );
+        const align = cell.colSpan === 1 ? aligns[cell.col] : "left";
+        if (align !== "left") {
+          for (const p of paragraphs) {
+            p.align = align;
+            p.indentLeft = undefined;
+            p.firstLine = undefined;
+            p.tabs = undefined;
+          }
+        }
+        const height = cell.y1 - cell.y0;
+        const text = lines.length ? { top: Math.min(...lines.map((l) => l.top)), bottom: Math.max(...lines.map((l) => l.bottom)) } : null;
+        const centred =
+          !!text &&
+          height >= 1.3 * (text.bottom - text.top) &&
+          Math.abs((text.top + text.bottom) / 2 - (cell.y0 + cell.y1) / 2) <= Math.max(1.5, 0.12 * height);
         row.push({
           paragraphs: paragraphs.length ? paragraphs : [{ type: "p", runs: [] }],
           colSpan: cell.colSpan,
           vMerge: cell.rowSpan > 1 ? "restart" : undefined,
           shade: shadeOf(cell, fills),
+          vAlign: centred ? "center" : undefined,
+          borders: cell.borders,
         });
       } else {
         row.push({ paragraphs: [{ type: "p", runs: [] }], colSpan: cell.colSpan, vMerge: "continue" });
       }
       c += cell.colSpan;
+    }
+    // Where most of a row's text sits in the middle, the empty cells beside it do too.
+    const filled = row.filter((k) => k.paragraphs.some((p) => p.runs.length));
+    if (filled.length && filled.filter((k) => k.vAlign).length * 2 >= filled.length) {
+      for (const k of row) k.vAlign = "center";
     }
     out.push(row);
   }
@@ -260,11 +313,17 @@ function tableBlock(table: TableEl, stats: Stats, left: number, fills: Fill[] = 
     colWidths: table.xs.slice(1).map((x, i) => x - table.xs[i]),
     rows: out,
     borders: table.borders,
-    indentLeft: Math.max(0, table.x0 - left),
+    borderColor: table.borderColor,
+    indentLeft: Math.max(-20, table.x0 - left),
+    rowHeights: table.ys.slice(1).map((y, i) => y - table.ys[i]),
+    padding: { top: 0.5, bottom: 0.5, left: padL, right: padR },
   };
 }
 
 /** Column widths from where each column starts, and the gap from the narrowest space between them. */
+/** Extra room in the last column, taken from the right margin, in points. */
+const COLUMN_SLACK = 8;
+
 function columnSpec(region: Region, colL: number, colR: number): NonNullable<Section["columns"]> {
   const { boxes } = region;
   let gap = Infinity;
@@ -272,6 +331,8 @@ function columnSpec(region: Region, colL: number, colR: number): NonNullable<Sec
   gap = Math.max(12, Math.round(gap * 10) / 10);
   const starts = boxes.map((b, i) => (i === 0 ? colL : b.x0));
   const widths = starts.map((x, i) => Math.max(24, (i < starts.length - 1 ? starts[i + 1] - gap : colR) - x));
+  // Word sets type a little wider than the page did, and a last column cut to the text's own width wraps.
+  widths[widths.length - 1] += COLUMN_SLACK;
   return { widths, gap };
 }
 
@@ -293,7 +354,7 @@ function continuesTable(a: PageWork, b: PageWork, prev: Section, next: Section):
   return (
     t1.colWidths.length === t2.colWidths.length &&
     t1.borders === t2.borders &&
-    Math.abs(t1.indentLeft - t2.indentLeft) <= 4 &&
+    Math.abs(prev.margins.left + t1.indentLeft - (next.margins.left + t2.indentLeft)) <= 4 &&
     t1.colWidths.every((w, i) => Math.abs(w - t2.colWidths[i]) <= 3)
   );
 }
@@ -306,7 +367,11 @@ function joinTables(prev: Section, next: Section) {
   if (repeated && rowText(t1.rows[0]).replace(/\u0001/g, "").length > 0) {
     t1.headerRows = Math.max(t1.headerRows ?? 0, 1);
     t1.rows.push(...t2.rows.slice(1));
-  } else t1.rows.push(...t2.rows);
+    if (t1.rowHeights && t2.rowHeights) t1.rowHeights.push(...t2.rowHeights.slice(1));
+  } else {
+    t1.rows.push(...t2.rows);
+    if (t1.rowHeights && t2.rowHeights) t1.rowHeights.push(...t2.rowHeights);
+  }
   prev.blocks.push(...next.blocks.slice(1));
 }
 
@@ -413,7 +478,11 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
     const colL = raw.length ? Math.min(docLeft || pageMin, pageMin) : 72;
     const colR = raw.length ? Math.max(docRight || pageMax, pageMax) : input.width - 72;
     const ruled = detectRuledTables(raw, decorated[index].rules);
-    const loose = detectBorderlessTables(ruled.rest);
+    // Rules inside a grid belong to it; the rest may be the row rules of a table with no grid.
+    const gridRules = decorated[index].rules.filter(
+      (r) => !ruled.tables.some((t) => r.x0 >= t.x0 - 3 && r.x1 <= t.x1 + 3 && r.y0 >= t.y0 - 3 && r.y1 <= t.y1 + 3),
+    );
+    const loose = detectBorderlessTables(ruled.rest, gridRules, input.fills ?? []);
     const tables: TableEl[] = [...ruled.tables, ...loose.tables];
     const pageArea = input.width * input.height;
     const images = input.images.filter(
@@ -586,6 +655,12 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
       const spaceBefore = prevBottom !== null && el.top - prevBottom > 1.5 ? el.top - prevBottom : undefined;
       if (el.kind === "table") {
         const table = tableBlock(el.table, stats, work.colL, input.fills);
+        const lastPara = prevPara as BuiltPara | null;
+        const above = lastPara ? lastPara.meta.lastBottom : prevBottom;
+        // Loose line spacing in the paragraph above already leaves room under its last line.
+        const loose = lastPara ? Math.max(0, (lastPara.block.lineRatio ?? 1) - 1) * 1.15 * lastPara.meta.size : 0;
+        const gap = above !== null ? el.top - above - loose : 0;
+        if (!options.exact && gap > 1.5) table.spaceBefore = Math.round(gap * 10) / 10;
         if (options.exact) {
           table.indentLeft = 0;
           exactItems[workIndex].push({ kind: "table", box: boxOf(el), block: table });
@@ -638,7 +713,7 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
     return pieces.map((piece, i): Section => ({
       width: input.width,
       height: input.height,
-      margins,
+      margins: piece.region ? { ...margins, right: Math.max(0, margins.right - COLUMN_SLACK) } : margins,
       blocks: piece.blocks,
       start: i > 0 ? "continuous" : undefined,
       columns: piece.region ? columnSpec(piece.region, work.colL, work.colR) : undefined,

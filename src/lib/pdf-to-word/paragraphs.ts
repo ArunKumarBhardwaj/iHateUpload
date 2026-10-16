@@ -354,7 +354,7 @@ function finish(acc: Acc, stats: Stats, options: BuildOptions): BuiltPara | null
       colR - l.x1 > 0.08 * width
     );
   });
-  const rightAligned = lines.every((l) => Math.abs(l.x1 - colR) <= 3 && l.x0 - colL > 0.25 * width);
+  const rightAligned = lines.every((l) => Math.abs(l.x1 - colR) <= 3 && l.x0 - colL > 0.08 * width);
   if (centred) block.align = "center";
   else if (rightAligned) block.align = "right";
   else if (!marker) {

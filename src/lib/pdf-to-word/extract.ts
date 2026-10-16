@@ -172,8 +172,10 @@ function rulesFromPath(
   m: Matrix,
   stroke: boolean,
   fill: boolean,
+  color?: string,
 ): Rule[] {
   const rules: Rule[] = [];
+  const tint = color && /^[0-9a-f]{6}$/.test(color) ? { color } : {};
   for (const sub of subpaths(data)) {
     const pts = sub.points.map(([x, y]) => apply(m, x, y));
     const xs = pts.map((p) => p[0]);
@@ -188,19 +190,19 @@ function rulesFromPath(
       const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
       rules.push(
         w >= h
-          ? { x0: Math.min(...xs), x1: Math.max(...xs), y0: cy, y1: cy }
-          : { x0: cx, x1: cx, y0: Math.min(...ys), y1: Math.max(...ys) },
+          ? { x0: Math.min(...xs), x1: Math.max(...xs), y0: cy, y1: cy, ...tint }
+          : { x0: cx, x1: cx, y0: Math.min(...ys), y1: Math.max(...ys), ...tint },
       );
       continue;
     }
     if (!stroke) continue;
     for (let i = 1; i < pts.length; i++) {
       const rule = ruleFrom(pts[i - 1], pts[i]);
-      if (rule) rules.push(rule);
+      if (rule) rules.push({ ...rule, ...tint });
     }
     if (sub.closed) {
       const rule = ruleFrom(pts[pts.length - 1], pts[0]);
-      if (rule) rules.push(rule);
+      if (rule) rules.push({ ...rule, ...tint });
     }
   }
   return rules;
@@ -351,7 +353,7 @@ export async function extractPage(
       const raw = args[1] as unknown;
       const data = (Array.isArray(raw) ? raw[0] : raw) as ArrayLike<number> | undefined;
       if (data) {
-        rules.push(...rulesFromPath(data, mul(vt, ctm), stroke, fill));
+        rules.push(...rulesFromPath(data, mul(vt, ctm), stroke, fill, stroke ? pen.stroke : fillColor));
         bullets.push(...bulletsFromPath(data, mul(vt, ctm), stroke, fill));
         if (fill && /^[0-9a-f]{6}$/.test(fillColor) && !isWhite(fillColor)) {
           fills.push(...fillsFromPath(data, mul(vt, ctm), fillColor));

@@ -16,7 +16,7 @@ export type TextItem = {
   color?: string;
 };
 
-export type Rule = { x0: number; y0: number; x1: number; y1: number };
+export type Rule = { x0: number; y0: number; x1: number; y1: number; /** Hex without a hash, when the page says. */ color?: string };
 
 /** A painted block of colour, in points from the top left; colour is hex without a hash. */
 export type Fill = { x0: number; y0: number; x1: number; y1: number; color: string };

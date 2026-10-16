@@ -37,6 +37,8 @@ export const imageEl = (image: PageImage): El => ({
 });
 
 const MIN_GUTTER = 12;
+/** Sides of a letterhead are far apart; a logo next to a name is one side. */
+const SIDE_GUTTER = 36;
 
 function distinctRows(els: El[]): number {
   const tops = els.map((e) => Math.round(e.top / 4)).sort((a, b) => a - b);
@@ -102,7 +104,7 @@ function splitSides(els: El[]): El[][] | null {
   const groups: El[][] = [];
   let reach = -Infinity;
   for (const el of sorted) {
-    if (groups.length && el.x0 - reach < MIN_GUTTER) {
+    if (groups.length && el.x0 - reach < SIDE_GUTTER) {
       groups[groups.length - 1].push(el);
       reach = Math.max(reach, el.x1);
     } else {
@@ -166,7 +168,7 @@ export function readingOrder(els: El[], colL: number, colR: number): El[] {
       visit(head[1], l, r, region, false);
       return;
     }
-    const columns = splitVertical(group);
+    const columns = splitVertical(group) ?? splitSides(group);
     if (columns) {
       const boxes = columns.map((c) => ({
         x0: Math.min(...c.map((e) => e.x0)),
@@ -178,11 +180,6 @@ export function readingOrder(els: El[], colL: number, colR: number): El[] {
         // Columns inside a column are read in order but stay part of the outer one.
         visit(column, box ? box[0] : l, box ? box[1] : r, region ?? { id, index, boxes });
       });
-      return;
-    }
-    const sides = splitSides(group);
-    if (sides) {
-      for (const side of sides) visit(side, l, r, region);
       return;
     }
     const bands = splitHorizontal(group);

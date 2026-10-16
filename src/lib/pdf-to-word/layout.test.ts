@@ -933,9 +933,9 @@ test("a pull quote across a narrow gutter is not merged line by line with the ne
   items.push(item("with someone willing", 228, 180.7, 15, { w: 143.7 }));
   items.push(item("to carry the first crate.", 228, 200.9, 15, { w: 150 }));
   for (let i = 0; i < 12; i++) {
-    items.push(...justified(words(5, i), cols[0], cols[0] + 156, 175.5 + i * 12.7));
-    if (i >= 2) items.push(...justified(words(5, i + 2), cols[1], cols[1] + 156, 219 + (i - 2) * 12.7));
-    items.push(...justified(words(5, i + 4), cols[2], cols[2] + 156, 175.5 + i * 12.7));
+    items.push(...justified(words(6, i), cols[0], cols[0] + 156, 175.5 + i * 12.7, 8));
+    if (i >= 2) items.push(...justified(words(6, i + 2), cols[1], cols[1] + 156, 219 + (i - 2) * 12.7, 8));
+    items.push(...justified(words(6, i + 4), cols[2], cols[2] + 156, 175.5 + i * 12.7, 8));
   }
   const doc = layoutDocument([page(items)]);
   const all = doc.sections.flatMap((s) => s.blocks).filter((b): b is ParagraphBlock => b.type === "p");
@@ -959,4 +959,111 @@ test("evenly stretched gaps in a justified line do not split it", () => {
   const paras = paragraphs(blocks([page(items)]));
   expect(paras).toHaveLength(1);
   expect(text(paras[0])).toBe(lines.map((l) => l.join(" ")).join(" "));
+});
+
+/** An invoice-style table: shaded header, thin rules between rows only, totals with empty middle cells. */
+function invoiceTable() {
+  const edges = [54, 309, 363, 467, 558];
+  const right = [0, 354.7, 459.6, 550];
+  const rowsText = [
+    ["Description", "Qty", "Unit price", "Amount"],
+    ["Stainless mixing bowl", "6", "$38.50", "$231.00"],
+    ["Parchment sheets", "10", "$21.75", "$217.50"],
+    ["Digital kitchen scale", "3", "$54.00", "$162.00"],
+  ];
+  const totals = [
+    ["Subtotal", "$774.30"],
+    ["Sales tax", "$63.88"],
+    ["Total due", "$838.18"],
+  ];
+  const items: TextItem[] = [];
+  const num = (t: string, rightEdge: number, y: number) => item(t, rightEdge - t.length * 5.5, y, 11, { w: t.length * 5.5 });
+  rowsText.forEach((row, r) => {
+    const y = 214 + r * 24;
+    items.push(item(row[0], 62, y, 11, { bold: r === 0 }));
+    for (let c = 1; c < 4; c++) items.push(num(row[c], right[c], y));
+  });
+  totals.forEach((row, r) => {
+    const y = 214 + (4 + r) * 24;
+    items.push(item(row[0], 62, y));
+    items.push(num(row[1], 550, y));
+  });
+  // Header band in four pieces and a rule under every row, each in four pieces as well.
+  const fills = edges.slice(1).map((x1, i) => ({ x0: edges[i], x1, y0: 199, y1: 223, color: "d9e2f3" }));
+  const rules: Rule[] = [];
+  for (let r = 0; r < 7; r++) {
+    for (let c = 0; c < 4; c++) rules.push({ x0: edges[c], x1: edges[c + 1], y0: 223 + r * 24, y1: 223 + r * 24 });
+  }
+  // The same rules and fills as page drawings, which is what becomes shapes if nothing claims them.
+  const box = (x0: number, y0: number, x1: number, y1: number, fill: string) => ({
+    segs: [
+      { op: "M" as const, pts: [x0, y0] },
+      { op: "L" as const, pts: [x1, y0] },
+      { op: "L" as const, pts: [x1, y1] },
+      { op: "L" as const, pts: [x0, y1] },
+      { op: "Z" as const, pts: [] },
+    ],
+    fill,
+    width: 0,
+    behind: true,
+  });
+  const shapes = [
+    ...fills.map((f) => box(f.x0, f.y0, f.x1, f.y1, f.color)),
+    ...rules.map((r) => box(r.x0, r.y0 - 0.5, r.x1, r.y0 + 0.5, "d0d0d0")),
+  ];
+  return { items: [...items, ...filler(500)], rules, fills, shapes };
+}
+
+test("rows below a table that line up with its columns stay in it, with empty middle cells", () => {
+  const { items, rules, fills } = invoiceTable();
+  const tables = blocks([page(items, rules, { fills })]).filter((b): b is TableBlock => b.type === "table");
+  expect(tables).toHaveLength(1);
+  const cellText = (c: TableBlock["rows"][number][number]) => c.paragraphs.map(text).join("");
+  expect(tables[0].rows).toHaveLength(7);
+  expect(tables[0].rows[5].map(cellText)).toEqual(["Sales tax", "", "", "$63.88"]);
+  expect(tables[0].rows[6].map(cellText)).toEqual(["Total due", "", "", "$838.18"]);
+});
+
+test("table rows keep their height, padding and vertical centring", () => {
+  const { items, rules, fills } = invoiceTable();
+  const [table] = blocks([page(items, rules, { fills })]).filter((b): b is TableBlock => b.type === "table");
+  expect(table.rowHeights).toHaveLength(7);
+  for (const h of table.rowHeights!) expect(h).toBeGreaterThan(22);
+  for (const h of table.rowHeights!) expect(h).toBeLessThan(26);
+  expect(table.padding!.left).toBeGreaterThan(1.5);
+  expect(table.padding!.top).toBeLessThan(2);
+  expect(table.rows[1].every((c) => c.vAlign === "center")).toBe(true);
+  // Column edges come from the painted header band: 54, 309, 363, 467, 558.
+  expect(table.colWidths.map(Math.round)).toEqual([255, 54, 104, 91]);
+});
+
+test("rules on row boundaries become cell borders and are not drawn a second time", () => {
+  const { items, rules, fills, shapes } = invoiceTable();
+  const doc = layoutDocument([page(items, rules, { fills, shapes })]);
+  const all = doc.sections.flatMap((s) => s.blocks);
+  const [table] = all.filter((b): b is TableBlock => b.type === "table");
+  // A rule under every row, none above the header, none between the cells of a row.
+  expect(table.rows.map((row) => row.every((c) => c.borders?.bottom === true))).toEqual(Array(7).fill(true));
+  expect(table.rows[0].every((c) => !c.borders?.top)).toBe(true);
+  expect(table.rows.flat().every((c) => !c.borders?.left && !c.borders?.right)).toBe(true);
+  // The header band is cell shading.
+  expect(table.rows[0].map((c) => c.shade)).toEqual(["D9E2F3", "D9E2F3", "D9E2F3", "D9E2F3"]);
+  expect(table.rows[1].every((c) => c.shade === undefined)).toBe(true);
+  // Nothing is left over to float on the page.
+  expect(all.some((b) => b.type === "p" && b.shapes?.length)).toBe(false);
+});
+
+test("a numeric column right-aligned on the page is right-aligned in the table", () => {
+  const { items, rules, fills } = invoiceTable();
+  const [table] = blocks([page(items, rules, { fills })]).filter((b): b is TableBlock => b.type === "table");
+  const aligns = (c: number) => table.rows.map((row) => row[c].paragraphs[0].align);
+  expect(aligns(3)).toEqual(Array(7).fill("right"));
+  expect(aligns(1).slice(0, 4)).toEqual(Array(4).fill("right"));
+  expect(aligns(0).every((a) => a === undefined)).toBe(true);
+});
+
+test("in exact mode the table's rules and fills are not shapes either", () => {
+  const { items, rules, fills, shapes } = invoiceTable();
+  const model = layoutDocument([page(items, rules, { fills, shapes })], { exact: true });
+  expect(model.pages![0].shapes).toHaveLength(0);
 });
