@@ -134,18 +134,25 @@ export function watermarkStamps(
   const tileSize = style.size === "fit" ? SIZE_POINTS.medium : size;
   const tileWidth = widthOf(tileSize);
   const stepX = tileWidth + tileSize * 2;
-  const stepY = tileSize * 4;
+  const stepY = tileSize * 3;
   const stamps: Stamp[] = [];
-  const rows = Math.ceil(pageHeight / stepY) + 1;
-  for (let row = 0; row < rows; row++) {
-    const cy = row * stepY + stepY / 2 - stepY / 4;
-    const shift = row % 2 === 0 ? 0 : stepX / 2;
-    for (let cx = shift - stepX / 2; cx < pageWidth + stepX; cx += stepX) {
-      const center = { x: cx + stepX / 2, y: cy };
-      if (center.x < 0 || center.x > pageWidth) continue;
-      if (center.y < 0 || center.y > pageHeight) continue;
+  // A lattice in the text's own frame, so rotated tiles never run into each other.
+  const rad = (style.rotation * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const reach = Math.hypot(pageWidth, pageHeight);
+  const cols = Math.ceil(reach / stepX) + 1;
+  const rows = Math.ceil(reach / stepY) + 1;
+  for (let row = -rows; row <= rows; row++) {
+    const shift = Math.abs(row) % 2 === 0 ? 0 : stepX / 2;
+    for (let col = -cols; col <= cols; col++) {
+      const u = col * stepX + shift;
+      const v = row * stepY;
+      const cx = pageWidth / 2 + u * cos - v * sin;
+      const cy = pageHeight / 2 + u * sin + v * cos;
+      if (cx < 0 || cx > pageWidth || cy < 0 || cy > pageHeight) continue;
       stamps.push({
-        ...originFor(center.x, center.y, tileWidth, tileSize, style.rotation),
+        ...originFor(cx, cy, tileWidth, tileSize, style.rotation),
         size: tileSize,
         rotation: style.rotation,
       });
