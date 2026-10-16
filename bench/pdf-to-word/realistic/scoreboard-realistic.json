@@ -17,9 +17,9 @@
      "fonts": 0,
      "comments": 0
     },
-    "visual": 0.18634471219357643,
+    "visual": 0.6599485090637075,
     "pageVisual": [
-     0.18634471219357643
+     0.6599485090637075
     ],
     "pageDelta": 0
    },
@@ -61,21 +61,21 @@
   "bank-statement": {
    "ours": {
     "failed": false,
-    "overall": 0.6873626373626374,
+    "overall": 0.7472527472527473,
     "features": {
      "text": 1,
      "order": 1,
      "editability": 1,
-     "headings": 0.25,
-     "tables": 0.06153846153846154,
-     "fonts": 0.5,
+     "headings": 0.2,
+     "tables": 0.03076923076923077,
+     "fonts": 1,
      "headerFooter": 1
     },
-    "visual": 0.25658541622774217,
+    "visual": 0.26899132343093873,
     "pageVisual": [
-     0.22656413092211153,
-     0.14384514735816542,
-     0.3993469704029497
+     0.2628424956421548,
+     0.18098755636800562,
+     0.36314391828265574
     ],
     "pageDelta": 0
    },
@@ -123,7 +123,7 @@
   "brochure": {
    "ours": {
     "failed": false,
-    "overall": 0.9285714285714286,
+    "overall": 1,
     "features": {
      "text": 1,
      "editability": 1,
@@ -131,11 +131,11 @@
      "lists": 1,
      "tables": 1,
      "images": 1,
-     "fonts": 0.5
+     "fonts": 1
     },
-    "visual": 0.5568660672582856,
+    "visual": 0.6140323307038893,
     "pageVisual": [
-     0.5568660672582856
+     0.6140323307038893
     ],
     "pageDelta": 0
    },
@@ -185,9 +185,9 @@
      "editability": 1,
      "headings": 1
     },
-    "visual": 0,
+    "visual": 0.13656851717581286,
     "pageVisual": [
-     0
+     0.13656851717581286
     ],
     "pageDelta": 0
    },
@@ -223,7 +223,7 @@
   "contract": {
    "ours": {
     "failed": false,
-    "overall": 0.6883210970134831,
+    "overall": 0.7508210970134831,
     "features": {
      "text": 0.9943138741470812,
      "order": 1,
@@ -231,13 +231,13 @@
      "headings": 0.16666666666666666,
      "lists": 0.375,
      "runs": 0.47058823529411764,
-     "fonts": 0.5,
+     "fonts": 1,
      "headerFooter": 1
     },
-    "visual": 0.7139343690762954,
+    "visual": 0.7114475272147673,
     "pageVisual": [
-     0.6915968426826493,
-     0.7362718954699413
+     0.6884190934708244,
+     0.7344759609587104
     ],
     "pageDelta": 0
    },
@@ -285,19 +285,19 @@
   "cv": {
    "ours": {
     "failed": false,
-    "overall": 0.7385765362250512,
+    "overall": 0.8219098695583845,
     "features": {
      "text": 0.9731258840169731,
      "editability": 1,
      "headings": 0.8333333333333334,
      "lists": 0.625,
      "links": 0.5,
-     "fonts": 0.5
+     "fonts": 1
     },
-    "visual": 0.12548093456505863,
+    "visual": 0.5869922973541446,
     "pageVisual": [
-     0.12138531949146683,
-     0.12957654963865042
+     0.4047983286540633,
+     0.7691862660542258
     ],
     "pageDelta": 0
    },
@@ -341,18 +341,18 @@
   "gov-form": {
    "ours": {
     "failed": false,
-    "overall": 0.8333333333333334,
+    "overall": 0.9166666666666666,
     "features": {
      "text": 1,
      "order": 1,
      "editability": 1,
      "headings": 0.5,
      "tables": 1,
-     "fonts": 0.5
+     "fonts": 1
     },
-    "visual": 0.1895220204897634,
+    "visual": 0.2216562514065142,
     "pageVisual": [
-     0.1895220204897634
+     0.2216562514065142
     ],
     "pageDelta": 0
    },
@@ -402,9 +402,9 @@
      "headings": 1,
      "forms": 0
     },
-    "visual": 0.21174649127257333,
+    "visual": 0.4958200938136482,
     "pageVisual": [
-     0.21174649127257333
+     0.4958200938136482
     ],
     "pageDelta": 0
    },
@@ -444,7 +444,7 @@
   "invoice": {
    "ours": {
     "failed": false,
-    "overall": 0.7012780869923727,
+    "overall": 0.7727066584209441,
     "features": {
      "text": 1,
      "order": 0.98989898989899,
@@ -452,11 +452,11 @@
      "headings": 0,
      "tables": 0.41904761904761906,
      "images": 1,
-     "fonts": 0.5
+     "fonts": 1
     },
-    "visual": 0.20273724671479665,
+    "visual": 0.29063777632008075,
     "pageVisual": [
-     0.20273724671479665
+     0.29063777632008075
     ],
     "pageDelta": 0
    },
@@ -556,18 +556,18 @@
   "letter": {
    "ours": {
     "failed": false,
-    "overall": 0.8333333333333333,
+    "overall": 0.9333333333333332,
     "features": {
      "text": 1,
      "order": 1,
      "editability": 1,
      "runs": 0.6666666666666666,
-     "fonts": 0.5
+     "fonts": 1
     },
-    "visual": 0.491629521815955,
+    "visual": 0.813706001223388,
     "pageVisual": [
-     0.20849689848396546,
-     0.7747621451479445
+     0.7133905948123669,
+     0.9140214076344091
     ],
     "pageDelta": 0
    },
@@ -662,18 +662,18 @@
   "newsletter": {
    "ours": {
     "failed": false,
-    "overall": 0.6666666666666666,
+    "overall": 0.75,
     "features": {
      "text": 1,
      "editability": 1,
      "headings": 0.5,
      "images": 1,
      "columns": 0,
-     "fonts": 0.5
+     "fonts": 1
     },
-    "visual": 0.22243705186950585,
+    "visual": 0.2572885215757453,
     "pageVisual": [
-     0.22243705186950585
+     0.2572885215757453
     ],
     "pageDelta": 0
    },
@@ -715,16 +715,16 @@
   "receipt": {
    "ours": {
     "failed": false,
-    "overall": 0.875,
+    "overall": 1,
     "features": {
      "text": 1,
      "order": 1,
      "editability": 1,
-     "fonts": 0.5
+     "fonts": 1
     },
-    "visual": 0.10693536514392671,
+    "visual": 0.22891359780224332,
     "pageVisual": [
-     0.10693536514392671
+     0.22891359780224332
     ],
     "pageDelta": 0
    },
@@ -762,17 +762,17 @@
   "report-chart": {
    "ours": {
     "failed": false,
-    "overall": 0.8963470319634703,
+    "overall": 0.9963470319634704,
     "features": {
      "text": 1,
      "order": 0.9817351598173516,
      "editability": 1,
      "headings": 1,
-     "fonts": 0.5
+     "fonts": 1
     },
-    "visual": 0.2174119424902387,
+    "visual": 0.5405088790585785,
     "pageVisual": [
-     0.2174119424902387
+     0.5405088790585785
     ],
     "pageDelta": 0
    },
@@ -812,7 +812,7 @@
   "research-paper": {
    "ours": {
     "failed": false,
-    "overall": 0.7295269704922884,
+    "overall": 0.7795269704922884,
     "features": {
      "text": 0.9701871966720592,
      "order": 0.9917491749174917,
@@ -822,15 +822,15 @@
      "runs": 0.5,
      "images": 1,
      "columns": 1,
-     "fonts": 0.5,
+     "fonts": 1,
      "footnotes": 0
     },
-    "visual": 0.16005603291135184,
+    "visual": 0.5381172506074849,
     "pageVisual": [
-     0.19806029163972455,
-     0.12205177418297916
+     0.2841957110283789,
+     0.7920387901865911
     ],
-    "pageDelta": 2
+    "pageDelta": 1
    },
    "rival": {
     "failed": false,
@@ -886,9 +886,9 @@
      "editability": 1,
      "headings": 1
     },
-    "visual": 0.13172773556465503,
+    "visual": 0.22929423094459572,
     "pageVisual": [
-     0.13172773556465503
+     0.22929423094459572
     ],
     "pageDelta": 0
    },
@@ -971,20 +971,20 @@
   "slides": {
    "ours": {
     "failed": false,
-    "overall": 0.861111111111111,
+    "overall": 0.9444444444444443,
     "features": {
      "text": 1,
      "order": 1,
      "editability": 1,
      "headings": 0.6666666666666666,
      "lists": 1,
-     "fonts": 0.5
+     "fonts": 1
     },
-    "visual": 0.10165675986248718,
+    "visual": 0.0995102342118399,
     "pageVisual": [
      0.00013368488140325406,
-     0.03067213267803503,
-     0.27416446202802325
+     0.031323947082327816,
+     0.2670730706717886
     ],
     "pageDelta": 1
    },
@@ -1030,17 +1030,17 @@
   "spreadsheet": {
    "ours": {
     "failed": false,
-    "overall": 0.888997555012225,
+    "overall": 0.988997555012225,
     "features": {
      "text": 0.9449877750611247,
      "editability": 1,
      "headings": 1,
      "tables": 1,
-     "fonts": 0.5
+     "fonts": 1
     },
-    "visual": 0.17323921189862407,
+    "visual": 0.16996683658619005,
     "pageVisual": [
-     0.34647842379724814,
+     0.3399336731723801,
      0
     ],
     "pageDelta": -1
