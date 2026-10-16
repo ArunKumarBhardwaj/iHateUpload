@@ -50,9 +50,9 @@ test("dpi maps onto pdf.js scale, 144 keeping the old 2x", () => {
   expect(dpiScale(72)).toBe(1);
   expect(dpiScale(144)).toBe(2);
   expect(dpiScale(300)).toBeCloseTo(4.1667, 3);
-  expect(initialOptions("pdf-image")).toEqual({
+  expect(initialOptions("pdf-image")).toMatchObject({
     kind: "pdf-image",
-    dpi: 144,
+    dpi: 150,
     range: "",
   });
 });

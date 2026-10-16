@@ -454,6 +454,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       onConfirmPassword={setConfirmPassword}
       pagePreviews={pagePreviews}
       pageCount={pageCount}
+      firstPage={files[0] ? previews.get(files[0].id)?.thumbnail : undefined}
       disabled={locked}
       onAddFiles={(next) => {
         const items = createFileItems(next);

@@ -6,6 +6,15 @@ import { compressInWorker } from "@/lib/compress-client";
 import { COMPRESS_PLANS } from "@/lib/compress-plans";
 import type { FileItem, ResultItem } from "@/lib/job";
 import { stripPdfMetadata } from "@/lib/pdf-meta";
+import {
+  canvasHoldsSize,
+  clampCanvasSize,
+  currentCanvasLimits,
+  jpegQualityValue,
+  SAFE_CANVAS,
+  pageRenderNote,
+  planPageRender,
+} from "@/lib/pdf-image";
 import { loadPdfJs } from "@/lib/pdfjs";
 import {
   parsePageRange,
@@ -16,15 +25,6 @@ import {
 import { formatBytes } from "@/lib/utils";
 
 type ProgressFn = (ratio: number) => void;
-
-/**
- * iOS ≤ 17 caps a single canvas at 4096×4096 / 16.7 M pixels. Crossing it
- * paints a blank canvas and does not throw. Stay under that on every engine
- * rather than sniff the OS. iOS 18 raised the cap; we still target the lower
- * one because 28% of visitors are on iOS and we cannot see the version.
- */
-const CANVAS_MAX_EDGE = 4096;
-const CANVAS_MAX_PIXELS = 16_777_216;
 
 const HEIC_BRANDS = new Set([
   "heic",
@@ -46,21 +46,6 @@ function replaceExt(name: string, ext: string) {
 function releaseCanvas(canvas: HTMLCanvasElement) {
   canvas.width = 0;
   canvas.height = 0;
-}
-
-function clampCanvasSize(width: number, height: number) {
-  const longest = Math.max(width, height, 1);
-  const pixels = Math.max(width * height, 1);
-  const scale = Math.min(
-    1,
-    CANVAS_MAX_EDGE / longest,
-    Math.sqrt(CANVAS_MAX_PIXELS / pixels),
-  );
-  return {
-    width: Math.max(1, Math.floor(width * scale)),
-    height: Math.max(1, Math.floor(height * scale)),
-    scale,
-  };
 }
 
 async function loadHeic2Any() {
@@ -245,32 +230,6 @@ async function heicFileToJpegBlob(file: File, quality = 0.92): Promise<Blob> {
   } catch (error) {
     if (kind === "heic") throw error;
     return imageFileToJpegBlob(file, quality);
-  }
-}
-
-async function renderPdfPageToJpeg(
-  page: PDFPageProxy,
-  scale: number,
-  quality: number,
-): Promise<Blob> {
-  const preferred = page.getViewport({ scale });
-  const box = clampCanvasSize(preferred.width, preferred.height);
-  const viewport = page.getViewport({
-    scale: scale * (box.width / Math.max(preferred.width, 1)),
-  });
-  const canvas = document.createElement("canvas");
-  canvas.width = box.width;
-  canvas.height = box.height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    releaseCanvas(canvas);
-    throw new Error("Canvas is not available in this browser.");
-  }
-  try {
-    await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-    return await canvasToJpegBlob(canvas, quality);
-  } finally {
-    page.cleanup();
   }
 }
 
@@ -888,96 +847,15 @@ export function dpiScale(dpi: number) {
   return dpi / 72;
 }
 
-export async function processPdfToJpg(
-  files: FileItem[],
-  onProgress: ProgressFn,
-  options: ToolOptions,
-): Promise<ResultItem[]> {
-  if (options.kind !== "pdf-image") {
-    throw new Error("PDF to image needs a resolution.");
-  }
-  const item = files[0];
-  if (!item) throw new Error("Choose a PDF to convert.");
-
-  const { getDocument } = await loadPdfJs();
-  const data = new Uint8Array(await item.file.arrayBuffer());
-  const pdf = await getDocument({ data }).promise;
-  const base = item.name.replace(/\.[^.]+$/, "");
-  const results: ResultItem[] = [];
-
-  try {
-    const wanted = resolvePageRange(options.range, pdf.numPages);
-    for (let done = 0; done < wanted.length; done++) {
-      const pageNum = wanted[done] + 1;
-      const page = await pdf.getPage(pageNum);
-      const blob = await renderPdfPageToJpeg(page, dpiScale(options.dpi), 0.9);
-      results.push({
-        id: crypto.randomUUID(),
-        name: `${base}-page-${pageNum}.jpg`,
-        size: blob.size,
-        blob,
-        originalSize: item.size,
-      });
-      onProgress((done + 1) / wanted.length);
-    }
-  } finally {
-    await pdf.loadingTask.destroy();
-  }
-
-  return results;
-}
-
-export async function processPdfToPng(
-  files: FileItem[],
-  onProgress: ProgressFn,
-  options: ToolOptions,
-): Promise<ResultItem[]> {
-  if (options.kind !== "pdf-image") {
-    throw new Error("PDF to image needs a resolution.");
-  }
-  const item = files[0];
-  if (!item) throw new Error("Choose a PDF to convert.");
-
-  const { getDocument } = await loadPdfJs();
-  const data = new Uint8Array(await item.file.arrayBuffer());
-  const pdf = await getDocument({ data }).promise;
-  const base = item.name.replace(/\.[^.]+$/, "");
-  const results: ResultItem[] = [];
-
-  try {
-    const wanted = resolvePageRange(options.range, pdf.numPages);
-    for (let done = 0; done < wanted.length; done++) {
-      const pageNum = wanted[done] + 1;
-      const page = await pdf.getPage(pageNum);
-      const blob = await renderPdfPageToPng(page, dpiScale(options.dpi));
-      results.push({
-        id: crypto.randomUUID(),
-        name: `${base}-page-${pageNum}.png`,
-        size: blob.size,
-        blob,
-        originalSize: item.size,
-      });
-      onProgress((done + 1) / wanted.length);
-    }
-  } finally {
-    await pdf.loadingTask.destroy();
-  }
-
-  return results;
-}
-
-async function renderPdfPageToPng(
+async function renderPdfPage(
   page: PDFPageProxy,
-  scale: number,
+  plan: { width: number; height: number; scale: number },
+  encode: (canvas: HTMLCanvasElement) => Promise<Blob>,
 ): Promise<Blob> {
-  const preferred = page.getViewport({ scale });
-  const box = clampCanvasSize(preferred.width, preferred.height);
-  const viewport = page.getViewport({
-    scale: scale * (box.width / Math.max(preferred.width, 1)),
-  });
+  const viewport = page.getViewport({ scale: plan.scale });
   const canvas = document.createElement("canvas");
-  canvas.width = box.width;
-  canvas.height = box.height;
+  canvas.width = plan.width;
+  canvas.height = plan.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     releaseCanvas(canvas);
@@ -985,11 +863,84 @@ async function renderPdfPageToPng(
   }
   try {
     await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-    return await canvasToPngBlob(canvas);
+    return await encode(canvas);
   } finally {
     page.cleanup();
   }
 }
+
+async function renderPdfPageToJpeg(
+  page: PDFPageProxy,
+  scale: number,
+  quality: number,
+): Promise<Blob> {
+  const size = page.getViewport({ scale });
+  const box = clampCanvasSize(size.width, size.height);
+  return renderPdfPage(
+    page,
+    { ...box, scale: scale * (box.width / Math.max(size.width, 1)) },
+    (canvas) => canvasToJpegBlob(canvas, quality),
+  );
+}
+
+async function processPdfToImages(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "pdf-image") {
+    throw new Error("PDF to image needs a resolution.");
+  }
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to convert.");
+
+  const png = options.format === "png";
+  const quality = jpegQualityValue(options.quality);
+  const limits = currentCanvasLimits();
+  const { getDocument } = await loadPdfJs();
+  const data = new Uint8Array(await item.file.arrayBuffer());
+  const pdf = await getDocument({ data }).promise;
+  const base = item.name.replace(/\.[^.]+$/, "");
+  const results: ResultItem[] = [];
+
+  try {
+    const wanted = resolvePageRange(options.range, pdf.numPages);
+    for (let done = 0; done < wanted.length; done++) {
+      const pageNum = wanted[done] + 1;
+      const page = await pdf.getPage(pageNum);
+      const size = page.getViewport({ scale: 1 });
+      let plan = planPageRender(size.width, size.height, options.dpi, limits);
+      // Past the safe size, prove this browser can really hold the canvas.
+      if (
+        plan.width * plan.height > SAFE_CANVAS.maxPixels ||
+        Math.max(plan.width, plan.height) > SAFE_CANVAS.maxEdge
+      ) {
+        if (!canvasHoldsSize(plan.width, plan.height)) {
+          plan = planPageRender(size.width, size.height, options.dpi);
+        }
+      }
+      const blob = await renderPdfPage(page, plan, (canvas) =>
+        png ? canvasToPngBlob(canvas) : canvasToJpegBlob(canvas, quality),
+      );
+      results.push({
+        id: crypto.randomUUID(),
+        name: `${base}-page-${pageNum}.${png ? "png" : "jpg"}`,
+        size: blob.size,
+        blob,
+        originalSize: item.size,
+        note: pageRenderNote(pageNum, plan, options.dpi),
+      });
+      onProgress((done + 1) / wanted.length);
+    }
+  } finally {
+    await pdf.loadingTask.destroy();
+  }
+
+  return results;
+}
+
+export const processPdfToJpg = processPdfToImages;
+export const processPdfToPng = processPdfToImages;
 
 /** Smallest only: flattening pages has to beat the kept-text result by this much. */
 const RASTER_MUST_BEAT = 0.6;

@@ -27,6 +27,7 @@ import {
 import {
   NUMBER_SIZES,
   pageBoxToPdf,
+  resolvePageRange,
   type AnnotatePosition,
   type NumberFormat,
   type EditMark,
@@ -34,6 +35,7 @@ import {
   type ToolOptions,
   editMarkReady,
 } from "@/lib/tool-options";
+import { parseHexColor, watermarkStamps } from "@/lib/watermark";
 
 type ProgressFn = (ratio: number) => void;
 
@@ -474,20 +476,49 @@ export async function processAnnotatePdf(
     const numberPoints =
       NUMBER_SIZES.find((entry) => entry.id === options.numberSize)?.points ??
       11;
+    const inRange =
+      options.variant === "watermark"
+        ? new Set(resolvePageRange(options.range, pages.length))
+        : null;
+    const [red, green, blue] = parseHexColor(options.color);
     pages.forEach((page, index) => {
       if (options.variant === "numbers" && options.skipFirst && index === 0) {
         return;
       }
+      if (inRange && !inRange.has(index)) return;
       const { width, height } = page.getSize();
-      const label =
-        options.variant === "numbers"
-          ? numberLabel(
-              options.numberFormat,
-              options.startAt + index,
-              options.startAt + pages.length - 1,
-            )
-          : options.text.trim();
-      const size = options.variant === "numbers" ? numberPoints : 28;
+      if (options.variant === "watermark") {
+        const text = options.text.trim();
+        let stamps;
+        try {
+          stamps = watermarkStamps(
+            options,
+            width,
+            height,
+            (size) => font.widthOfTextAtSize(text, size),
+          );
+        } catch {
+          throw new Error("The stamp can use letters, digits and common punctuation.");
+        }
+        for (const stamp of stamps) {
+          page.drawText(text, {
+            x: stamp.x,
+            y: stamp.y,
+            size: stamp.size,
+            font,
+            color: rgb(red, green, blue),
+            opacity: options.opacity,
+            rotate: degrees(stamp.rotation),
+          });
+        }
+        return;
+      }
+      const label = numberLabel(
+        options.numberFormat,
+        options.startAt + index,
+        options.startAt + pages.length - 1,
+      );
+      const size = numberPoints;
       const textWidth = font.widthOfTextAtSize(label, size);
       const point = stampPoint(
         options.position,
