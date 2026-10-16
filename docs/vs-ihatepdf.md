@@ -25,9 +25,9 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 
 | | Count |
 |---|---|
-| ✅ We are better (measured) | 10 rows |
+| ✅ We are better (measured) | 11 rows |
 | 🟰 Equal (measured) | 3 rows |
-| ⚠️ They are better | 7 rows |
+| ⚠️ They are better | 6 rows |
 | ❔ Shared, not compared yet | 23 rows |
 | ➕ Only we have | 15 tools (section 3) |
 | ❌ Only they have | 24 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
@@ -65,7 +65,7 @@ Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, Edit metadata, auto 
 | Compress PDF | Resamples images to drawn size (MozJPEG + Rust Lanczos3) in a worker, PSNR-guided quality, keeps text; target size 200 KB–5 MB | Multi-codec per image, font subsetting, JBIG2 for scans; levels + target size | ✅ | 10.5 MB photo PDF, medium: ours 94.3 KB, theirs 95 KB, both keep text; our Light 283 KB. 2026-10-12 |
 | Compress scanned (black-and-white) pages | JPEG/Flate only | JBIG2 encoder | ⚠️ | Their `pdf-jbig2.js`, 2026-10-12. Fix idea: CCITT G4 (Rust `fax` crate) |
 | PDF to Word (editable) | Tables, lists, shapes, images, links, embedded TrueType fonts, CJK fonts | Editable + Exact modes | ✅ | Realistic corpus: struct 0.87 vs 0.80, visual 0.43 vs 0.34; simple corpus 0.96 vs 0.94; 120 pages 0.42 s vs 0.78 s. 2026-10-17 |
-| PDF to Word (exact look, still editable) | In progress (text-box layout) | Text boxes per block, visual 0.66 | ⚠️ | `bench/pdf-to-word/realistic/scoreboard-realistic.md`, 2026-10-17 |
+| PDF to Word (exact look, still editable) | Text box per block, shapes behind, pictures placed; text editable in boxes | Text box per block | ✅ | Realistic corpus Exact vs Exact: visual 0.69 vs 0.66, struct 0.66 vs 0.60, we win 13 of 20 docs (research paper 0.86 vs 0.60, slides 0.94 vs 0.55). Known weak: gov forms, spreadsheet, receipt, invoice table rows. 2026-10-17 |
 | PDF to Word: CJK text | Unified ideographs, East Asian fonts and language tags | Keeps Kangxi radicals; font by regex | ✅ | cjk.pdf: 0 radicals in ours; teardown of theirs. 2026-10-17 |
 | PDF to Word: slide / cover backgrounds | Kept behind text | Lost in both modes | ✅ | slides.pdf visual 0.40 vs 0.26, 2026-10-17 |
 | PDF to Word: comments from annotations | No | Yes (7 annotation types, highlights as shading) | ❌ | Teardown, 2026-10-17 |
