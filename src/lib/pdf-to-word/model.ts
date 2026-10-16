@@ -140,9 +140,21 @@ export type DocProperties = {
 /** A font file to carry in the document, already named for the family its runs use. */
 export type FontFile = { family: string; bold: boolean; italic: boolean; data: Uint8Array };
 
+/** One block of an exact-layout page and the box it occupies on the page, in points from the top left. */
+export type ExactItem = {
+  kind: "text" | "table" | "picture";
+  box: { x: number; y: number; w: number; h: number };
+  block: ParagraphBlock | TableBlock | ImageBlock;
+};
+
+/** A page whose blocks are each pinned in place rather than flowing. */
+export type ExactPage = { width: number; height: number; shapes: Shape[]; items: ExactItem[] };
+
 export type DocModel = {
   properties?: DocProperties;
   sections: Section[];
+  /** Exact layout: when present these pages are written instead of the sections. */
+  pages?: ExactPage[];
   header: ParagraphBlock[];
   footer: ParagraphBlock[];
   /** Fonts to embed (optional). */

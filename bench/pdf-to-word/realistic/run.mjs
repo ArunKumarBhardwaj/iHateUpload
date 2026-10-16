@@ -1,5 +1,5 @@
 // Realistic corpus runner: same Playwright driver as ../run.mjs, one run per document, results in ./results.
-// Usage: node bench/pdf-to-word/realistic/run.mjs [--only a,b] [--sides ours,rival,rival-exact] [--ours URL]
+// Usage: node bench/pdf-to-word/realistic/run.mjs [--only a,b] [--sides ours,ours-exact,rival,rival-exact] [--ours URL]
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -34,6 +34,7 @@ const names = readdirSync(fixDir).filter((f) => f.endsWith(".pdf")).map((f) => f
 
 const SIDE = {
   ours: { url: OURS, mode: /^Editable text/, ihp: false },
+  "ours-exact": { url: OURS, mode: /^Exact layout/, ihp: false },
   rival: { url: "https://ihatepdf.cv/pdf-to-word", mode: /^Editable/, ihp: true },
   "rival-exact": { url: "https://ihatepdf.cv/pdf-to-word", mode: /^Exact layout/, ihp: true },
 };

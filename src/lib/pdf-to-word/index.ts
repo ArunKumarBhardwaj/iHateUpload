@@ -7,7 +7,8 @@ import { extractPage, type ImageSource } from "./extract";
 import { layoutDocument, type PageInput } from "./layout";
 import type { DocModel, MediaFile } from "./model";
 
-export type PdfToWordMode = "editable" | "exact";
+/** editable flows like Word; exact pins each block in a text box; picture keeps each page as an image. */
+export type PdfToWordMode = "editable" | "exact" | "picture";
 
 export type ConvertOptions = {
   mode: PdfToWordMode;
@@ -22,7 +23,7 @@ export type ConvertDeps = {
   rasterizeImage: (page: PDFPageProxy, source: ImageSource) => Promise<MediaFile | null>;
   /** Read a page with no text layer. Returns text items in points, or null to skip. */
   readScan?: (page: PDFPageProxy, pageNo: number, onPage: (ratio: number) => void) => Promise<PageInput["items"] | null>;
-  /** Exact mode: the page as a JPEG. */
+  /** Picture mode: the page as a JPEG. */
   renderJpeg?: (page: PDFPageProxy) => Promise<Uint8Array>;
 };
 
@@ -47,7 +48,7 @@ export async function convertPdf(
   const media: Record<string, MediaFile> = {};
   const notes: string[] = [];
 
-  if (options.mode === "exact") {
+  if (options.mode === "picture") {
     if (!deps.renderJpeg) throw new Error("Page images are not available here.");
     const model: DocModel = { sections: [], header: [], footer: [], notes: [] };
     for (let n = 1; n <= total; n++) {
@@ -107,12 +108,15 @@ export async function convertPdf(
     onProgress(base + share * 0.95);
   }
 
-  const model = layoutDocument(inputs, { outline: await readOutline(pdf, resolve) });
+  const model = layoutDocument(inputs, { outline: await readOutline(pdf, resolve), exact: options.mode === "exact" });
   model.properties = await readProperties(pdf);
   if (fonts) model.fonts = fonts.fonts();
   // A picture that could not be decoded would leave a hole, so drop its block.
   for (const section of model.sections) {
     section.blocks = section.blocks.filter((b) => b.type !== "image" || media[b.ref]);
+  }
+  for (const page of model.pages ?? []) {
+    page.items = page.items.filter((it) => it.kind !== "picture" || media[(it.block as { ref: string }).ref]);
   }
   if (scanned.length && !unreadable.length) {
     notes.push(`${pagesPhrase(scanned)} had no text, so ${scanned.length === 1 ? "it was" : "they were"} read with OCR. Check the words.`);

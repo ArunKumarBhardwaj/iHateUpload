@@ -210,7 +210,7 @@ export const TOOLS: ToolDefinition[] = [
       "Convert PDF to editable Word (.docx) online free. Keeps headings, lists, tables and pictures, reads scanned pages, and runs in your browser — no upload, no watermark.",
     seoHowTo: [
       "Drop one or more PDF files into the workspace.",
-      "Pick Editable text or Exact look, then click Convert to Word.",
+      "Pick the layout (Editable text or Exact layout), then click Convert to Word.",
       "Download the .docx. Nothing was uploaded.",
     ],
     showInNav: true,

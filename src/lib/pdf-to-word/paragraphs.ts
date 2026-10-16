@@ -19,6 +19,9 @@ export type ParaMeta = {
   lastBaseline: number;
   firstTop: number;
   lastBottom: number;
+  /** Horizontal extent of the paragraph's lines. */
+  x0: number;
+  x1: number;
   size: number;
   pitch: number | null;
   colL: number;
@@ -374,6 +377,8 @@ function finish(acc: Acc, stats: Stats, options: BuildOptions): BuiltPara | null
       lastBaseline: last.baseline,
       firstTop: first.top,
       lastBottom: last.bottom,
+      x0: Math.min(...lines.map((l) => l.x0)),
+      x1: Math.max(...lines.map((l) => l.x1)),
       size,
       pitch: pitchOf(acc),
       colL,

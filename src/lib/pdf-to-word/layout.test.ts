@@ -863,3 +863,31 @@ test("a CJK PDF font family is kept for East Asian text", () => {
   const [p] = paragraphs(blocks([page([item("市立図書館", 72, 100, 11, { font: "ABCDEF+MS-Mincho", generic: "mono" })])]));
   expect(p.runs[0].eastAsia).toBe("MS Mincho");
 });
+
+test("exact layout hands the writer one page with a box for every paragraph, table and picture", () => {
+  const lines = [
+    item("Heading Here", 72, 80, 20),
+    item("The quick brown fox jumps over", 72, 120),
+    item("the lazy dog and keeps running.", 72, 134),
+    item("Short note", 300, 300),
+  ];
+  const model = layoutDocument(
+    [page(lines, [], { images: [{ ref: "im1", x: 50, y: 400, w: 120, h: 80 }] })],
+    { exact: true },
+  );
+  expect(model.sections).toHaveLength(0);
+  expect(model.pages).toHaveLength(1);
+  const [pg] = model.pages!;
+  expect(pg.width).toBe(612);
+  const texts = pg.items.filter((i) => i.kind === "text");
+  const fox = texts.find((i) => i.block.type === "p" && i.block.runs[0].text.startsWith("The quick"))!;
+  expect(fox.box.x).toBeCloseTo(72, 0);
+  expect(fox.box.y).toBeGreaterThan(100);
+  expect(fox.box.y).toBeLessThan(121);
+  expect(fox.box.w).toBeGreaterThan(100);
+  expect(fox.box.h).toBeGreaterThan(20); // two lines
+  const note = texts.find((i) => i.block.type === "p" && i.block.runs[0].text === "Short note")!;
+  expect(note.box.x).toBeCloseTo(300, 0);
+  const pic = pg.items.find((i) => i.kind === "picture")!;
+  expect(pic.box).toEqual({ x: 50, y: 400, w: 120, h: 80 });
+});

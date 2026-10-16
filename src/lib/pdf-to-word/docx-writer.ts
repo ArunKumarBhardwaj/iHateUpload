@@ -4,6 +4,8 @@ import { obfuscate } from "./sfnt";
 import type {
   Block,
   DocModel,
+  ExactItem,
+  ExactPage,
   ListInfo,
   MediaFile,
   ParagraphBlock,
@@ -59,8 +61,31 @@ function geometryXml(shape: Shape): string {
   );
 }
 
+/** A drawing anchored to the page at a position (EMU), over or behind the text; z is its stacking order. */
+function anchorXml(a: {
+  x: number;
+  y: number;
+  cx: number;
+  cy: number;
+  z: number;
+  behind: boolean;
+  id: number;
+  name: string;
+  graphic: string;
+}): string {
+  return (
+    `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="${a.z}" ` +
+    `behindDoc="${a.behind ? 1 : 0}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/>` +
+    `<wp:positionH relativeFrom="page"><wp:posOffset>${a.x}</wp:posOffset></wp:positionH>` +
+    `<wp:positionV relativeFrom="page"><wp:posOffset>${a.y}</wp:posOffset></wp:positionV>` +
+    `<wp:extent cx="${a.cx}" cy="${a.cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/>` +
+    `<wp:docPr id="${a.id}" name="${a.name} ${a.id}"/><wp:cNvGraphicFramePr/>${a.graphic}` +
+    `</wp:anchor></w:drawing></w:r>`
+  );
+}
+
 /** A drawing pinned to the page at its own position, behind or over the text. */
-function shapeXml(shape: Shape, id: number): string {
+function shapeXml(shape: Shape, id: number, z = id): string {
   const cx = emu(shape.w);
   const cy = emu(shape.h);
   const width = shape.stroke ? Math.max(1, emu(shape.strokeWidth)) : 0;
@@ -70,18 +95,21 @@ function shapeXml(shape: Shape, id: number): string {
     : "<a:ln><a:noFill/></a:ln>";
   // The fill of an open line means nothing; it would only shade the gap between its ends.
   const fill = shape.kind === "line" ? "<a:noFill/>" : colorFill(shape.fill, shape.fillAlpha);
-  return (
-    `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="${id}" ` +
-    `behindDoc="${shape.behind ? 1 : 0}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/>` +
-    `<wp:positionH relativeFrom="page"><wp:posOffset>${emu(shape.x)}</wp:posOffset></wp:positionH>` +
-    `<wp:positionV relativeFrom="page"><wp:posOffset>${emu(shape.y)}</wp:posOffset></wp:positionV>` +
-    `<wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/>` +
-    `<wp:docPr id="${id}" name="Shape ${id}"/><wp:cNvGraphicFramePr/>` +
-    `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
-    `<wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm${shape.flipV ? ' flipV="1"' : ""}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
-    `${geometryXml(shape)}${fill}${line}</wps:spPr><wps:bodyPr/></wps:wsp>` +
-    `</a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>`
-  );
+  return anchorXml({
+    x: emu(shape.x),
+    y: emu(shape.y),
+    cx,
+    cy,
+    z,
+    behind: shape.behind,
+    id,
+    name: "Shape",
+    graphic:
+      `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+      `<wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm${shape.flipV ? ' flipV="1"' : ""}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
+      `${geometryXml(shape)}${fill}${line}</wps:spPr><wps:bodyPr/></wps:wsp>` +
+      `</a:graphicData></a:graphic>`,
+  });
 }
 
 function runXml(run: Run): string {
@@ -219,6 +247,17 @@ function tableXml(t: TableBlock, ctx: Ctx): string {
 
 type ImagePart = { rId: string; file: string; mime: string; data: Uint8Array };
 
+function pictureGraphic(part: ImagePart, docId: number, cx: number, cy: number): string {
+  return (
+    `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:pic><pic:nvPicPr><pic:cNvPr id="${docId}" name="${part.file}"/><pic:cNvPicPr/></pic:nvPicPr>` +
+    `<pic:blipFill><a:blip r:embed="${part.rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic>` +
+    `</a:graphicData></a:graphic>`
+  );
+}
+
 function imageXml(
   block: Extract<Block, { type: "image" }>,
   part: ImagePart,
@@ -237,13 +276,64 @@ function imageXml(
     `<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/>` +
     `<wp:docPr id="${docId}" name="Picture ${docId}" descr=""/>` +
     `<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>` +
-    `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
-    `<pic:pic><pic:nvPicPr><pic:cNvPr id="${docId}" name="${part.file}"/><pic:cNvPicPr/></pic:nvPicPr>` +
-    `<pic:blipFill><a:blip r:embed="${part.rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
-    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
-    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic>` +
-    `</a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`
+    `${pictureGraphic(part, docId, cx, cy)}</wp:inline></w:drawing></w:r></w:p>`
   );
+}
+
+// Stacking order of the layers on an exact page: backdrop shapes, pictures, tables, then text.
+const Z = { shape: 1, picture: 2, table: 3, text: 5 };
+
+/** A paragraph or table in a text box anchored to the page; the extra points keep Word from re-wrapping. */
+function textBoxXml(item: ExactItem, ctx: Ctx, id: number): string {
+  const { box, block } = item;
+  const inner =
+    block.type === "table"
+      ? `${tableXml(block, ctx)}<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr></w:p>`
+      : paragraphXml(block as ParagraphBlock, ctx);
+  const cx = emu(box.w + 4);
+  const cy = emu(box.h + 3);
+  return anchorXml({
+    x: emu(box.x - 1),
+    y: emu(box.y - 1),
+    cx,
+    cy,
+    z: item.kind === "table" ? Z.table : Z.text,
+    behind: false,
+    id,
+    name: "Text Box",
+    graphic:
+      `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+      `<wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
+      `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></wps:spPr>` +
+      `<wps:txbx><w:txbxContent>${inner}</w:txbxContent></wps:txbx>` +
+      `<wps:bodyPr lIns="0" tIns="0" rIns="0" bIns="0" wrap="square"><a:noAutofit/></wps:bodyPr></wps:wsp>` +
+      `</a:graphicData></a:graphic>`,
+  });
+}
+
+function pictureAnchorXml(item: ExactItem, part: ImagePart, id: number): string {
+  const cx = emu(item.box.w);
+  const cy = emu(item.box.h);
+  return anchorXml({
+    x: emu(item.box.x),
+    y: emu(item.box.y),
+    cx,
+    cy,
+    z: Z.picture,
+    behind: false,
+    id,
+    name: "Picture",
+    graphic: pictureGraphic(part, id, cx, cy),
+  });
+}
+
+/** One carrier paragraph per page holds all that page's anchors; it is tiny so it never moves them. */
+function carrierXml(page: ExactPage, lead: string, sect: string, ctx: Ctx, draw: (item: ExactItem, id: number) => string): string {
+  const id = () => ctx.shapeId?.() ?? 1;
+  const shapes = page.shapes.map((sh) => shapeXml(sh, id(), Z.shape)).join("");
+  const items = page.items.map((it) => draw(it, id())).join("");
+  const spacing = '<w:spacing w:before="0" w:after="0" w:line="10" w:lineRule="auto"/>';
+  return `<w:p><w:pPr>${spacing}${sect}</w:pPr>${lead}${shapes}${items}</w:p>`;
 }
 
 /** Columns scaled to the text width the section really has, equal when they are close to it. */
@@ -468,6 +558,35 @@ export async function writeDocx(
 
   let docId = 0;
   const body: string[] = [];
+  const pages = model.pages ?? [];
+  const flat = (page: ExactPage): Section => ({
+    width: page.width,
+    height: page.height,
+    margins: { top: 0, right: 0, bottom: 0, left: 0 },
+    blocks: [],
+    headerDistance: 0,
+    footerDistance: 0,
+  });
+  pages.forEach((page, index) => {
+    const same = (o?: ExactPage) => o && o.width === page.width && o.height === page.height;
+    // A new page size needs a section of its own; otherwise a page break does the job.
+    const closes = !same(pages[index + 1]);
+    const sect = closes && index < pages.length - 1 ? sectionProps(flat(page), "") : "";
+    const lead = index > 0 && same(pages[index - 1]) ? '<w:r><w:br w:type="page"/></w:r>' : "";
+    body.push(
+      carrierXml(page, lead, sect, ctx, (item, id) => {
+        if (item.kind === "picture") {
+          const part = partFor((item.block as { ref: string }).ref);
+          return part ? pictureAnchorXml(item, part, id) : "";
+        }
+        if (item.block.type === "table") {
+          item.block.rows.forEach((row) => row.forEach((c) => c.paragraphs.forEach(collect)));
+        } else if (item.block.type === "p") collect(item.block);
+        return textBoxXml(item, ctx, id);
+      }),
+    );
+  });
+  if (pages.length) body.push(sectionProps(flat(pages[pages.length - 1]), ""));
   model.sections.forEach((section, index) => {
     const last = index === model.sections.length - 1;
     const sect = sectionProps(section, index === 0 ? headerRefs : "");

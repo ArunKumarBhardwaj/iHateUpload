@@ -50,8 +50,8 @@ export type SplitMode = "pages" | "ranges" | "half" | "size";
 
 export type PdfImageDpi = 72 | 144 | 300;
 
-/** Editable text flows like a Word document; exact look keeps each page as a picture. */
-export type PdfToWordMode = "editable" | "exact";
+/** Editable text flows like Word; exact pins every block in a text box (still editable); picture keeps each page as an image. */
+export type PdfToWordMode = "editable" | "exact" | "picture";
 
 export type NumberFormat = "n" | "page" | "n-of" | "page-of" | "roman";
 
