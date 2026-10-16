@@ -37,6 +37,8 @@ export const imageEl = (image: PageImage): El => ({
 });
 
 const MIN_GUTTER = 12;
+/** Sides of a letterhead are far apart; a logo next to a name is one side. */
+const SIDE_GUTTER = 36;
 
 function distinctRows(els: El[]): number {
   const tops = els.map((e) => Math.round(e.top / 4)).sort((a, b) => a - b);
@@ -92,6 +94,36 @@ function peelHead(els: El[]): [El[], El[]] | null {
   return null;
 }
 
+/**
+ * A small block that is a few lines side by side, such as a letterhead with the name on the left and
+ * a title on the right. Too short to be text columns, but each side still reads on its own: left first.
+ */
+function splitSides(els: El[]): El[][] | null {
+  if (els.length > 8) return null;
+  const sorted = [...els].sort((a, b) => a.x0 - b.x0);
+  const groups: El[][] = [];
+  let reach = -Infinity;
+  for (const el of sorted) {
+    if (groups.length && el.x0 - reach < SIDE_GUTTER) {
+      groups[groups.length - 1].push(el);
+      reach = Math.max(reach, el.x1);
+    } else {
+      groups.push([el]);
+      reach = el.x1;
+    }
+  }
+  if (groups.length < 2) return null;
+  // Only when a title-sized piece shares a row with a smaller one (a same-size pair is one line
+  // with a tab); otherwise the vertical order is already right.
+  const pairs = (a: El, b: El) =>
+    a.kind === "line" &&
+    b.kind === "line" &&
+    Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5 * Math.min(a.bottom - a.top, b.bottom - b.top) &&
+    Math.abs(a.line.size - b.line.size) > 0.2 * Math.min(a.line.size, b.line.size);
+  const sharesRow = groups.some((g, i) => groups.slice(i + 1).some((h) => g.some((a) => h.some((b) => pairs(a, b)))));
+  return sharesRow ? groups : null;
+}
+
 function splitHorizontal(els: El[]): [El[], El[]] | null {
   const sorted = [...els].sort((a, b) => a.top - b.top || a.x0 - b.x0);
   let reach = -Infinity;
@@ -136,7 +168,7 @@ export function readingOrder(els: El[], colL: number, colR: number): El[] {
       visit(head[1], l, r, region, false);
       return;
     }
-    const columns = splitVertical(group);
+    const columns = splitVertical(group) ?? splitSides(group);
     if (columns) {
       const boxes = columns.map((c) => ({
         x0: Math.min(...c.map((e) => e.x0)),

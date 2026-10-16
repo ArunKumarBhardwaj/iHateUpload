@@ -16,7 +16,7 @@ export type TextItem = {
   color?: string;
 };
 
-export type Rule = { x0: number; y0: number; x1: number; y1: number };
+export type Rule = { x0: number; y0: number; x1: number; y1: number; /** Hex without a hash, when the page says. */ color?: string };
 
 /** A painted block of colour, in points from the top left; colour is hex without a hash. */
 export type Fill = { x0: number; y0: number; x1: number; y1: number; color: string };
@@ -265,8 +265,34 @@ function setBaseline(line: Line, baseline: number): Line {
 
 type Row = { baseline: number; size: number; items: TextItem[] };
 
-/** Cut a row's items (already sorted by x) into pieces wherever a wide gap opens. */
+const sizeKey = (size: number) => Math.round(size * 2) / 2;
+
+/** The usual gap between neighbouring words at each size in a row, from the row's own items. */
+function wordGaps(items: TextItem[]): Map<number, number> {
+  const bySize = new Map<number, number[]>();
+  for (let i = 1; i < items.length; i++) {
+    const a = items[i - 1];
+    const b = items[i];
+    const gap = b.x - (a.x + a.w);
+    if (gap <= 0 || Math.abs(a.size - b.size) > 0.5) continue;
+    const key = sizeKey(a.size);
+    (bySize.get(key) ?? bySize.set(key, []).get(key)!).push(gap);
+  }
+  const out = new Map<number, number>();
+  for (const [key, gaps] of bySize) {
+    gaps.sort((x, y) => x - y);
+    out.set(key, gaps[Math.floor(gaps.length / 2)]);
+  }
+  return out;
+}
+
+/**
+ * Cut a row's items (already sorted by x) into pieces wherever a wide gap opens: a gap well past
+ * the row's own word spacing is a gutter or a left/right pair, not a stretched space. A justified
+ * line spreads its gaps evenly, so its median stays close to every gap and it is left whole.
+ */
 function segments(items: TextItem[]): Frag[][] {
+  const spaces = wordGaps(items);
   const out: Frag[][] = [];
   let current: Frag[] = [];
   for (const item of items) {
@@ -289,7 +315,11 @@ function segments(items: TextItem[]): Frag[][] {
       const size = Math.max(prev.size, frag.size);
       const markerGap =
         current.length === 1 && markerCandidates(prev.text).length > 0 && gap < size * 6;
-      if (gap > Math.max(8, size * 1.4) && !markerGap) {
+      const small = Math.min(prev.size, frag.size);
+      const sameSize = Math.abs(prev.size - frag.size) <= 0.2 * small;
+      const space = sameSize ? (spaces.get(sizeKey(small)) ?? 0.3 * small) : 0;
+      const outlier = gap > Math.max(2.5 * space, 1.2 * small);
+      if ((gap > Math.max(8, size * 1.4) || outlier) && !markerGap) {
         out.push(current);
         current = [];
       } else if (
@@ -347,7 +377,10 @@ export function buildLines(items: TextItem[]): Line[] {
     const sorted = row.items.sort((a, b) => a.x - b.x);
     for (const frags of segments(sorted)) {
       const line = makeLine(frags, index);
-      setBaseline(line, row.baseline);
+      // Pieces side by side may sit a few points off one another (a pull quote beside body text),
+      // so each keeps the baseline of its own largest text rather than the row's.
+      const biggest = frags.reduce((a, f) => (f.size > a.size ? f : a), frags[0]);
+      setBaseline(line, biggest.y ?? row.baseline);
       lines.push(line);
     }
   });
