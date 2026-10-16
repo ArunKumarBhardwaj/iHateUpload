@@ -63,7 +63,7 @@ describe("layoutDocument", () => {
   });
 
   test("a heading is not stranded at the bottom of a page", () => {
-    const fill = Array.from({ length: 29 }, (_, i) => para(`Filler ${i}`));
+    const fill = Array.from({ length: 18 }, (_, i) => para(`Filler ${i}`));
     const pages = layoutDocument([...fill, para("Late heading", { heading: 2 }), para("after")], PAGE, measure);
     const last = pages[pages.length - 1];
     const firstOnLast = texts(last.cmds)[0];
