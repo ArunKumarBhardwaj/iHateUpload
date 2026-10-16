@@ -88,7 +88,7 @@ export function listLabel(ordered: boolean, level: number, n: number): string {
 }
 
 function decodeDataUri(src: string): { data: Uint8Array; mime: string } | null {
-  const m = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(src);
+  const m = /^data:([^;,]+)?(;base64)?,([\s\S]*)$/.exec(src);
   if (!m || !m[2]) return null;
   try {
     const bin = atob(m[3]);

@@ -791,36 +791,12 @@ export async function processWordToPdf(
   files: FileItem[],
   onProgress: ProgressFn,
 ): Promise<ResultItem[]> {
-  const mammoth = await import("mammoth");
+  const { convertDocxToPdf } = await import("@/lib/word-to-pdf/convert");
   const results: ResultItem[] = [];
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
-    const extracted = await mammoth.extractRawText({
-      arrayBuffer: await item.file.arrayBuffer(),
-    });
-    const doc = await PDFDocument.create();
-    const font = await doc.embedFont(StandardFonts.Helvetica);
-    const pageSize: [number, number] = [595.28, 841.89];
-    let page = doc.addPage(pageSize);
-    let y = pageSize[1] - 56;
-    const lines = extracted.value.split(/\n+/).flatMap((para) =>
-      wrapLines(para.trim() || " ", 88),
-    );
-    for (const line of lines) {
-      if (y < 56) {
-        page = doc.addPage(pageSize);
-        y = pageSize[1] - 56;
-      }
-      page.drawText(line, {
-        x: 56,
-        y,
-        size: 11,
-        font,
-        color: rgb(0.1, 0.1, 0.12),
-      });
-      y -= 16;
-    }
-    const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
+    const out = await convertDocxToPdf(await item.file.arrayBuffer());
+    const blob = pdfBlob(out.bytes);
     results.push(resultFrom(item, blob, replaceExt(item.name, "pdf"), item.size));
     onProgress((i + 1) / files.length);
   }
