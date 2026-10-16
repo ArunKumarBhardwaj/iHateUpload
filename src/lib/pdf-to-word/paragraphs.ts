@@ -36,7 +36,12 @@ export function mergeRows(lines: Line[]): Line[] {
   const out: Line[] = [];
   for (const line of lines) {
     const prev = out[out.length - 1];
-    if (prev && prev.row === line.row && Math.abs(prev.baseline - line.baseline) < 0.5 * line.size) {
+    // Pieces of one row only rejoin left to right, and a heading-sized piece stays its own block.
+    const joinable =
+      prev &&
+      line.x0 >= prev.x1 - 1 &&
+      Math.abs(prev.size - line.size) <= 0.2 * Math.min(prev.size, line.size);
+    if (prev && joinable && prev.row === line.row && Math.abs(prev.baseline - line.baseline) < 0.5 * line.size) {
       // A modest gap is just stretched word spacing; only a real jump becomes a tab.
       const wide = line.x0 - prev.x1 >= 3.5 * line.size;
       const before = prev.frags.map((f, i) =>

@@ -891,3 +891,72 @@ test("exact layout hands the writer one page with a box for every paragraph, tab
   const pic = pg.items.find((i) => i.kind === "picture")!;
   expect(pic.box).toEqual({ x: 50, y: 400, w: 120, h: 80 });
 });
+
+/** Words set one by one across [x0, x1] so the gaps are equal, as a justified line is. */
+function justified(words: string[], x0: number, x1: number, y: number, size = 9.5): TextItem[] {
+  const widths = words.map((w) => w.length * size * 0.5);
+  const gap = (x1 - x0 - widths.reduce((a, b) => a + b, 0)) / (words.length - 1);
+  let x = x0;
+  return words.map((w, i) => {
+    const it = item(w, x, y, size, { w: widths[i] });
+    x += widths[i] + gap;
+    return it;
+  });
+}
+
+test("a left and a right header piece on one baseline are separate blocks, left one first", () => {
+  const items = [
+    item("Brightwater Supply Co.", 114, 75, 16, { bold: true }),
+    item("418 Alder Street, Portland, OR 97205", 114, 93, 11),
+    item("INVOICE", 459.3, 78.7, 24, { bold: true, w: 98.7 }),
+    item("Invoice no. 2047-0193", 449.2, 99, 11, { w: 108.8 }),
+    ...filler(300),
+  ];
+  const all = paragraphs(blocks([page(items)]));
+  const paras = all.map(text);
+  expect(paras.some((t) => t.includes("INVOICE") && t.includes("Brightwater"))).toBe(false);
+  const at = (s: string) => paras.findIndex((t) => t.startsWith(s));
+  expect(at("Brightwater")).toBeGreaterThanOrEqual(0);
+  expect(at("INVOICE")).toBeGreaterThan(at("418 Alder"));
+  expect(all.find((p) => text(p) === "INVOICE")!.align).toBe("right");
+});
+
+test("a pull quote across a narrow gutter is not merged line by line with the neighbouring column", () => {
+  const items: TextItem[] = [];
+  const seven = ["opal", "forest", "mosaic", "falcon", "dagger", "meadow", "timber"];
+  const words = (n: number, from: number) => Array.from({ length: n }, (_, i) => seven[(i + from) % 7]);
+  const cols = [54, 228, 402];
+  items.push(item("The Maple Street Courier", 85, 88.5, 34, { w: 440 }));
+  items.push(item("Orchard day returns", 54, 158.2, 12, { bold: true, w: 126 }));
+  // Column 2 opens with a larger pull quote whose baselines sit a few points off column 1's.
+  items.push(item("Every harvest begins", 228, 160.5, 15, { w: 142 }));
+  items.push(item("with someone willing", 228, 180.7, 15, { w: 143.7 }));
+  items.push(item("to carry the first crate.", 228, 200.9, 15, { w: 150 }));
+  for (let i = 0; i < 12; i++) {
+    items.push(...justified(words(5, i), cols[0], cols[0] + 156, 175.5 + i * 12.7));
+    if (i >= 2) items.push(...justified(words(5, i + 2), cols[1], cols[1] + 156, 219 + (i - 2) * 12.7));
+    items.push(...justified(words(5, i + 4), cols[2], cols[2] + 156, 175.5 + i * 12.7));
+  }
+  const doc = layoutDocument([page(items)]);
+  const all = doc.sections.flatMap((s) => s.blocks).filter((b): b is ParagraphBlock => b.type === "p");
+  const paras = all.map(text);
+  expect(paras.some((t) => t.includes("someone willing") && /opal|forest/.test(t))).toBe(false);
+  const quote = all.find((p) => text(p).includes("someone willing"))!;
+  expect(text(quote)).toBe("Every harvest begins with someone willing to carry the first crate.");
+  const body = doc.sections.find((s) => s.columns)!;
+  expect(body.columns!.widths).toHaveLength(3);
+  expect(quote.columnBreakBefore).toBe(true);
+});
+
+test("evenly stretched gaps in a justified line do not split it", () => {
+  const lines = [
+    "the quick brown fox jumps over a lazy dog while seven small birds sing loudly".split(" "),
+    "in the quiet harbour town every morning begins with bells and a brisk wind".split(" "),
+    "she carried twelve heavy crates of apples across the old stone bridge today".split(" "),
+  ];
+  // Words of 11pt text are about 30pt wide here, so a 468pt line has gaps of roughly 8pt.
+  const items = lines.flatMap((w, i) => justified(w, 72, 540, 100 + i * 14, 11));
+  const paras = paragraphs(blocks([page(items)]));
+  expect(paras).toHaveLength(1);
+  expect(text(paras[0])).toBe(lines.map((l) => l.join(" ")).join(" "));
+});
