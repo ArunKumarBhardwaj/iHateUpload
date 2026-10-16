@@ -89,7 +89,9 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "pdf-to-word":
       return options.mode === "editable"
         ? "Paragraphs, headings, lists, tables and pictures become real Word content. Pages with no text are read with OCR."
-        : "Each page becomes one picture in the Word file. It looks the same, but the text cannot be edited.";
+        : options.mode === "exact"
+          ? "Every block sits in a Word text box at its place on the page. It looks the same and the text stays editable, but it does not reflow."
+          : "Each page becomes one picture in the Word file. It looks the same, but the text cannot be edited.";
     case "resize":
       return "Set the longest edge in pixels. The aspect ratio stays as it is.";
     case "organize":
@@ -353,12 +355,13 @@ export function OptionsPanel({
       return (
         <div className="space-y-4">
           <div className="space-y-2">
-            <p className="text-sm font-medium text-ink">Result</p>
+            <p className="text-sm font-medium text-ink">Layout</p>
             <div className="flex flex-wrap gap-2">
               {(
                 [
                   ["editable", "Editable text"],
-                  ["exact", "Exact look"],
+                  ["exact", "Exact layout \u2014 looks identical, text in boxes"],
+                  ["picture", "Page images (not editable)"],
                 ] as const
               ).map(([mode, title]) => (
                 <Button
@@ -375,7 +378,7 @@ export function OptionsPanel({
               ))}
             </div>
           </div>
-          {options.mode === "editable" ? (
+          {options.mode !== "picture" ? (
             <div className="space-y-2">
               <p className="text-sm font-medium text-ink">Language of scanned pages</p>
               <div className="flex flex-wrap gap-2">
@@ -395,7 +398,7 @@ export function OptionsPanel({
               </div>
             </div>
           ) : null}
-          {options.mode === "editable" ? (
+          {options.mode !== "picture" ? (
             <label className="flex items-start gap-2 text-sm text-ink">
               <input
                 type="checkbox"

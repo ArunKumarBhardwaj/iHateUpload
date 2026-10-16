@@ -12,7 +12,7 @@ const deps: ConvertDeps = {
   rasterizeImage: async () => ({ data: makePng(6, 4, [10, 120, 200]), mime: "image/png" }),
 };
 
-async function convert(data: Uint8Array, mode: "editable" | "exact" = "editable", extra: Partial<ConvertDeps> = {}) {
+async function convert(data: Uint8Array, mode: "editable" | "exact" | "picture" = "editable", extra: Partial<ConvertDeps> = {}) {
   const pdf = await getDocument({
     data,
     fontExtraProperties: true,
@@ -83,8 +83,20 @@ test("sample PDF converts to a docx with everything in reading order", async () 
   expect(progress[progress.length - 1]).toBeGreaterThan(0.9);
 });
 
-test("exact mode puts one page-sized picture per page", async () => {
-  const { xml, zip } = await convert(await makeSamplePdf(), "exact", {
+test("exact mode pins every block in a text box and keeps the words as text", async () => {
+  const { xml } = await convert(await makeSamplePdf(), "exact");
+  expect(xml.match(/txBox="1"/g)!.length).toBeGreaterThanOrEqual(5);
+  expect(xml).toContain("<wp:wrapNone/>");
+  expect(xml).not.toContain("<wp:inline");
+  const text = textOf(xml).join(" ");
+  for (const word of ["Quarterly Report", "quick brown fox", "First bullet item", "Pears", "Closing line", "Appendix"]) {
+    expect(text).toContain(word);
+  }
+  expect(xml.match(/<w:br w:type="page"\/>/g)?.length).toBe(1);
+});
+
+test("picture mode puts one page-sized picture per page", async () => {
+  const { xml, zip } = await convert(await makeSamplePdf(), "picture", {
     renderJpeg: async () => new Uint8Array([0xff, 0xd8, 0xff, 0xd9]),
   });
   expect(xml.match(/<wp:inline/g)?.length).toBe(2);

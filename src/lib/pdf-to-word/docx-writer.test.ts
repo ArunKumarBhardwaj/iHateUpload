@@ -503,3 +503,57 @@ test("East Asian runs write eastAsia font, hint and language", async () => {
   expect(xml).toContain('<w:lang w:eastAsia="zh-CN"/>');
   expect(xml).toContain('<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="Arial"/>');
 });
+
+test("exact pages write every block in a page-anchored text box with editable runs", async () => {
+  const shape = { kind: "rect" as const, x: 0, y: 0, w: 612, h: 100, fill: "112233", strokeWidth: 0, behind: true };
+  const exact: DocModel = {
+    header: [],
+    footer: [],
+    notes: [],
+    sections: [],
+    pages: [
+      {
+        width: 612,
+        height: 792,
+        shapes: [shape],
+        items: [
+          { kind: "text", box: { x: 100, y: 50, w: 200, h: 30 }, block: { type: "p", runs: [{ text: "Hello box", bold: true }], align: "center" } },
+          {
+            kind: "table",
+            box: { x: 72, y: 200, w: 300, h: 40 },
+            block: {
+              type: "table",
+              colWidths: [150, 150],
+              borders: true,
+              indentLeft: 0,
+              rows: [[{ paragraphs: [{ type: "p", runs: [{ text: "A1" }] }], colSpan: 1 }, { paragraphs: [{ type: "p", runs: [{ text: "B1" }] }], colSpan: 1 }]],
+            },
+          },
+          { kind: "picture", box: { x: 10, y: 300, w: 60, h: 40 }, block: { type: "image", ref: "im", width: 60, height: 40 } },
+        ],
+      },
+      { width: 612, height: 792, shapes: [], items: [{ kind: "text", box: { x: 72, y: 72, w: 100, h: 14 }, block: { type: "p", runs: [{ text: "Page two" }] } }] },
+    ],
+  };
+  const bytes = await writeDocx(exact, { im: { data: makePng(4, 4, [1, 2, 3]), mime: "image/png" } }, "t");
+  const xml = await (await JSZip.loadAsync(bytes)).file("word/document.xml")!.async("string");
+  new DOMParser({ onError: (_l, m) => { throw new Error(m); } }).parseFromString(xml, "text/xml");
+
+  expect(xml).toContain('<wps:cNvSpPr txBox="1"/>');
+  expect(xml).toContain('<wp:positionH relativeFrom="page"><wp:posOffset>1257300</wp:posOffset>'); // (100-1)pt
+  expect(xml).toContain('<wp:positionV relativeFrom="page"><wp:posOffset>622300</wp:posOffset>'); // (50-1)pt
+  expect(xml).toContain('<wp:extent cx="2590800" cy="419100"/>'); // 204pt x 33pt
+  expect(xml).toContain('lIns="0" tIns="0" rIns="0" bIns="0"');
+  expect(xml).toContain("<a:noAutofit/>");
+  expect(xml).toMatch(/<w:txbxContent><w:p>.*<w:t xml:space="preserve">Hello box<\/w:t>/);
+  expect(xml).toMatch(/<w:txbxContent><w:tbl>.*A1.*<\/w:tbl><w:p>/);
+  const z = [...xml.matchAll(/relativeHeight="(\d+)" behindDoc="(\d)"/g)].map((m) => `${m[1]}/${m[2]}`);
+  expect(z).toEqual(expect.arrayContaining(["1/1", "5/0", "3/0", "2/0"]));
+  expect(xml).toContain("<pic:pic>");
+  expect(xml).not.toContain("<wp:inline");
+  // one carrier paragraph per page, a page break between them, one section
+  expect(xml.match(/<w:spacing [^>]*w:line="10"/g)?.length).toBe(2);
+  expect(xml.match(/<w:br w:type="page"\/>/g)?.length).toBe(1);
+  expect(xml.match(/<w:sectPr/g)?.length).toBe(1);
+  expect(xml).toContain('w:top="0" w:right="0" w:bottom="0" w:left="0"');
+});

@@ -3,7 +3,7 @@ import { applyBullets } from "./bullets";
 import { applyDecorations, type Decorated } from "./decorations";
 import { applyLinks } from "./links";
 import { buildLines, lineText, type Fill, type Line, type PageInput } from "./lines";
-import type { Block, DocModel, ListInfo, ParagraphBlock, Run, Section, Shape, TableBlock } from "./model";
+import type { Block, DocModel, ExactItem, ExactPage, ListInfo, ParagraphBlock, Run, Section, Shape, TableBlock } from "./model";
 import { imageEl, lineEl, readingOrder, tableEl, type El, type Region } from "./order";
 import {
   buildParagraphs,
@@ -348,11 +348,43 @@ function applyOutline(outline: OutlineEntry[], placed: { block: ParagraphBlock; 
   }
 }
 
+const boxOf = (e: { x0: number; x1: number; top: number; bottom: number }) => ({
+  x: e.x0,
+  y: e.top,
+  w: e.x1 - e.x0,
+  h: e.bottom - e.top,
+});
+
+/**
+ * A paragraph for its own text box: the box starts where the text starts, so indents are measured from
+ * there, tabs move with it and nothing flows around other blocks.
+ */
+function exactParagraph(block: ParagraphBlock, meta: BuiltPara["meta"]): ExactItem {
+  const x0 = meta.marker ? Math.min(meta.x0, meta.marker.markerX) : meta.x0;
+  const shift = x0 - meta.colL;
+  block.spaceBefore = undefined;
+  block.columnBreakBefore = undefined;
+  if (block.list && meta.marker) {
+    const textShift = meta.marker.textX - meta.marker.markerX;
+    block.list = { ...block.list, leftIndent: Math.max(block.list.hanging, textShift) };
+  } else {
+    if (block.indentLeft !== undefined) block.indentLeft = Math.max(0, block.indentLeft - shift);
+    if (block.tabs) block.tabs = block.tabs.map((t) => ({ ...t, pos: Math.max(0, t.pos - shift) }));
+  }
+  return {
+    kind: "text",
+    box: { x: x0, y: meta.firstTop, w: meta.x1 - x0, h: meta.lastBottom - meta.firstTop },
+    block,
+  };
+}
+
 type ListState = { key: string; markerX: number; instance: number; level: number };
 
 export type LayoutOptions = {
   /** The PDF's own outline: its entries name headings and their depth. */
   outline?: OutlineEntry[];
+  /** Pin every block at its place on the page instead of letting the text flow. */
+  exact?: boolean;
 };
 
 export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {}): DocModel {
@@ -365,7 +397,7 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
     decorated.push(applyDecorations(lines, p.rules, p.fills));
     return lines;
   });
-  const { furniture, kept } = takeFurniture(inputs, lineSets);
+  const { furniture, kept } = options.exact ? { furniture: [], kept: lineSets } : takeFurniture(inputs, lineSets);
 
   // Margins shared by the pages: where text usually starts and ends.
   const spans = kept
@@ -385,7 +417,7 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
     const tables: TableEl[] = [...ruled.tables, ...loose.tables];
     const pageArea = input.width * input.height;
     const images = input.images.filter(
-      (im) => !(im.w * im.h >= pageArea * 0.85 && raw.length > 0) && im.w > 3 && im.h > 3,
+      (im) => (options.exact || !(im.w * im.h >= pageArea * 0.85 && raw.length > 0)) && im.w > 3 && im.h > 3,
     );
     for (const l of loose.rest) {
       l.colL = colL;
@@ -440,6 +472,7 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
   // Every paragraph placed on a page with its top, so link and outline targets can find theirs.
   const placed: { block: ParagraphBlock; top: number; bottom: number }[][] = works.map(() => []);
 
+  const exactItems: ExactItem[][] = works.map(() => []);
   const pageSections: Section[][] = works.map((work, workIndex) => {
     const { input } = work;
     const stats = pageStats[workIndex];
@@ -516,6 +549,7 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
           columnBreak = false;
         }
         blocks.push(block);
+        if (options.exact) exactItems[workIndex].push(exactParagraph(block, meta));
         prevPara = para;
         prevBottom = null;
       }
@@ -551,8 +585,21 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
       bottom = Math.max(bottom, el.bottom);
       const spaceBefore = prevBottom !== null && el.top - prevBottom > 1.5 ? el.top - prevBottom : undefined;
       if (el.kind === "table") {
-        blocks.push(tableBlock(el.table, stats, work.colL, input.fills));
+        const table = tableBlock(el.table, stats, work.colL, input.fills);
+        if (options.exact) {
+          table.indentLeft = 0;
+          exactItems[workIndex].push({ kind: "table", box: boxOf(el), block: table });
+        }
+        blocks.push(table);
       } else {
+        if (options.exact) {
+          const { image } = el;
+          exactItems[workIndex].push({
+            kind: "picture",
+            box: { x: image.x, y: image.y, w: image.w, h: image.h },
+            block: { type: "image", ref: image.ref, width: image.w, height: image.h },
+          });
+        }
         const maxW = Math.max(40, work.colR - work.colL);
         const scale = Math.min(1, maxW / el.image.w);
         blocks.push({
@@ -610,5 +657,14 @@ export function layoutDocument(inputs: PageInput[], options: LayoutOptions = {})
   });
   placeBookmarks(inputs, placed);
   applyOutline(options.outline ?? [], placed);
+  if (options.exact) {
+    const pages: ExactPage[] = works.map((work, i) => ({
+      width: work.input.width,
+      height: work.input.height,
+      shapes: work.shapes,
+      items: exactItems[i],
+    }));
+    return { sections: [], pages, header: [], footer: [], notes };
+  }
   return { sections, header, footer, notes };
 }
