@@ -159,7 +159,11 @@ export async function convertDocxToPdf(
   const { buffer, documentXml } = await prepareDocx(data);
   const mammoth = (await import("mammoth")).default ?? (await import("mammoth"));
   const result = await mammoth.convertToHtml(
-    typeof Buffer !== "undefined" ? { buffer: Buffer.from(buffer) } : { arrayBuffer: buffer },
+    // the browser build reads arrayBuffer, the node build (tests) reads buffer
+    {
+      arrayBuffer: buffer,
+      ...(typeof Buffer !== "undefined" ? { buffer: Buffer.from(buffer) } : {}),
+    },
     { styleMap: STYLE_MAP, transformDocument: transformElement },
   );
   for (const m of result.messages) if (m.type === "error") warnings.push(m.message);
