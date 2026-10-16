@@ -9,6 +9,18 @@ type Box = { x0: number; y0: number; x1: number; y1: number };
 
 const near = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol;
 
+/** Page-sized fills lighter than this read as paper colour, not a background worth keeping. */
+const PAPER_LUMINANCE = 0.8;
+
+/** Relative luminance (0 black, 1 white) of a hex colour without a hash. */
+function luminance(hex: string): number {
+  const [r, g, b] = [0, 2, 4].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
 function subpaths(segs: PathSeg[]): PathSeg[][] {
   const out: PathSeg[][] = [];
   for (const seg of segs) {
@@ -101,12 +113,12 @@ export function buildShapes(paths: PathShape[] | undefined, ctx: ShapeContext): 
     const h = box.y1 - box.y0;
     if (!Number.isFinite(w + h)) continue;
     const white = path.fill !== undefined && /^f[ef]f[ef]f[ef]$/i.test(path.fill);
-    let fill = path.fill;
+    const fill = path.fill;
     if (white && !path.stroke) continue;
-    if (fill && w * h >= pageArea * 0.85) {
-      if (!path.stroke) continue;
-      fill = undefined;
-    }
+    // A page-sized fill is a background. A near-white tint is only paper and is dropped; a dark or
+    // coloured one (a slide, a cover) carries the light text printed on it, so it sits behind the text.
+    const background = fill !== undefined && w * h >= pageArea * 0.85;
+    if (background && luminance(fill) > PAPER_LUMINANCE && !path.stroke) continue;
     if (ctx.bullets?.some((b) => near(b.x0, box.x0, 1) && near(b.x1, box.x1, 1) && near(b.y0, box.y0, 1) && near(b.y1, box.y1, 1))) continue;
     if (ctx.used.usedRules.some((r) => isUsedRule(box, r))) continue;
     if (path.fill && ctx.used.usedFills.some((f) => near(f.x0, box.x0, 1) && near(f.x1, box.x1, 1) && near(f.y0, box.y0, 1) && near(f.y1, box.y1, 1))) continue;
@@ -124,7 +136,7 @@ export function buildShapes(paths: PathShape[] | undefined, ctx: ShapeContext): 
       fillAlpha: path.fillAlpha,
       strokeAlpha: path.strokeAlpha,
       dash: path.dash || undefined,
-      behind: path.behind,
+      behind: path.behind || background,
     };
     const only = subs.length === 1 ? subs[0] : null;
     if (only && !fill && only.filter((s) => s.op !== "Z").length === 2 && only[1].op === "L") {
