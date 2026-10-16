@@ -1,21 +1,81 @@
 import type { JpegQuality } from "@/lib/tool-options";
 
+export type CanvasLimits = { maxEdge: number; maxPixels: number };
+
 /**
  * iOS ≤ 17 caps a single canvas at 4096×4096 / 16.7 M pixels. Crossing it
- * paints a blank canvas and does not throw. Stay under that on every engine
- * rather than sniff the OS. iOS 18 raised the cap; we still target the lower
- * one because 28% of visitors are on iOS and we cannot see the version.
+ * paints a blank canvas and does not throw. This is the default everywhere.
  */
-export const CANVAS_MAX_EDGE = 4096;
-export const CANVAS_MAX_PIXELS = 16_777_216;
+export const SAFE_CANVAS: CanvasLimits = {
+  maxEdge: 4096,
+  maxPixels: 16_777_216,
+};
 
-export function clampCanvasSize(width: number, height: number) {
+/** Chrome, Firefox and desktop Safari all allow this much. */
+export const LARGE_CANVAS: CanvasLimits = {
+  maxEdge: 16384,
+  maxPixels: 268_435_456,
+};
+
+export type DeviceHints = {
+  userAgent: string;
+  platform: string;
+  maxTouchPoints: number;
+};
+
+/**
+ * Large canvases only where the browser is known to take them. Any iPhone or
+ * iPad (iPadOS reports a Mac user agent, told apart by touch) stays on the safe
+ * limit because the OS version cannot be read reliably.
+ */
+export function pickCanvasLimits(hints: DeviceHints | undefined): CanvasLimits {
+  if (!hints) return SAFE_CANVAS;
+  if (/iPhone|iPad|iPod/.test(hints.userAgent)) return SAFE_CANVAS;
+  if (/Mac/.test(hints.platform) && hints.maxTouchPoints > 1) return SAFE_CANVAS;
+  if (/Android|Mobile/.test(hints.userAgent)) return SAFE_CANVAS;
+  return LARGE_CANVAS;
+}
+
+export function currentCanvasLimits(): CanvasLimits {
+  if (typeof navigator === "undefined") return SAFE_CANVAS;
+  return pickCanvasLimits({
+    userAgent: navigator.userAgent,
+    platform: navigator.platform ?? "",
+    maxTouchPoints: navigator.maxTouchPoints ?? 0,
+  });
+}
+
+/** Draws one pixel in the far corner and reads it back. A canvas the browser refused reads as empty. */
+export function canvasHoldsSize(width: number, height: number): boolean {
+  const canvas = document.createElement("canvas");
+  try {
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return false;
+    ctx.fillStyle = "#010203";
+    ctx.fillRect(width - 1, height - 1, 1, 1);
+    const px = ctx.getImageData(width - 1, height - 1, 1, 1).data;
+    return px[0] === 1 && px[1] === 2 && px[2] === 3 && px[3] === 255;
+  } catch {
+    return false;
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+}
+
+export function clampCanvasSize(
+  width: number,
+  height: number,
+  limits: CanvasLimits = SAFE_CANVAS,
+) {
   const longest = Math.max(width, height, 1);
   const pixels = Math.max(width * height, 1);
   const scale = Math.min(
     1,
-    CANVAS_MAX_EDGE / longest,
-    Math.sqrt(CANVAS_MAX_PIXELS / pixels),
+    limits.maxEdge / longest,
+    Math.sqrt(limits.maxPixels / pixels),
   );
   return {
     width: Math.max(1, Math.floor(width * scale)),
@@ -39,9 +99,10 @@ export function planPageRender(
   widthPt: number,
   heightPt: number,
   dpi: number,
+  limits: CanvasLimits = SAFE_CANVAS,
 ): PageRenderPlan {
   const wanted = dpi / 72;
-  const box = clampCanvasSize(widthPt * wanted, heightPt * wanted);
+  const box = clampCanvasSize(widthPt * wanted, heightPt * wanted, limits);
   const scale = (wanted * box.width) / Math.max(widthPt * wanted, 1);
   return {
     width: box.width,

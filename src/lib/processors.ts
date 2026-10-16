@@ -7,8 +7,11 @@ import { COMPRESS_PLANS } from "@/lib/compress-plans";
 import type { FileItem, ResultItem } from "@/lib/job";
 import { stripPdfMetadata } from "@/lib/pdf-meta";
 import {
+  canvasHoldsSize,
   clampCanvasSize,
+  currentCanvasLimits,
   jpegQualityValue,
+  SAFE_CANVAS,
   pageRenderNote,
   planPageRender,
 } from "@/lib/pdf-image";
@@ -893,6 +896,7 @@ async function processPdfToImages(
 
   const png = options.format === "png";
   const quality = jpegQualityValue(options.quality);
+  const limits = currentCanvasLimits();
   const { getDocument } = await loadPdfJs();
   const data = new Uint8Array(await item.file.arrayBuffer());
   const pdf = await getDocument({ data }).promise;
@@ -905,7 +909,16 @@ async function processPdfToImages(
       const pageNum = wanted[done] + 1;
       const page = await pdf.getPage(pageNum);
       const size = page.getViewport({ scale: 1 });
-      const plan = planPageRender(size.width, size.height, options.dpi);
+      let plan = planPageRender(size.width, size.height, options.dpi, limits);
+      // Past the safe size, prove this browser can really hold the canvas.
+      if (
+        plan.width * plan.height > SAFE_CANVAS.maxPixels ||
+        Math.max(plan.width, plan.height) > SAFE_CANVAS.maxEdge
+      ) {
+        if (!canvasHoldsSize(plan.width, plan.height)) {
+          plan = planPageRender(size.width, size.height, options.dpi);
+        }
+      }
       const blob = await renderPdfPage(page, plan, (canvas) =>
         png ? canvasToPngBlob(canvas) : canvasToJpegBlob(canvas, quality),
       );
