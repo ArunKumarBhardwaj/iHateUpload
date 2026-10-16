@@ -90,7 +90,9 @@ function runXml(run: Run): string {
   if (run.link) props.push('<w:rStyle w:val="Hyperlink"/>');
   if (run.font) {
     const f = esc(run.font);
-    props.push(`<w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:cs="${f}" w:eastAsia="${f}"/>`);
+    const ea = run.eastAsia ? esc(run.eastAsia) : f;
+    const hint = run.eastAsia ? ' w:hint="eastAsia"' : "";
+    props.push(`<w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:cs="${f}" w:eastAsia="${ea}"${hint}/>`);
   }
   if (run.bold) props.push("<w:b/><w:bCs/>");
   if (run.italic) props.push("<w:i/><w:iCs/>");
@@ -107,6 +109,7 @@ function runXml(run: Run): string {
     props.push(`<w:shd w:val="clear" w:color="auto" w:fill="${run.highlight.toUpperCase()}"/>`);
   }
   if (run.vertAlign) props.push(`<w:vertAlign w:val="${run.vertAlign}"/>`);
+  if (run.lang) props.push(`<w:lang w:eastAsia="${esc(run.lang)}"/>`);
   const rPr = props.length ? `<w:rPr>${props.join("")}</w:rPr>` : "";
   if (run.field) {
     return `<w:fldSimple w:instr=" ${run.field} "><w:r>${rPr}<w:t>1</w:t></w:r></w:fldSimple>`;

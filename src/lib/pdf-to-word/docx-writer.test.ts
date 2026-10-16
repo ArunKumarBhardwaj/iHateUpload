@@ -477,3 +477,29 @@ test("without fonts the package has no font parts", async () => {
   expect(zip.file("word/fontTable.xml")).toBeNull();
   expect(await zip.file("word/settings.xml")!.async("string")).not.toContain("embedTrueTypeFonts");
 });
+
+test("East Asian runs write eastAsia font, hint and language", async () => {
+  const doc: DocModel = {
+    header: [],
+    footer: [],
+    notes: [],
+    sections: [
+      {
+        width: 600,
+        height: 800,
+        margins,
+        blocks: [
+          {
+            type: "p",
+            runs: [{ text: "图书馆", font: "Arial", eastAsia: "SimSun", lang: "zh-CN" }, { text: "plain", font: "Arial" }],
+          },
+        ],
+      },
+    ],
+  };
+  const zip = await JSZip.loadAsync(await writeDocx(doc, {}, "t"));
+  const xml = await zip.file("word/document.xml")!.async("string");
+  expect(xml).toContain('<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="SimSun" w:hint="eastAsia"/>');
+  expect(xml).toContain('<w:lang w:eastAsia="zh-CN"/>');
+  expect(xml).toContain('<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="Arial"/>');
+});

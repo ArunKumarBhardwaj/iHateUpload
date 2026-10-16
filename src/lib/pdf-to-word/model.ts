@@ -10,6 +10,9 @@ export type Run = {
   /** Font size in points. */
   size?: number;
   font?: string;
+  /** Font for East Asian characters, and the language they are in (w:lang eastAsia). */
+  eastAsia?: string;
+  lang?: string;
   /** Hex, no hash. */
   color?: string;
   underline?: boolean;

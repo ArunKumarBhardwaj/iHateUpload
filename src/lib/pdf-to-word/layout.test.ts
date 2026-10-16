@@ -838,3 +838,28 @@ test("a wrapped paragraph whose last line is short still merges its lines", () =
   ]);
   expect(paragraphs(all).length).toBe(1);
 });
+
+test("CJK text is set in an East Asian font even when the PDF font looks monospaced", () => {
+  const [zh, ja, ko, latin] = paragraphs(
+    blocks([
+      page([
+        item("欢迎来到图书馆", 72, 100, 11, { font: "Courier", generic: "mono" }),
+        item("図書館からのお知らせです", 72, 200, 11, { font: "Courier", generic: "mono" }),
+        item("도서관에 오신 것을 환영합니다", 72, 300, 11, { font: "Courier", generic: "mono" }),
+        item("plain latin text", 72, 400, 11, { font: "Courier", generic: "mono" }),
+      ]),
+    ]),
+  );
+  expect([zh.runs[0].eastAsia, zh.runs[0].lang]).toEqual(["Microsoft YaHei", "zh-CN"]);
+  expect([ja.runs[0].eastAsia, ja.runs[0].lang]).toEqual(["Yu Gothic", "ja-JP"]);
+  expect([ko.runs[0].eastAsia, ko.runs[0].lang]).toEqual(["Malgun Gothic", "ko-KR"]);
+  // The Latin face is no longer the monospaced guess for a run that is all CJK.
+  expect(zh.runs[0].font).toBe("Microsoft YaHei");
+  expect(latin.runs[0].font).toBe("Courier New");
+  expect(latin.runs[0].eastAsia).toBeUndefined();
+});
+
+test("a CJK PDF font family is kept for East Asian text", () => {
+  const [p] = paragraphs(blocks([page([item("市立図書館", 72, 100, 11, { font: "ABCDEF+MS-Mincho", generic: "mono" })])]));
+  expect(p.runs[0].eastAsia).toBe("MS Mincho");
+});
