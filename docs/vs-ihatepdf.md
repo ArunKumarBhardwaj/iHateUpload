@@ -26,14 +26,14 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 | | Count |
 |---|---|
 | ✅ We are better (measured) | 11 rows |
-| 🟰 Equal (measured) | 3 rows |
-| ⚠️ They are better | 6 rows |
-| ❔ Shared, not compared yet | 23 rows |
+| 🟰 Equal (measured) | 6 rows |
+| ⚠️ They are better | 9 rows |
+| ❔ Shared, not compared yet | 18 rows |
 | ➕ Only we have | 15 tools (section 3) |
 | ❌ Only they have | 24 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
-Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, Edit metadata, auto PII redaction, Bates numbering, workflows.
+Biggest gaps: Word to PDF quality (ours drops formatting), PDF to Excel / PowerPoint, Repair, Fill form, watermark and PDF-to-JPG options, auto PII redaction, Bates numbering, workflows.
 
 ---
 
@@ -69,10 +69,10 @@ Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, Edit metadata, auto 
 | PDF to Word: CJK text | Unified ideographs, East Asian fonts and language tags | Keeps Kangxi radicals; font by regex | ✅ | cjk.pdf: 0 radicals in ours; teardown of theirs. 2026-10-17 |
 | PDF to Word: slide / cover backgrounds | Kept behind text | Lost in both modes | ✅ | slides.pdf visual 0.40 vs 0.26, 2026-10-17 |
 | PDF to Word: comments from annotations | No | Yes (7 annotation types, highlights as shading) | ❌ | Teardown, 2026-10-17 |
-| Merge PDF | Yes | Yes | ❔ | |
+| Merge PDF | Yes | Yes | 🟰 | Same pages, order and links; both drop bookmarks; ours 0.10 s vs 0.20 s. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Split PDF | Pages, ranges, in half, by size | Same plus by bookmarks and by text | ⚠️ | Their sitemap; our `SPLIT_MODES`. 2026-10-17 |
-| PDF to JPG / PNG | 72 / 144 / 300 DPI, page ranges | Up to 600 DPI | ❔ | |
-| Images to PDF (JPG, PNG, HEIC) | Image to PDF, PNG to PDF, HEIC to PDF | Images to PDF | ❔ | |
+| PDF to JPG / PNG | 72 / 144 / 300 DPI (default 144), page ranges | Default ~216 DPI, up to 600 DPI, JPEG quality slider, PNG toggle | ⚠️ | head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
+| Images to PDF (JPG, PNG, HEIC) | Image to PDF, PNG to PDF, HEIC to PDF | Images to PDF (no HEIC) | 🟰 | Same page sizing and size (841 vs 840 KB); neither has options. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Protect / Unlock PDF | Yes | Encrypt, Remove password | ❔ | |
 | Rotate PDF | Yes | Yes (+ Flip/mirror) | ❔ | |
 | Organize pages | Yes | Yes | ❔ | |
@@ -84,13 +84,14 @@ Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, Edit metadata, auto 
 | Extract text / Extract images | Yes | Yes | ❔ | |
 | Headers and footers | Yes | Yes | ❔ | |
 | Page numbers | Formats + ranges | Yes (+ Bates numbering) | ❔ | |
-| Watermark | Yes | Yes | ❔ | |
+| Watermark | Text and 8 positions only | Opacity, size, angle, colour, tiling, live preview | ⚠️ | head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Pages per sheet (N-up) | Yes | Yes | ❔ | |
 | Invert / grayscale | Yes | Invert | ❔ | |
 | Flatten PDF | Yes | Yes | ❔ | |
-| OCR PDF | Tesseract 7, in a tab | Tesseract 5 from CDN | ❔ | |
+| OCR PDF | Tesseract 7, 11 languages, skips pages that already have text, .txt output | Tesseract 5, ~22 languages, auto-detect, page range | 🟰 | 42/42 words both, ~2.4 s vs 2.6 s. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Metadata | Strip only | Edit | ⚠️ | Their edit-pdf-metadata page, 2026-10-17 |
-| Word / Excel / PowerPoint to PDF | Yes | Yes | ❔ | |
+| Word to PDF | Plain text only: headings, bold, lists, tables and images lost | Headings, bold/italic, bullets, tables, images rendered | ⚠️ | Two synthetic .docx files. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
+| Excel / PowerPoint to PDF | Yes | Yes | ❔ | |
 | Markdown / CSV / HTML to PDF | Yes | Yes | ❔ | |
 | Scan to PDF (camera) | Yes | Yes | ❔ | |
 | Ask / chat with PDF | Yes (see privacy row) | Yes | ❔ | |
