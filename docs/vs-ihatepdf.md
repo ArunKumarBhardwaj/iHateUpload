@@ -1,0 +1,159 @@
+# iHateUpload vs ihatepdf.cv
+
+One place to see where we beat our main rival, where we tie, and where we still lose — so nobody has to re-read the code or redo the teardown to answer "are we better at X?".
+
+ihatepdf.cv is the rival that matters most: like us it processes files in the browser, nothing uploaded. Server-based sites (iLovePDF, Smallpdf, PDF24) are a different contest.
+
+## Legend
+
+| Mark | Meaning |
+|---|---|
+| ✅ | We are better, and it was measured or checked (see Evidence) |
+| 🟰 | Equal, measured or checked |
+| ⚠️ | They are better, measured or checked |
+| ➕ | Only we have it |
+| ❌ | Only they have it (gap) |
+| ❔ | Both have it, not compared head-to-head yet |
+
+**Rules for editing this file**
+- A ✅, 🟰 or ⚠️ needs evidence: a benchmark, a test, or a dated check of their site. No evidence means ❔.
+- Put the date (YYYY-MM-DD) on every check. Their site changes; anything older than ~3 months should be re-checked before we quote it.
+- When we ship or measure something, update the row in the same commit.
+- Their tool list comes from `https://www.ihatepdf.cv/sitemap.xml` (last pulled 2026-10-17: 68 tool pages).
+
+## Summary (2026-10-17)
+
+| | Count |
+|---|---|
+| ✅ We are better (measured) | 10 rows |
+| 🟰 Equal (measured) | 3 rows |
+| ⚠️ They are better | 7 rows |
+| ❔ Shared, not compared yet | 23 rows |
+| ➕ Only we have | 15 tools (section 3) |
+| ❌ Only they have | 24 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
+
+Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
+Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, Edit metadata, auto PII redaction, Bates numbering, workflows.
+
+---
+
+## 1. Platform and trust
+
+| Feature | Ours | ihatepdf.cv | Verdict | Evidence |
+|---|---|---|---|---|
+| Files processed in the browser, never uploaded | Yes (all tools except Ask PDF text) | Yes (REA network capture of Compress: only their workers loaded) | 🟰 | REA capture, 2026-10-12 |
+| Session recording / heavy analytics on tool pages | None (Vercel Analytics page views only) | Microsoft Clarity session recorder (`_cltk` key during a compress run) | ✅ | REA storage capture, 2026-10-12 |
+| PDF libraries | pdf.js 6.2 and maintained `@cantoo/pdf-lib`, bundled | pdf.js 3.11.174 and pdf-lib 1.17.1 loaded from public CDNs, no SRI | ✅ | Bundle teardown, 2026-10-12 |
+| Works offline | Yes (service worker caches code and WASM codecs) | Yes (service worker) | 🟰 | Both service workers read, 2026-10-12 |
+| Page speed (Lighthouse mobile) | Home 98, tool page 85–100 | Home 93, Compress 81 | ✅ | Lighthouse 12, 2026-10-12 / 2026-10-13 |
+| Accessibility (Lighthouse) | 100 on home and tool pages | 93–95 | ✅ | Lighthouse 12, 2026-10-13 |
+| Best practices (Lighthouse) | 96–100 | 79 | ✅ | Lighthouse 12, 2026-10-12 |
+| Server-rendered pages (content without JS) | Yes (Next.js) | No, client-rendered SPA with a separate hidden SEO block | ✅ | HTML fetch, 2026-10-12 |
+| Ask / chat with PDF privacy | Extracted text goes to Gemini through our server (disclosed on /privacy) | User's own Gemini key, called from the browser; on-device DistilBART summariser | ⚠️ | Bundle teardown, 2026-10-12 |
+| On-device AI (speech-to-text, text-to-speech, summaries) | None | Whisper, Kokoro TTS, DistilBART via transformers.js | ❌ | Bundle teardown, 2026-10-12 |
+| Homepage: drop a file, get matching tools | Yes | No ("open a tool first") | ➕ | Our `home-drop.tsx`; their homepage text, 2026-10-12 |
+| Search with Cmd/Ctrl+K | Yes | Yes | 🟰 | Both sites, 2026-10-13 |
+| Recent files / starred tools | No | Yes (IndexedDB, localStorage) | ❌ | REA storage capture, 2026-10-12 |
+| Saved multi-step workflows / batch | No (one-step "Continue with" only) | Yes ("Chain steps, run once", batch panel) | ❌ | Bundle teardown, 2026-10-12 |
+| Install as app / share target | Manifest, no share target | Manifest with share target (POST handler looks broken) | ❔ | Manifest read, 2026-10-12 |
+| SEO surface | ~55 URLs, per-tool HowTo JSON-LD | ~190 URLs, 113 blog posts, alternative-to pages, FAQ JSON-LD, compress-to-N-KB pages | ⚠️ | Sitemaps, 2026-10-12 |
+
+## 2. Shared tools
+
+| Tool | Ours | Theirs | Verdict | Evidence |
+|---|---|---|---|---|
+| Compress PDF | Resamples images to drawn size (MozJPEG + Rust Lanczos3) in a worker, PSNR-guided quality, keeps text; target size 200 KB–5 MB | Multi-codec per image, font subsetting, JBIG2 for scans; levels + target size | ✅ | 10.5 MB photo PDF, medium: ours 94.3 KB, theirs 95 KB, both keep text; our Light 283 KB. 2026-10-12 |
+| Compress scanned (black-and-white) pages | JPEG/Flate only | JBIG2 encoder | ⚠️ | Their `pdf-jbig2.js`, 2026-10-12. Fix idea: CCITT G4 (Rust `fax` crate) |
+| PDF to Word (editable) | Tables, lists, shapes, images, links, embedded TrueType fonts, CJK fonts | Editable + Exact modes | ✅ | Realistic corpus: struct 0.87 vs 0.80, visual 0.43 vs 0.34; simple corpus 0.96 vs 0.94; 120 pages 0.42 s vs 0.78 s. 2026-10-17 |
+| PDF to Word (exact look, still editable) | In progress (text-box layout) | Text boxes per block, visual 0.66 | ⚠️ | `bench/pdf-to-word/realistic/scoreboard-realistic.md`, 2026-10-17 |
+| PDF to Word: CJK text | Unified ideographs, East Asian fonts and language tags | Keeps Kangxi radicals; font by regex | ✅ | cjk.pdf: 0 radicals in ours; teardown of theirs. 2026-10-17 |
+| PDF to Word: slide / cover backgrounds | Kept behind text | Lost in both modes | ✅ | slides.pdf visual 0.40 vs 0.26, 2026-10-17 |
+| PDF to Word: comments from annotations | No | Yes (7 annotation types, highlights as shading) | ❌ | Teardown, 2026-10-17 |
+| Merge PDF | Yes | Yes | ❔ | |
+| Split PDF | Pages, ranges, in half, by size | Same plus by bookmarks and by text | ⚠️ | Their sitemap; our `SPLIT_MODES`. 2026-10-17 |
+| PDF to JPG / PNG | 72 / 144 / 300 DPI, page ranges | Up to 600 DPI | ❔ | |
+| Images to PDF (JPG, PNG, HEIC) | Image to PDF, PNG to PDF, HEIC to PDF | Images to PDF | ❔ | |
+| Protect / Unlock PDF | Yes | Encrypt, Remove password | ❔ | |
+| Rotate PDF | Yes | Yes (+ Flip/mirror) | ❔ | |
+| Organize pages | Yes | Yes | ❔ | |
+| Sign PDF | Draw, type, stamp | Draw, type, photo | ❔ | |
+| Edit PDF text | Click a line to edit, OCR for scans | Click text to edit | ❔ | |
+| Crop / page size | Crop PDF, Page Size | Crop & Resize | ❔ | |
+| Redact PDF | Manual boxes, pixels burned out | Manual + automatic PII finder (Aadhaar, PAN, cards, IFSC) | ⚠️ | Their auto-redact page, 2026-10-12 |
+| Compare PDFs | Side by side + text diff | Yes | ❔ | |
+| Extract text / Extract images | Yes | Yes | ❔ | |
+| Headers and footers | Yes | Yes | ❔ | |
+| Page numbers | Formats + ranges | Yes (+ Bates numbering) | ❔ | |
+| Watermark | Yes | Yes | ❔ | |
+| Pages per sheet (N-up) | Yes | Yes | ❔ | |
+| Invert / grayscale | Yes | Invert | ❔ | |
+| Flatten PDF | Yes | Yes | ❔ | |
+| OCR PDF | Tesseract 7, in a tab | Tesseract 5 from CDN | ❔ | |
+| Metadata | Strip only | Edit | ⚠️ | Their edit-pdf-metadata page, 2026-10-17 |
+| Word / Excel / PowerPoint to PDF | Yes | Yes | ❔ | |
+| Markdown / CSV / HTML to PDF | Yes | Yes | ❔ | |
+| Scan to PDF (camera) | Yes | Yes | ❔ | |
+| Ask / chat with PDF | Yes (see privacy row) | Yes | ❔ | |
+
+## 3. Only we have
+
+| Tool / feature | Evidence |
+|---|---|
+| Compress Image (JPG, PNG, WebP) | Their sitemap has no image tools, 2026-10-17 |
+| Compress Image to Size (50 KB–8 MB) | same |
+| Resize Image | same |
+| Crop Image, Rotate Image | same |
+| HEIC to JPG | same |
+| WebP to JPG, PNG to JPG, JPG to PNG, JPG to WebP | same |
+| Reverse Pages | not in their sitemap |
+| Delete Blank Pages | not in their sitemap |
+| Insert Blank Pages | not in their sitemap |
+| Extract Pages (as its own tool) | they do it inside Split |
+| Drop-a-file tool suggester on the homepage | section 1 |
+
+## 4. Only they have (our gap list)
+
+Priority is our guess at value for a privacy-first PDF site; "skip" means off-brand.
+
+| Tool | Priority | Notes |
+|---|---|---|
+| PDF to Excel | High | Reuse our PDF to Word table detection |
+| PDF to PowerPoint | High | Reuse text boxes from Exact layout |
+| Repair PDF | High | Rebuild broken xref; qpdf-wasm is an option |
+| Fill PDF form | High | AcroForm fields with pdf-lib |
+| Edit PDF metadata | Medium | Small; extend Strip Metadata |
+| Auto-redact PII | Medium | Pairs with our Redact |
+| Bates numbering | Medium | Extend Page Numbers |
+| Split by bookmarks / by text | Medium | Extend Split modes |
+| PDF to HTML | Medium | |
+| Workflows (chain steps) + batch | Medium | Extend "Continue with" |
+| Recent files / starred | Low | Local-only storage |
+| Flip / mirror PDF | Low | Small |
+| PDF to EPUB, eBook to PDF | Low | |
+| PDF to ZIP | Low | |
+| Alternate & mix pages | Low | |
+| Create PDF (blank editor) | Low | |
+| Summarize PDF (on-device) | Low | transformers.js |
+| PDF to audio, Audio to PDF | Low | Kokoro TTS / Whisper on-device |
+| Fingerprint PDF, Thumbmark | Skip | |
+| Handwriting tools (3) | Skip | |
+| LaTeX resume | Skip | |
+| GST invoice, GST filing prep, POS billing | Skip | India-specific business tools |
+| P2P share, Collaborative whiteboard | Skip | |
+| Compress-to-100 KB / 200 KB / 2 MB landing pages | High (SEO) | Our compress already supports targets |
+
+## 5. How to re-check
+
+```bash
+# Their current tool list
+curl -s https://www.ihatepdf.cv/sitemap.xml | grep -o '<loc>[^<]*' | sed 's#<loc>https://www.ihatepdf.cv##' | grep -v '^/blog' | sort
+```
+
+```bash
+# PDF to Word head-to-head (dev server on :43127, Node 24 via nvm)
+bun run bench:pdf2word && bun run bench:pdf2word:real
+```
+
+- Compress: drop the same synthetic PDF into both sites' compress tool at matching levels; compare size and whether text is still selectable.
+- Reverse engineering: REA (`npx rea-agents@latest`, Node 24) against an isolated Chrome profile; method notes in `.scratch/pdf-to-word/rea-findings.md`.
+- Use synthetic test files only, never personal documents.
