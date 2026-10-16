@@ -26,14 +26,14 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 | | Count |
 |---|---|
 | ✅ We are better (measured) | 11 rows |
-| 🟰 Equal (measured) | 6 rows |
-| ⚠️ They are better | 9 rows |
+| 🟰 Equal (measured) | 8 rows |
+| ⚠️ They are better | 7 rows |
 | ❔ Shared, not compared yet | 18 rows |
 | ➕ Only we have | 15 tools (section 3) |
 | ❌ Only they have | 24 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
-Biggest gaps: Word to PDF quality (ours drops formatting), PDF to Excel / PowerPoint, Repair, Fill form, watermark and PDF-to-JPG options, auto PII redaction, Bates numbering, workflows.
+Biggest gaps: Word to PDF quality (ours drops formatting), PDF to Excel / PowerPoint, Repair, Fill form, auto PII redaction, Bates numbering, workflows.
 
 ---
 
@@ -71,7 +71,7 @@ Biggest gaps: Word to PDF quality (ours drops formatting), PDF to Excel / PowerP
 | PDF to Word: comments from annotations | No | Yes (7 annotation types, highlights as shading) | ❌ | Teardown, 2026-10-17 |
 | Merge PDF | Yes | Yes | 🟰 | Same pages, order and links; both drop bookmarks; ours 0.10 s vs 0.20 s. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Split PDF | Pages, ranges, in half, by size | Same plus by bookmarks and by text | ⚠️ | Their sitemap; our `SPLIT_MODES`. 2026-10-17 |
-| PDF to JPG / PNG | 72 / 144 / 300 DPI (default 144), page ranges | Default ~216 DPI, up to 600 DPI, JPEG quality slider, PNG toggle | ⚠️ | head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
+| PDF to JPG / PNG | 72 / 150 / 300 / 600 DPI (true 600 on desktop: Letter = 5100×6600), JPG quality Smaller/Balanced/Best, JPG or PNG, page ranges, ZIP | Up to 600 DPI, quality slider, PNG toggle | 🟰 | Same options; ours 600 DPI page in ~0.6 s, 1.36 MB. `.scratch/head-to-head-2026-10-17.md` + lead check, 2026-10-17 |
 | Images to PDF (JPG, PNG, HEIC) | Image to PDF, PNG to PDF, HEIC to PDF | Images to PDF (no HEIC) | 🟰 | Same page sizing and size (841 vs 840 KB); neither has options. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Protect / Unlock PDF | Yes | Encrypt, Remove password | ❔ | |
 | Rotate PDF | Yes | Yes (+ Flip/mirror) | ❔ | |
@@ -84,7 +84,7 @@ Biggest gaps: Word to PDF quality (ours drops formatting), PDF to Excel / PowerP
 | Extract text / Extract images | Yes | Yes | ❔ | |
 | Headers and footers | Yes | Yes | ❔ | |
 | Page numbers | Formats + ranges | Yes (+ Bates numbering) | ❔ | |
-| Watermark | Text and 8 positions only | Opacity, size, angle, colour, tiling, live preview | ⚠️ | head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
+| Watermark | Opacity, size, angle, colour, single or tiled, page range, live preview; text stays selectable | Opacity, size, angle, colour, tiling, live preview | 🟰 | Feature parity; page range is ours only. `.scratch/head-to-head-2026-10-17.md` + lead check, 2026-10-17 |
 | Pages per sheet (N-up) | Yes | Yes | ❔ | |
 | Invert / grayscale | Yes | Invert | ❔ | |
 | Flatten PDF | Yes | Yes | ❔ | |
