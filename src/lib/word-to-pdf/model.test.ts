@@ -74,6 +74,15 @@ describe("htmlToBlocks", () => {
     if (last.kind === "text") expect(last.style.color).toBeUndefined();
   });
 
+  test("spacing markers become paragraph spacing in points", () => {
+    const [p] = htmlToBlocks("<p>\uE000sb=12\uE001\uE000sa=6\uE001\uE000sl=m:1.5\uE001text</p>");
+    if (p.kind !== "para") throw new Error();
+    expect(p.spacing).toEqual({ before: 12, after: 6, line: { kind: "mult", v: 1.5 } });
+    const [q] = htmlToBlocks("<p>\uE000sl=e:14\uE001x</p>");
+    if (q.kind !== "para") throw new Error();
+    expect(q.spacing?.line).toEqual({ kind: "exact", v: 14 });
+  });
+
   test("only safe link schemes survive; footnote back-arrows are dropped", () => {
     const [p] = htmlToBlocks(
       '<p><a href="https://a.test">ok</a><a href="javascript:alert(1)">bad</a><a href="#footnote-ref-1">↑</a></p>',

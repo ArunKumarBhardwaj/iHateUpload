@@ -211,3 +211,89 @@ describe("layoutDocument", () => {
     for (const c of texts(pages[0].cmds)) expect(c.x + measure(c.text, c, c.size)).toBeLessThanOrEqual(350.01);
   });
 });
+
+describe("docx-driven layout", () => {
+  const cell = (text: string, fill?: string) => ({ blocks: [para(text)], colSpan: 1, rowSpan: 1, header: false, fill });
+  const vlines = (cmds: Cmd[]) =>
+    [...new Set(cmds.filter((c): c is Extract<Cmd, { t: "line" }> => c.t === "line" && c.x1 === c.x2).map((c) => c.x1))].sort((a, b) => a - b);
+
+  test("table columns follow the grid, scaled to a percentage width", () => {
+    const t: Block = {
+      kind: "table",
+      info: { grid: [100, 200], widthPct: 100, borders: { color: "000000", width: 0.5 }, fills: [] },
+      rows: [{ header: false, cells: [cell("a"), cell("b")] }],
+    };
+    expect(vlines(layoutDocument([t], PAGE, measure)[0].cmds)).toEqual([50, 150, 350]);
+  });
+
+  test("an absolute table width narrower than the page is honoured", () => {
+    const t: Block = {
+      kind: "table",
+      info: { grid: [100, 100], widthPt: 150, borders: { color: "000000", width: 0.5 }, fills: [] },
+      rows: [{ header: false, cells: [cell("a"), cell("b")] }],
+    };
+    expect(vlines(layoutDocument([t], PAGE, measure)[0].cmds)).toEqual([50, 125, 200]);
+  });
+
+  test("cell shading uses the docx fill; no default grey when the docx describes the table", () => {
+    const t: Block = {
+      kind: "table",
+      info: { grid: [100, 100], borders: { color: "000000", width: 0.5 }, fills: [] },
+      rows: [{ header: true, cells: [cell("a", "D9E2F3"), { ...cell("b"), header: true }] }],
+    };
+    const rects = layoutDocument([t], PAGE, measure)[0].cmds.filter((c) => c.t === "rect");
+    expect(rects.length).toBe(1);
+    expect((rects[0] as Extract<Cmd, { t: "rect" }>).fill).toBe("D9E2F3");
+  });
+
+  test("a table without borders draws no lines", () => {
+    const t: Block = {
+      kind: "table",
+      info: { grid: [100], borders: null, fills: [] },
+      rows: [{ header: false, cells: [cell("a")] }],
+    };
+    expect(layoutDocument([t], PAGE, measure)[0].cmds.some((c) => c.t === "line")).toBe(false);
+  });
+
+  test("paragraph spacing from the docx replaces the defaults", () => {
+    const pages = layoutDocument(
+      [para("one", { spacing: { before: 0, after: 30 } }), para("two", { spacing: { before: 20, after: 0 } })],
+      PAGE,
+      measure,
+    );
+    const [a, b] = texts(pages[0].cmds);
+    expect(b.y - a.y).toBeCloseTo(11 * 1.22 + 30 + 20, 3);
+  });
+
+  test("line spacing: multiple, exact and at-least", () => {
+    const two = "word ".repeat(80);
+    const step = (spacing: Para["spacing"]) => {
+      const t = texts(layoutDocument([para(two, { spacing })], PAGE, measure)[0].cmds);
+      return t[1].y - t[0].y;
+    };
+    expect(step(undefined)).toBeCloseTo(11 * 1.22, 3);
+    expect(step({ line: { kind: "mult", v: 2 } })).toBeCloseTo(11 * 1.22 * 2, 3);
+    expect(step({ line: { kind: "exact", v: 20 } })).toBeCloseTo(20, 3);
+    expect(step({ line: { kind: "atLeast", v: 5 } })).toBeCloseTo(11 * 1.22, 3);
+  });
+
+  test("docx base style supplies size, colour, weight and family; no forced heading bold", () => {
+    const styled = para("Head", {
+      heading: 1,
+      docxStyled: true,
+      base: { size: 20, color: "1F4E79", bold: false, family: "carlito" },
+    });
+    const [t] = texts(layoutDocument([styled], PAGE, measure)[0].cmds);
+    expect(t.size).toBe(20);
+    expect(t.color).toBe("1F4E79");
+    expect(t.bold).toBe(false);
+    expect(t.family).toBe("carlito");
+  });
+
+  test("font line factor scales line height", () => {
+    const [a, b] = texts(
+      layoutDocument([para("word ".repeat(80))], PAGE, measure, { lineFactor: () => 1.5 })[0].cmds,
+    );
+    expect(b.y - a.y).toBeCloseTo(16.5, 3);
+  });
+});

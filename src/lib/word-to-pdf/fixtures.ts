@@ -116,8 +116,8 @@ export function table(rows: string[][], opts: { header?: boolean } = {}): string
     .join("")}</w:tbl>`;
 }
 
-export function image(rid: string): string {
-  return `<w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><wp:extent cx="1143000" cy="762000"/><wp:docPr id="1" name="Picture 1" descr="gradient"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="1" name="p.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/></pic:blipFill><pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+export function image(rid: string, cx = 1143000, cy = 762000): string {
+  return `<w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="1" name="Picture 1" descr="gradient"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="1" name="p.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/></pic:blipFill><pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
 }
 
 const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${W}>
@@ -139,7 +139,7 @@ const NUMBERING = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:num
 
 export async function buildDocx(
   bodyXml: string,
-  opts: { sectPr?: string; png?: Uint8Array } = {},
+  opts: { sectPr?: string; png?: Uint8Array; styles?: string; theme?: string } = {},
 ): Promise<Uint8Array> {
   const zip = new JSZip();
   zip.file(
@@ -154,7 +154,8 @@ export async function buildDocx(
     "word/_rels/document.xml.rels",
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://example.com/spec" TargetMode="External"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/></Relationships>`,
   );
-  zip.file("word/styles.xml", STYLES);
+  zip.file("word/styles.xml", opts.styles ?? STYLES);
+  if (opts.theme) zip.file("word/theme/theme1.xml", opts.theme);
   zip.file("word/numbering.xml", NUMBERING);
   zip.file(
     "word/document.xml",
@@ -236,4 +237,30 @@ export async function buildUnicodeDocx(): Promise<Uint8Array> {
       ),
     );
   return buildDocx(body);
+}
+
+const STYLED_STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${W}>
+<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="22"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>
+<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>
+<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="240" w:after="120"/></w:pPr><w:rPr><w:b/><w:color w:val="1F4E79"/><w:sz w:val="40"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="30"/></w:rPr></w:style>
+</w:styles>`;
+
+/** Calibri defaults, coloured heading, full-width shaded table with a grid, a wide image over a square bitmap. */
+export async function buildStyledDocx(): Promise<Uint8Array> {
+  const cell = (t: string, fill?: string) =>
+    `<w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/>${fill ? `<w:shd w:val="clear" w:fill="${fill}"/>` : ""}</w:tcPr>${p(r(t))}</w:tc>`;
+  const tbl = `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="000000"/><w:left w:val="single" w:sz="4" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:color="000000"/><w:right w:val="single" w:sz="4" w:color="000000"/><w:insideH w:val="single" w:sz="4" w:color="000000"/><w:insideV w:val="single" w:sz="4" w:color="000000"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="3000"/><w:gridCol w:w="3000"/><w:gridCol w:w="3000"/></w:tblGrid><w:tr>${cell("Region", "D9E2F3")}${cell("Q1", "D9E2F3")}${cell("Q2", "D9E2F3")}</w:tr><w:tr>${cell("North")}${cell("120")}${cell("140")}</w:tr></w:tbl>`;
+  const body =
+    p(r("Quarterly Report"), { style: "Heading1" }) +
+    p(r("Body text in the document default font, long enough to wrap onto a second line at normal page width for testing.")) +
+    tbl +
+    p(image("rId4", 2743200, 1371600)) +
+    p(r("End."));
+  return buildDocx(body, { styles: STYLED_STYLES, png: makePng(100, 100) });
+}
+
+/** Latin paragraph and a Cyrillic one: only the second needs the Unicode font. */
+export async function buildMixedScriptDocx(): Promise<Uint8Array> {
+  return buildDocx(p(r("Plain Latin paragraph only.")) + p(r("\u041f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440")));
 }

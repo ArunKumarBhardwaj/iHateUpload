@@ -1,0 +1,5 @@
+Carlito-*.ttf (Calibri-metric-compatible) is based on Lato by Lukasz Dziedzic, licensed under the
+SIL Open Font License 1.1 (https://openfontlicense.org). Caladea-*.ttf (Cambria-metric-compatible)
+is by Huerta Tipografica, licensed under the Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0).
+Both are redistributed here as Latin/Greek/Cyrillic subsets (hinting removed) for client-side Word to PDF.
+Liberation Sans: see LICENSE_LIBERATION.txt.

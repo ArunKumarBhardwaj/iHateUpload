@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { PDFDocument, PDFName, PDFDict, PDFArray } from "@cantoo/pdf-lib";
+import { PDFDocument, PDFName, PDFDict, PDFArray, PDFRawStream, decodePDFRawStream } from "@cantoo/pdf-lib";
 
 import { convertDocxToPdf } from "./convert";
-import { buildLongDocx, buildRichDocx, buildUnicodeDocx } from "./fixtures";
+import { buildLongDocx, buildMixedScriptDocx, buildRichDocx, buildStyledDocx, buildUnicodeDocx } from "./fixtures";
 
 const loadFont = async (file: string) =>
   new Uint8Array(readFileSync(join(process.cwd(), "public/fonts", file)));
@@ -98,6 +98,53 @@ describe("convertDocxToPdf (end to end)", () => {
       },
     });
     expect(out.pageCount).toBe(1);
+    expect(out.warnings.join(" ")).toMatch(/font/i);
+  });
+});
+
+function pageContent(doc: PDFDocument, i: number): string {
+  const c = doc.getPage(i).node.Contents();
+  const arr = c instanceof PDFArray ? c.asArray().map((r) => doc.context.lookup(r)) : [c];
+  return arr
+    .map((s) => (s instanceof PDFRawStream ? Buffer.from(decodePDFRawStream(s).decode()).toString("latin1") : ""))
+    .join("\n");
+}
+
+describe("convertDocxToPdf: fidelity to the docx", () => {
+  test("uses the docx's own image size, defaults font, heading style and table shading", async () => {
+    const out = await convertDocxToPdf(await buildStyledDocx(), { loadFont, locale: "en-US" });
+    const doc = await PDFDocument.load(out.bytes);
+    const content = pageContent(doc, 0);
+    // image drawn 216 x 108 pt (wide) although the bitmap is square
+    expect(content).toMatch(/q\s+216(\.0+)?\s+0\s+0\s+108(\.0+)?\s+[\d.]+\s+[\d.]+\s+cm/);
+    // shaded header cells (D9E2F3) and the heading colour (1F4E79)
+    expect(content).toMatch(/0\.85\d*\s+0\.88\d*\s+0\.95\d*\s+rg/);
+    expect(content).toMatch(/0\.12\d*\s+0\.30\d*\s+0\.47\d*\s+rg/);
+    const names = fontNames(doc).join(" ");
+    expect(names).toContain("Carlito");
+    expect(names).not.toContain("Helvetica");
+    const { pages } = await pdfText(out.bytes);
+    expect(pages[0]).toContain("Quarterly Report");
+  });
+
+  test("only runs that need the Unicode font switch to it", async () => {
+    const out = await convertDocxToPdf(await buildMixedScriptDocx(), { loadFont });
+    const names = fontNames(await PDFDocument.load(out.bytes)).join(" ");
+    expect(names).toContain("Helvetica");
+    expect(names).toContain("LiberationSans");
+    const { pages } = await pdfText(out.bytes);
+    expect(pages[0]).toContain("Plain Latin paragraph only.");
+    expect(pages[0]).toContain("\u041f\u0440\u0438\u0432\u0435\u0442");
+  });
+
+  test("if the bundled Calibri substitute cannot be loaded, text still renders in a standard font", async () => {
+    const out = await convertDocxToPdf(await buildStyledDocx(), {
+      loadFont: async () => {
+        throw new Error("offline");
+      },
+    });
+    const names = fontNames(await PDFDocument.load(out.bytes)).join(" ");
+    expect(names).toContain("Helvetica");
     expect(out.warnings.join(" ")).toMatch(/font/i);
   });
 });
