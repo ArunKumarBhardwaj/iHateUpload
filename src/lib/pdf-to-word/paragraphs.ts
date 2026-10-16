@@ -1,3 +1,4 @@
+import { eastAsiaFont, eastAsiaScript, eastAsianShare, LANG } from "./cjk";
 import { wordFont } from "./fonts";
 import { lineText, markerCandidates, type Frag, type Line, type Marker } from "./lines";
 import type { ParagraphBlock, Run } from "./model";
@@ -247,7 +248,14 @@ function toRuns(lines: Line[], marker: Acc["marker"]): Run[] {
         color: frag.color,
         link: frag.link,
       };
-      const key = `${run.bold}|${run.italic}|${run.size}|${run.font}|${run.color}|${run.underline}|${run.strike}|${run.highlight}|${run.vertAlign}|${JSON.stringify(run.link)}`;
+      const script = eastAsiaScript(text);
+      if (script) {
+        run.eastAsia = eastAsiaFont(frag.font, script);
+        run.lang = LANG[script];
+        // Full-width glyphs look monospaced, so a CJK run must not inherit the Courier guess.
+        if (run.font === "Courier New" && eastAsianShare(text) > 0.5) run.font = run.eastAsia;
+      }
+      const key = `${run.bold}|${run.italic}|${run.size}|${run.font}|${run.eastAsia}|${run.lang}|${run.color}|${run.underline}|${run.strike}|${run.highlight}|${run.vertAlign}|${JSON.stringify(run.link)}`;
       const prev = runs[runs.length - 1];
       if (prev && !prev.tab && !prev.field && key === lastKey) prev.text += text;
       else runs.push(run);

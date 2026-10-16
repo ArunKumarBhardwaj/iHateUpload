@@ -209,3 +209,15 @@ test("a PDF without embedded fonts gets no font parts", async () => {
   const { zip } = await convert(await makeSamplePdf());
   expect(zip.file("word/fontTable.xml")).toBeNull();
 });
+
+test("the CJK sample keeps unified ideographs and names an East Asian font", async () => {
+  const data = new Uint8Array(await Bun.file(`${process.cwd()}/bench/pdf-to-word/realistic/corpus/cjk.pdf`).arrayBuffer());
+  const { xml } = await convert(data);
+  const text = textOf(xml).join("");
+  expect(text).toContain("市中心图书馆");
+  expect(text).toContain("每周一至周六");
+  expect(/[⺀-⿟豈-﫿]/.test(text)).toBe(false);
+  expect(xml).toContain('w:eastAsia="Microsoft YaHei" w:hint="eastAsia"');
+  expect(xml).toContain('<w:lang w:eastAsia="ja-JP"/>');
+  expect(xml).not.toContain("Courier New");
+});

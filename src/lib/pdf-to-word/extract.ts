@@ -1,5 +1,6 @@
 import type { PDFPageProxy } from "pdfjs-dist";
 
+import { normalizeCjk } from "./cjk";
 import type { FontCollector } from "./embed";
 import { fontFlags } from "./fonts";
 import { indexAt } from "./links";
@@ -480,7 +481,7 @@ export async function extractPage(
   let skippedRotated = 0;
   for (const raw of content.items) {
     if (!("str" in raw)) continue;
-    const text = raw.str;
+    const text = normalizeCjk(raw.str);
     if (!text.trim()) continue;
     chars += text.replace(/\s/g, "").length;
     const m = mul(vt, raw.transform as Matrix);
