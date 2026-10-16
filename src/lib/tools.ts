@@ -76,6 +76,7 @@ export type ToolDefinition = {
     | "rotate"
     | "split"
     | "pdf-image"
+    | "pdf-png"
     | "pdf-to-word"
     | "organize"
     | "resize"
@@ -187,8 +188,8 @@ export const TOOLS: ToolDefinition[] = [
       "Convert PDF to JPG online free. Export every page as an image in your browser — no upload, no watermark.",
     seoHowTo: [
       "Drop a PDF file into the workspace.",
-      "Click Convert to JPG to render each page locally.",
-      "Download the JPG images (or zip when there are many).",
+      "Pick a resolution and JPG quality, or switch to PNG, then click Convert to JPG.",
+      "Download the images, or all pages as one zip.",
     ],
     showInNav: true,
     kind: "pdf",
@@ -233,12 +234,12 @@ export const TOOLS: ToolDefinition[] = [
       "Convert PDF to PNG online free. Export every page as a PNG in your browser — no upload.",
     seoHowTo: [
       "Drop a PDF file into the workspace.",
-      "Click Convert to PNG to render each page locally.",
-      "Download the PNG images (or zip when there are many).",
+      "Pick a resolution (72 to 600 DPI), then click Convert to PNG.",
+      "Download the images, or all pages as one zip.",
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "pdf-image",
+    ui: "pdf-png",
   },
   {
     id: "compress-pdf",
@@ -729,7 +730,7 @@ export const TOOLS: ToolDefinition[] = [
     title: "Watermark PDF",
     shortTitle: "Watermark",
     description:
-      "Stamp DRAFT or CONFIDENTIAL across every page. Processing stays here.",
+      "Stamp DRAFT or CONFIDENTIAL on your pages, once or tiled. Processing stays here.",
     accept: "application/pdf,.pdf",
     multiple: true,
     ordered: false,
@@ -739,7 +740,7 @@ export const TOOLS: ToolDefinition[] = [
       "Add a text watermark to a PDF online free. Stamp DRAFT or CONFIDENTIAL in your browser — no upload.",
     seoHowTo: [
       "Choose the PDF to watermark.",
-      "Type the stamp and pick position and opacity.",
+      "Type the stamp, set size, angle, colour and opacity, and place it once or tile it. The preview shows page 1.",
       "Download the watermarked PDF.",
     ],
     showInNav: true,

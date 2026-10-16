@@ -48,7 +48,11 @@ export type AnnotatePosition =
 
 export type SplitMode = "pages" | "ranges" | "half" | "size";
 
-export type PdfImageDpi = 72 | 144 | 300;
+export type PdfImageDpi = 72 | 150 | 300 | 600;
+
+export type PdfImageFormat = "jpg" | "png";
+
+export type JpegQuality = "small" | "balanced" | "best";
 
 /** Editable text flows like Word; exact pins every block in a text box (still editable); picture keeps each page as an image. */
 export type PdfToWordMode = "editable" | "exact" | "picture";
@@ -56,6 +60,10 @@ export type PdfToWordMode = "editable" | "exact" | "picture";
 export type NumberFormat = "n" | "page" | "n-of" | "page-of" | "roman";
 
 export type NumberSize = "small" | "medium" | "large";
+
+export type WatermarkSize = "small" | "medium" | "large" | "fit";
+
+export type WatermarkLayout = "single" | "tiled";
 
 export type ToolOptions =
   | { kind: "none" }
@@ -70,8 +78,11 @@ export type ToolOptions =
   | { kind: "split"; mode: SplitMode; ranges: string; maxMb: number }
   | {
       kind: "pdf-image";
-      /** 144 is the long-standing 2x default. */
+      /** Older sessions may still hold 144; any number renders. */
       dpi: PdfImageDpi;
+      format: PdfImageFormat;
+      /** Only shapes JPG output. */
+      quality: JpegQuality;
       /** Empty or "all" converts every page. */
       range: string;
     }
@@ -108,6 +119,12 @@ export type ToolOptions =
       startAt: number;
       skipFirst: boolean;
       numberSize: NumberSize;
+      /** The next five only shape watermarks. */
+      size: WatermarkSize;
+      color: string;
+      layout: WatermarkLayout;
+      /** Empty or "all" stamps every page. */
+      range: string;
     }
   | { kind: "ocr"; language: string; output: OcrOutput; skipTextPages: boolean }
   | { kind: "ask"; question: string }
@@ -384,9 +401,27 @@ export const SPLIT_MODES: { id: SplitMode; title: string }[] = [
 
 export const PDF_IMAGE_DPIS: { id: PdfImageDpi; title: string }[] = [
   { id: 72, title: "72 DPI" },
-  { id: 144, title: "Standard" },
+  { id: 150, title: "150 DPI" },
   { id: 300, title: "300 DPI" },
+  { id: 600, title: "600 DPI" },
 ];
+
+export const WATERMARK_SIZES: { id: WatermarkSize; title: string }[] = [
+  { id: "small", title: "Small" },
+  { id: "medium", title: "Medium" },
+  { id: "large", title: "Large" },
+  { id: "fit", title: "Fit page" },
+];
+
+export const WATERMARK_COLORS = [
+  "#6b7280",
+  "#14161c",
+  "#d61f3a",
+  "#1d4ed8",
+  "#0f766e",
+] as const;
+
+export const WATERMARK_ROTATIONS = [0, 45, -45] as const;
 
 export const NUMBER_FORMATS: { id: NumberFormat; title: string }[] = [
   { id: "n-of", title: "1 / N" },
@@ -419,7 +454,21 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "split":
       return { kind: "split", mode: "pages", ranges: "", maxMb: 5 };
     case "pdf-image":
-      return { kind: "pdf-image", dpi: 144, range: "" };
+      return {
+        kind: "pdf-image",
+        dpi: 150,
+        range: "",
+        format: "jpg",
+        quality: "balanced",
+      };
+    case "pdf-png":
+      return {
+        kind: "pdf-image",
+        dpi: 150,
+        range: "",
+        format: "png",
+        quality: "balanced",
+      };
     case "pdf-to-word":
       return { kind: "pdf-to-word", mode: "editable", language: "eng", embedFonts: true };
     case "organize":
@@ -467,13 +516,17 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         kind: "annotate",
         variant: "watermark",
         text: "CONFIDENTIAL",
-        opacity: 0.28,
-        rotation: -32,
-        position: "diagonal",
+        opacity: 0.3,
+        rotation: -45,
+        position: "center",
         numberFormat: "n-of",
         startAt: 1,
         skipFirst: false,
         numberSize: "medium",
+        size: "medium",
+        color: WATERMARK_COLORS[0],
+        layout: "single",
+        range: "",
       };
     case "page-numbers":
       return {
@@ -487,6 +540,10 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         startAt: 1,
         skipFirst: false,
         numberSize: "medium",
+        size: "medium",
+        color: WATERMARK_COLORS[0],
+        layout: "single",
+        range: "",
       };
     case "ocr":
       return {

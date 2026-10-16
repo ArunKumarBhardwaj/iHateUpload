@@ -5,8 +5,10 @@ import { ArrowDown, ArrowUp, FileText, RotateCcw, X } from "lucide-react";
 
 import { ScanCapture } from "@/components/workbench/scan-capture";
 import { Thumbnail } from "@/components/workbench/thumbnail";
+import { WatermarkPreview } from "@/components/workbench/watermark-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { JPEG_QUALITIES } from "@/lib/pdf-image";
 import {
   PENDING_THUMBNAIL,
   UNAVAILABLE_THUMBNAIL,
@@ -31,6 +33,9 @@ import {
   TARGET_KB_MIN,
   TARGET_KB_PRESETS,
   type SignMode,
+  WATERMARK_COLORS,
+  WATERMARK_ROTATIONS,
+  WATERMARK_SIZES,
   type ToolOptions,
 } from "@/lib/tool-options";
 import { PAGE_THUMBNAIL_LIMIT } from "@/lib/use-previews";
@@ -123,7 +128,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "annotate":
       return options.variant === "numbers"
         ? "Pick where the numbers sit, how they read, and where counting starts."
-        : "Type the stamp. It is drawn on every page in this tab.";
+        : "Type the stamp, then set how it looks. The preview shows page 1. It is drawn in this tab as real text.";
     case "ocr":
       return "Tesseract reads each page in this tab. Hindi keeps its letters. Pages that already have words can be copied as-is. Slow on long scans.";
     case "ask":
@@ -150,6 +155,7 @@ export function OptionsPanel({
   onConfirmPassword,
   pagePreviews,
   pageCount,
+  firstPage,
   disabled,
   onAddFiles,
 }: {
@@ -159,6 +165,8 @@ export function OptionsPanel({
   onConfirmPassword: (next: string) => void;
   pagePreviews: ReadonlyMap<number, ThumbnailState>;
   pageCount: number;
+  /** Page 1 thumbnail, drawn under the live watermark preview. */
+  firstPage?: ThumbnailState;
   disabled: boolean;
   onAddFiles?: (files: File[]) => void;
 }) {
@@ -320,6 +328,29 @@ export function OptionsPanel({
       return (
         <div className="space-y-3">
           <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Format</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["jpg", "JPG"],
+                  ["png", "PNG"],
+                ] as const
+              ).map(([format, title]) => (
+                <Button
+                  key={format}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.format === format ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, format })}
+                >
+                  {title}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
             <p className="text-sm font-medium text-ink">Resolution</p>
             <div className="flex flex-wrap gap-2">
               {PDF_IMAGE_DPIS.map((dpi) => (
@@ -336,7 +367,37 @@ export function OptionsPanel({
                 </Button>
               ))}
             </div>
+            {options.dpi >= 300 ? (
+              <p className="text-xs text-ink/70">
+                Very large pages are limited to 4096 px on a side. Any page that
+                is limited is noted in the results.
+              </p>
+            ) : null}
           </div>
+          {options.format === "jpg" ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-ink">Quality</p>
+              <div className="flex flex-wrap gap-2">
+                {JPEG_QUALITIES.map((quality) => (
+                  <Button
+                    key={quality.id}
+                    type="button"
+                    size="sm"
+                    className={OPTION_BUTTON}
+                    variant={
+                      options.quality === quality.id ? "default" : "outline"
+                    }
+                    disabled={disabled}
+                    onClick={() =>
+                      onOptions({ ...options, quality: quality.id })
+                    }
+                  >
+                    {quality.title}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <Field label="Pages" htmlFor="pdf-image-range">
             <Input
               id="pdf-image-range"
@@ -928,9 +989,13 @@ export function OptionsPanel({
       );
 
     case "annotate":
-      return (
-        <div className="space-y-3">
-          {options.variant === "watermark" ? (
+      if (options.variant === "watermark") {
+        const choice = (active: boolean) => (active ? "default" : "outline");
+        const presetRotation = (
+          WATERMARK_ROTATIONS as readonly number[]
+        ).includes(options.rotation);
+        return (
+          <div className="space-y-4">
             <Field label="Stamp" htmlFor="watermark-text">
               <Input
                 id="watermark-text"
@@ -941,7 +1006,189 @@ export function OptionsPanel({
                 }
               />
             </Field>
-          ) : null}
+            <WatermarkPreview thumbnail={firstPage} options={options} />
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-ink">Layout</p>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["single", "One stamp"],
+                    ["tiled", "Tiled"],
+                  ] as const
+                ).map(([layout, title]) => (
+                  <Button
+                    key={layout}
+                    type="button"
+                    size="sm"
+                    className={OPTION_BUTTON}
+                    variant={choice(options.layout === layout)}
+                    disabled={disabled}
+                    onClick={() => onOptions({ ...options, layout })}
+                  >
+                    {title}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {options.layout === "single" ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-ink">Position</p>
+                <div className="flex flex-wrap gap-2">
+                  {ANNOTATE_POSITIONS.filter(
+                    (position) => position.id !== "diagonal",
+                  ).map((position) => (
+                    <Button
+                      key={position.id}
+                      type="button"
+                      size="sm"
+                      className={OPTION_BUTTON}
+                      variant={choice(options.position === position.id)}
+                      disabled={disabled}
+                      onClick={() =>
+                        onOptions({ ...options, position: position.id })
+                      }
+                    >
+                      {position.title}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-ink">Size</p>
+              <div className="flex flex-wrap gap-2">
+                {WATERMARK_SIZES.map((size) => (
+                  <Button
+                    key={size.id}
+                    type="button"
+                    size="sm"
+                    className={OPTION_BUTTON}
+                    variant={choice(options.size === size.id)}
+                    disabled={disabled}
+                    onClick={() => onOptions({ ...options, size: size.id })}
+                  >
+                    {size.title}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-ink">Angle</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {WATERMARK_ROTATIONS.map((turn) => (
+                  <Button
+                    key={turn}
+                    type="button"
+                    size="sm"
+                    className={OPTION_BUTTON}
+                    variant={choice(options.rotation === turn)}
+                    disabled={disabled}
+                    onClick={() => onOptions({ ...options, rotation: turn })}
+                  >
+                    {turn}°
+                  </Button>
+                ))}
+                <Input
+                  aria-label="Custom angle in degrees"
+                  className={cn(
+                    "h-10 w-24 sm:h-7",
+                    !presetRotation && "ring-2 ring-ink/40",
+                  )}
+                  type="number"
+                  min={-180}
+                  max={180}
+                  value={options.rotation}
+                  disabled={disabled}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    if (!Number.isFinite(next)) return;
+                    onOptions({
+                      ...options,
+                      rotation: Math.max(-180, Math.min(180, Math.round(next))),
+                    });
+                  }}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-ink">Colour</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {WATERMARK_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    aria-label={`Colour ${color}`}
+                    aria-pressed={options.color === color}
+                    disabled={disabled}
+                    onClick={() => onOptions({ ...options, color })}
+                    className={cn(
+                      "size-10 rounded-full ring-1 ring-ink/20 sm:size-7",
+                      options.color === color && "ring-2 ring-ink",
+                    )}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+                <input
+                  type="color"
+                  aria-label="Custom colour"
+                  className="h-10 w-12 cursor-pointer rounded-md sm:h-7 sm:w-10"
+                  value={
+                    /^#[0-9a-f]{6}$/i.test(options.color)
+                      ? options.color
+                      : "#6b7280"
+                  }
+                  disabled={disabled}
+                  onChange={(e) =>
+                    onOptions({ ...options, color: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label
+                className="flex items-center justify-between text-sm font-medium text-ink"
+                htmlFor="watermark-opacity"
+              >
+                <span>Opacity</span>
+                <span className="tabular-nums text-ink/70">
+                  {Math.round(options.opacity * 100)}%
+                </span>
+              </label>
+              <input
+                id="watermark-opacity"
+                type="range"
+                min={10}
+                max={100}
+                step={5}
+                className="w-full"
+                value={Math.round(options.opacity * 100)}
+                disabled={disabled}
+                onChange={(e) =>
+                  onOptions({
+                    ...options,
+                    opacity: Number(e.target.value) / 100,
+                  })
+                }
+              />
+            </div>
+            <Field label="Pages" htmlFor="watermark-range">
+              <Input
+                id="watermark-range"
+                value={options.range}
+                disabled={disabled}
+                onChange={(e) =>
+                  onOptions({ ...options, range: e.target.value })
+                }
+                placeholder="All pages, or e.g. 1-3, 7"
+                inputMode="text"
+                autoComplete="off"
+              />
+            </Field>
+          </div>
+        );
+      }
+      return (
+        <div className="space-y-3">
           <p className="text-sm font-medium text-ink">Position</p>
           <div className="flex flex-wrap gap-2">
             {ANNOTATE_POSITIONS.map((position) => (
