@@ -1,8 +1,7 @@
 /**
  * Fonts for the Word -> PDF engine.
  *  - Arial/Times/Courier-like text uses the PDF standard fonts (not embedded, tiny files).
- *  - Calibri and Cambria text uses bundled metric-compatible Carlito and Caladea (embedded as
- *    subsets) so line breaks match Word.
+ *  - Calibri and Cambria text uses bundled metric-compatible Carlito and Caladea (embedded) so line breaks match Word.
  *  - A word whose glyphs the chosen face lacks switches, for that word only, to an embedded
  *    Liberation Sans (Latin, Greek, Cyrillic). Glyphs nobody has (CJK, Arabic, ...) become "?"
  *    and are reported.
@@ -70,32 +69,6 @@ interface Kit {
   descent: number;
   lineGap: number;
   layout(t: string): { advanceWidth: number };
-}
-
-/**
- * @cantoo/pdf-lib prefers a sync subset.encode(), which @pdf-lib/fontkit only half implements.
- * Hide it so pdf-lib falls back to encodeStream(), which works.
- */
-function compatFontkit(fk: { create: (...a: never[]) => unknown }) {
-  return {
-    create(...args: unknown[]) {
-      const font = (fk.create as (...a: unknown[]) => Record<string, unknown>)(...args);
-      const orig = (font.createSubset as () => Record<string, unknown>).bind(font);
-      font.createSubset = () => {
-        const sub = orig();
-        const encode = sub.encode;
-        const stream = sub.encodeStream as () => unknown;
-        let streaming = false;
-        Object.defineProperty(sub, "encode", { configurable: true, get: () => (streaming ? encode : undefined) });
-        sub.encodeStream = () => {
-          streaming = true;
-          return stream.call(sub);
-        };
-        return sub;
-      };
-      return font;
-    },
-  };
 }
 
 export interface Seg {
@@ -193,8 +166,10 @@ export class FontSet {
       },
       ready: async () => {
         if (pdf) return;
-        doc.registerFontkit(compatFontkit(fk) as never);
-        pdf = await doc.embedFont(bytes, { subset: true });
+        // fontkit's glyph subsetter garbles some faces (Caladea, Carlito Bold Italic), so embed the
+        // already-small bundled files whole
+        doc.registerFontkit(fk as never);
+        pdf = await doc.embedFont(bytes, { subset: false });
       },
     };
     this.faces.set(id, f);
