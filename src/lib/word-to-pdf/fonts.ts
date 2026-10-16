@@ -1,12 +1,16 @@
 /**
- * Fonts for the Word -> PDF engine. Latin documents use the PDF standard fonts (no embedding,
- * tiny files). If any text needs glyphs outside WinAnsi, the whole document switches to an
- * embedded Liberation Sans (metric-compatible with Arial/Helvetica, covers Latin, Greek and
- * Cyrillic); glyphs it lacks (CJK, Arabic, ...) are replaced with "?" and reported.
+ * Fonts for the Word -> PDF engine.
+ *  - Arial/Times/Courier-like text uses the PDF standard fonts (not embedded, tiny files).
+ *  - Calibri and Cambria text uses bundled metric-compatible Carlito and Caladea (embedded as
+ *    subsets) so line breaks match Word.
+ *  - A word whose glyphs the chosen face lacks switches, for that word only, to an embedded
+ *    Liberation Sans (Latin, Greek, Cyrillic). Glyphs nobody has (CJK, Arabic, ...) become "?"
+ *    and are reported.
  */
 import { StandardFonts, type PDFDocument, type PDFFont } from "@cantoo/pdf-lib";
 
 import type { FontKey } from "./layout";
+import type { Family } from "./model";
 
 const WIN_ANSI_EXTRA = new Set([
   0x20ac, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, 0x02c6, 0x2030, 0x0160, 0x2039, 0x0152,
@@ -27,13 +31,6 @@ export function normalise(text: string): string {
     .replace(/[\u0000-\u001f\u007f]/g, "");
 }
 
-export function needsUnicode(text: string): boolean {
-  for (const ch of normalise(text)) {
-    if (!isWinAnsi(ch.codePointAt(0) as number)) return true;
-  }
-  return false;
-}
-
 const STD: Record<string, StandardFonts> = {
   "sans-0-0": StandardFonts.Helvetica,
   "sans-1-0": StandardFonts.HelveticaBold,
@@ -49,18 +46,30 @@ const STD: Record<string, StandardFonts> = {
   "mono-1-1": StandardFonts.CourierBoldOblique,
 };
 
-const UNI_FILES: Record<string, string> = {
-  "0-0": "LiberationSans-Regular.ttf",
-  "1-0": "LiberationSans-Bold.ttf",
-  "0-1": "LiberationSans-Italic.ttf",
-  "1-1": "LiberationSans-BoldItalic.ttf",
+const FILES: Record<string, string> = {
+  carlito: "Carlito",
+  caladea: "Caladea",
+  uni: "LiberationSans",
 };
+const SUFFIX: Record<string, string> = { "0-0": "Regular", "1-0": "Bold", "0-1": "Italic", "1-1": "BoldItalic" };
 
-interface UniFace {
-  bytes: Uint8Array;
-  font?: PDFFont;
-  has: (cp: number) => boolean;
-  advance: (text: string) => number;
+interface Face {
+  id: string;
+  has(cp: number): boolean;
+  advance(text: string, size: number): number;
+  lineFactor: number;
+  pdfFont(): PDFFont;
+  /** embed (async) if not yet embedded */
+  ready(): Promise<void>;
+}
+
+interface Kit {
+  hasGlyphForCodePoint(cp: number): boolean;
+  unitsPerEm: number;
+  ascent: number;
+  descent: number;
+  lineGap: number;
+  layout(t: string): { advanceWidth: number };
 }
 
 /**
@@ -89,116 +98,195 @@ function compatFontkit(fk: { create: (...a: never[]) => unknown }) {
   };
 }
 
+export interface Seg {
+  face: Face;
+  text: string;
+}
+
 export class FontSet {
   warnings: string[] = [];
-  private std = new Map<string, PDFFont>();
-  private uni = new Map<string, UniFace>();
+  private doc: PDFDocument;
+  private bytes = new Map<string, Uint8Array>();
+  private unavailable = new Set<Family>();
+  private faces = new Map<string, Face>();
   private missing = new Set<number>();
-  unicode = false;
-  private embedUni?: (k: string) => Promise<PDFFont>;
-  private embedded = new Map<string, PDFFont>();
+  private hasUni = false;
+  private fontkit?: { create(bytes: Uint8Array): unknown };
 
-  constructor(private doc: PDFDocument) {}
-
-  /** Load the embedded font if any text needs it. Failure degrades to "?" replacement. */
-  async prepare(
-    needsUni: boolean,
-    loadFont: (file: string) => Promise<Uint8Array>,
-  ): Promise<void> {
-    if (!needsUni) return;
-    try {
-      const fontkit = (await import("@pdf-lib/fontkit")).default;
-      this.doc.registerFontkit(compatFontkit(fontkit) as never);
-      for (const [k, file] of Object.entries(UNI_FILES)) {
-        const bytes = await loadFont(file);
-        const kit = fontkit.create(bytes) as unknown as {
-          hasGlyphForCodePoint(cp: number): boolean;
-          unitsPerEm: number;
-          layout(t: string): { advanceWidth: number };
-        };
-        this.uni.set(k, {
-          bytes,
-          has: (cp) => kit.hasGlyphForCodePoint(cp),
-          advance: (t) => kit.layout(t).advanceWidth / kit.unitsPerEm,
-        });
-      }
-      // embed only the faces the layout asks for
-      this.embedUni = (k) => this.doc.embedFont((this.uni.get(k) as UniFace).bytes, { subset: true });
-      this.unicode = true;
-    } catch {
-      this.uni.clear();
-      this.unicode = false;
-      this.warnings.push(
-        "Could not load the Unicode font, so characters outside Western European text were replaced with '?'.",
-      );
-    }
+  constructor(doc: PDFDocument) {
+    this.doc = doc;
   }
 
   private variant(key: FontKey): string {
     return `${key.bold ? 1 : 0}-${key.italic ? 1 : 0}`;
   }
 
-  private stdFont(key: FontKey): PDFFont {
-    const id = `${key.family}-${this.variant(key)}`;
-    let f = this.std.get(id);
-    if (!f) {
-      f = this.doc.embedStandardFont(STD[id]);
-      this.std.set(id, f);
+  /** Load whatever the document's text needs. Failures degrade to standard fonts and "?". */
+  async prepare(
+    runs: Iterable<{ text: string; key: FontKey }>,
+    loadFont: (file: string) => Promise<Uint8Array>,
+  ): Promise<void> {
+    const list = [...runs];
+    const families = new Set(list.map((r) => r.key.family));
+    for (const fam of ["carlito", "caladea"] as const) {
+      if (!families.has(fam)) continue;
+      const ok = await this.loadFamily(fam, loadFont);
+      if (!ok) {
+        this.unavailable.add(fam);
+        this.warnings.push(
+          `The bundled ${fam === "carlito" ? "Calibri" : "Cambria"} substitute could not be loaded, so a standard font was used and line breaks may differ from Word.`,
+        );
+      }
     }
+    let needUni = false;
+    for (const r of list) {
+      const primary = this.primary(r.key);
+      for (const ch of normalise(r.text)) {
+        if (!primary.has(ch.codePointAt(0) as number)) {
+          needUni = true;
+          break;
+        }
+      }
+      if (needUni) break;
+    }
+    if (needUni) {
+      this.hasUni = await this.loadFamily("uni", loadFont);
+      if (!this.hasUni) {
+        this.warnings.push(
+          "Could not load the Unicode font, so characters outside Western European text were replaced with '?'.",
+        );
+      }
+    }
+  }
+
+  private async loadFamily(name: "carlito" | "caladea" | "uni", loadFont: (f: string) => Promise<Uint8Array>) {
+    try {
+      this.fontkit ??= (await import("@pdf-lib/fontkit")).default as unknown as { create(b: Uint8Array): unknown };
+      for (const v of Object.keys(SUFFIX)) {
+        const bytes = await loadFont(`${FILES[name]}-${SUFFIX[v]}.ttf`);
+        this.bytes.set(`${name}-${v}`, bytes);
+      }
+      return true;
+    } catch {
+      for (const v of Object.keys(SUFFIX)) this.bytes.delete(`${name}-${v}`);
+      return false;
+    }
+  }
+
+  private embedded(name: string, v: string): Face {
+    const id = `${name}-${v}`;
+    let f = this.faces.get(id);
+    if (f) return f;
+    const bytes = this.bytes.get(id) as Uint8Array;
+    const kit = (this.fontkit as { create(b: Uint8Array): unknown }).create(bytes) as unknown as Kit;
+    let pdf: PDFFont | undefined;
+    const doc = this.doc;
+    const fk = this.fontkit as { create(b: Uint8Array): unknown };
+    f = {
+      id,
+      has: (cp) => kit.hasGlyphForCodePoint(cp),
+      advance: (t, size) => (kit.layout(t).advanceWidth / kit.unitsPerEm) * size,
+      lineFactor: (kit.ascent - kit.descent + kit.lineGap) / kit.unitsPerEm,
+      pdfFont: () => {
+        if (!pdf) throw new Error("font not embedded yet");
+        return pdf;
+      },
+      ready: async () => {
+        if (pdf) return;
+        doc.registerFontkit(compatFontkit(fk) as never);
+        pdf = await doc.embedFont(bytes, { subset: true });
+      },
+    };
+    this.faces.set(id, f);
     return f;
   }
 
-  font(key: FontKey): PDFFont {
-    if (this.unicode) {
-      const f = this.embedded.get(this.variant(key));
-      if (!f) throw new Error("Unicode face not embedded yet; call ensure() first");
-      return f;
-    }
-    return this.stdFont(key);
+  private standard(family: "sans" | "serif" | "mono", v: string): Face {
+    const id = `${family}-${v}`;
+    let f = this.faces.get(id);
+    if (f) return f;
+    let pdf: PDFFont | undefined;
+    const doc = this.doc;
+    const get = () => (pdf ??= doc.embedStandardFont(STD[id]));
+    f = {
+      id,
+      has: isWinAnsi,
+      advance: (t, size) => get().widthOfTextAtSize(t, size),
+      lineFactor: 1.22,
+      pdfFont: get,
+      ready: async () => {
+        get();
+      },
+    };
+    this.faces.set(id, f);
+    return f;
   }
 
-  /** Embed the Unicode faces a draw pass will need (async); no-op for standard fonts. */
-  async ensure(keys: FontKey[]): Promise<void> {
-    if (!this.unicode || !this.embedUni) return;
-    for (const key of keys) {
-      const v = this.variant(key);
-      if (!this.embedded.has(v)) this.embedded.set(v, await this.embedUni(v));
-    }
+  private primary(key: FontKey): Face {
+    const v = this.variant(key);
+    let fam: Family = key.family;
+    if (this.unavailable.has(fam)) fam = fam === "caladea" ? "serif" : "sans";
+    if (fam === "carlito" || fam === "caladea") return this.embedded(fam, v);
+    return this.standard(fam, v);
   }
 
-  /** Text exactly as it will be drawn: normalised, unsupported glyphs replaced with "?". */
-  encodable(text: string): string {
-    const t = normalise(text);
+  lineFactor(key: FontKey): number {
+    return this.primary(key).lineFactor;
+  }
+
+  /** The face and text to draw for one space-free word. */
+  private resolve(word: string, key: FontKey): Seg {
+    const primary = this.primary(key);
+    const cps = Array.from(word, (c) => c.codePointAt(0) as number);
+    if (cps.every((cp) => primary.has(cp))) return { face: primary, text: word };
+    const face = this.hasUni ? this.embedded("uni", this.variant(key)) : primary;
     let out = "";
-    const face = this.unicode ? this.uni.get("0-0") : undefined;
-    for (const ch of t) {
+    for (const ch of word) {
       const cp = ch.codePointAt(0) as number;
-      const ok = face ? face.has(cp) : isWinAnsi(cp);
-      if (ok) out += ch;
+      if (face.has(cp)) out += ch;
       else {
         out += "?";
-        if (this.unicode && !this.missing.has(cp)) {
-          this.missing.add(cp);
-        }
+        this.missing.add(cp);
       }
     }
-    return out;
+    return { face, text: out };
   }
 
-  /** Warnings plus a summary of glyphs the font lacked. */
+  /** Split text into runs of one face each, exactly as it will be measured and drawn. */
+  segments(text: string, key: FontKey): Seg[] {
+    const segs: Seg[] = [];
+    for (const tok of normalise(text).split(/( +)/)) {
+      if (!tok) continue;
+      const isSpace = tok[0] === " ";
+      const prev = segs[segs.length - 1];
+      const seg: Seg = isSpace ? { face: prev?.face ?? this.primary(key), text: tok } : this.resolve(tok, key);
+      if (prev && prev.face === seg.face) prev.text += seg.text;
+      else segs.push(seg);
+    }
+    return segs;
+  }
+
+  width(text: string, key: FontKey, size: number): number {
+    let w = 0;
+    for (const s of this.segments(text, key)) w += s.face.advance(s.text, size);
+    return w;
+  }
+
+  /** Embed every face the given draws will use. */
+  async ensure(runs: Iterable<{ text: string; key: FontKey }>): Promise<void> {
+    const seen = new Set<Face>();
+    for (const r of runs) for (const s of this.segments(r.text, r.key)) seen.add(s.face);
+    for (const f of seen) await f.ready();
+  }
+
+  /** Warnings plus a summary of glyphs no bundled font had. */
   summary(): string[] {
     const w = [...this.warnings];
     if (this.missing.size) {
       w.push(
-        `${this.missing.size} character${this.missing.size === 1 ? "" : "s"} (such as CJK or Arabic) have no glyph in the bundled font and were replaced with '?'.`,
+        `${this.missing.size} character${this.missing.size === 1 ? "" : "s"} (such as CJK or Arabic) have no glyph in the bundled fonts and were replaced with '?'.`,
       );
     }
     return w;
-  }
-
-  width(text: string, key: FontKey, size: number): number {
-    const t = this.encodable(text);
-    if (this.unicode) return (this.uni.get(this.variant(key)) as UniFace).advance(t) * size;
-    return this.stdFont(key).widthOfTextAtSize(t, size);
   }
 }

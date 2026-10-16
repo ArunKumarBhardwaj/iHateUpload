@@ -7,8 +7,11 @@
 import { PDFDocument, PDFString, rgb, type PDFImage } from "@cantoo/pdf-lib";
 import JSZip from "jszip";
 
-import { FontSet, needsUnicode } from "./fonts";
-import { layoutDocument, type Cmd } from "./layout";
+import { applyDocxInfo } from "./apply-docx";
+import { parseDocxInfo, type DocxInfo } from "./docx-info";
+import { familyForFont } from "./font-map";
+import { FontSet } from "./fonts";
+import { layoutDocument, type Cmd, type FontKey } from "./layout";
 import {
   htmlToBlocks,
   MARK_CLOSE,
@@ -43,13 +46,6 @@ const STYLE_MAP = [
   "br[type='page'] => hr.pgbrk",
 ];
 
-function familyOf(font: string | undefined): string | undefined {
-  if (!font) return undefined;
-  if (/courier|consolas|mono|menlo|lucida console|source code/i.test(font)) return "mono";
-  if (/times|georgia|garamond|cambria|palatino|book antiqua|bookman|minion|serif|century|baskerville|constantia/i.test(font) && !/sans/i.test(font)) return "serif";
-  return undefined;
-}
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function transformElement(el: any): any {
   if (el.children) el = { ...el, children: el.children.map(transformElement) };
@@ -69,7 +65,7 @@ function transformElement(el: any): any {
       m += mark("s", String(el.fontSize));
       reset += mark("s", "");
     }
-    const fam = familyOf(el.font);
+    const fam = familyForFont(el.font);
     if (fam) {
       m += mark("f", fam);
       reset += mark("f", "");
@@ -84,9 +80,34 @@ function transformElement(el: any): any {
   return el;
 }
 
+function spacingMarkers(para: string): string {
+  const ppr = /<w:pPr>[\s\S]*?<\/w:pPr>/.exec(para)?.[0];
+  const sp = ppr && /<w:spacing\b[^>]*\/?>/.exec(ppr)?.[0];
+  if (!sp) return "";
+  const get = (n: string) => new RegExp(`\\bw:${n}="(\\d+)"`).exec(sp)?.[1];
+  let m = "";
+  const before = get("before");
+  const after = get("after");
+  if (before !== undefined) m += mark("sb", String(Number(before) / 20));
+  if (after !== undefined) m += mark("sa", String(Number(after) / 20));
+  const line = get("line");
+  if (line !== undefined && Number(line) > 0) {
+    const rule = /\bw:lineRule="(\w+)"/.exec(sp)?.[1] ?? "auto";
+    m += mark("sl", rule === "exact" ? `e:${Number(line) / 20}` : rule === "atLeast" ? `a:${Number(line) / 20}` : `m:${Number(line) / 240}`);
+  }
+  return m;
+}
+
 /** mammoth ignores run colour, so surface it as markers in sibling runs of the XML. */
 function injectColourMarkers(xml: string): string {
-  return xml.replace(/<w:r(?=[\s>])[^>]*>[\s\S]*?<\/w:r>/g, (run) => {
+  const withSpacing = xml.replace(/<w:p(?=[\s>])[^>]*>[\s\S]*?<\/w:p>/g, (para) => {
+    const m = spacingMarkers(para);
+    if (!m) return para;
+    const run = `<w:r><w:t>${m}</w:t></w:r>`;
+    const at = para.indexOf("</w:pPr>");
+    return at >= 0 ? para.slice(0, at + 8) + run + para.slice(at + 8) : para;
+  });
+  return withSpacing.replace(/<w:r(?=[\s>])[^>]*>[\s\S]*?<\/w:r>/g, (run) => {
     const c = /<w:color\b[^>]*\bw:val="([0-9a-fA-F]{6})"/.exec(run)?.[1];
     if (!c || /^0{6}$/.test(c)) return run;
     const t = (v: string) => `<w:r><w:t>${v}</w:t></w:r>`;
@@ -94,7 +115,9 @@ function injectColourMarkers(xml: string): string {
   });
 }
 
-async function prepareDocx(data: Uint8Array): Promise<{ buffer: ArrayBuffer; documentXml?: string }> {
+async function prepareDocx(
+  data: Uint8Array,
+): Promise<{ buffer: ArrayBuffer; documentXml?: string; stylesXml?: string; themeXml?: string }> {
   try {
     const zip = await JSZip.loadAsync(data);
     const file = zip.file("word/document.xml");
@@ -102,7 +125,12 @@ async function prepareDocx(data: Uint8Array): Promise<{ buffer: ArrayBuffer; doc
     const xml = await file.async("string");
     zip.file("word/document.xml", injectColourMarkers(xml));
     const out = await zip.generateAsync({ type: "uint8array", compression: "STORE" });
-    return { buffer: toArrayBuffer(out), documentXml: xml };
+    return {
+      buffer: toArrayBuffer(out),
+      documentXml: xml,
+      stylesXml: await zip.file("word/styles.xml")?.async("string"),
+      themeXml: await zip.file("word/theme/theme1.xml")?.async("string"),
+    };
   } catch {
     return { buffer: toArrayBuffer(data) };
   }
@@ -156,7 +184,7 @@ export async function convertDocxToPdf(
   const data = input instanceof Uint8Array ? input : new Uint8Array(input);
   const locale = opts.locale ?? (typeof navigator !== "undefined" ? navigator.language : undefined);
 
-  const { buffer, documentXml } = await prepareDocx(data);
+  const { buffer, documentXml, stylesXml, themeXml } = await prepareDocx(data);
   const mammoth = (await import("mammoth")).default ?? (await import("mammoth"));
   const result = await mammoth.convertToHtml(
     // the browser build reads arrayBuffer, the node build (tests) reads buffer
@@ -168,6 +196,15 @@ export async function convertDocxToPdf(
   );
   for (const m of result.messages) if (m.type === "error") warnings.push(m.message);
   const blocks = htmlToBlocks(result.value);
+  let info: DocxInfo | undefined;
+  if (documentXml) {
+    try {
+      info = parseDocxInfo({ document: documentXml, styles: stylesXml, theme: themeXml });
+      applyDocxInfo(blocks, info);
+    } catch {
+      info = undefined;
+    }
+  }
   const spec = pageSpecFromDocxXml(documentXml, locale);
 
   const doc = await PDFDocument.create();
@@ -179,8 +216,13 @@ export async function convertDocxToPdf(
   const rasterise = opts.rasterise ?? browserRasterise;
   let dropped = 0;
   const pending: Promise<void>[] = [];
-  for (const { inl, list } of walkInlines(blocks)) {
+  const pictures = [...walkInlines(blocks)].filter((w) => w.inl.kind === "image");
+  // the docx's own drawing sizes, when every picture lines up with one
+  const extents = info && info.images.length === pictures.length ? info.images : undefined;
+  let picIndex = 0;
+  for (const { inl, list } of pictures) {
     if (inl.kind !== "image") continue;
+    const extent = extents?.[picIndex++];
     pending.push(
       (async () => {
         let bytes = inl.data;
@@ -204,8 +246,8 @@ export async function convertDocxToPdf(
           images.set(bytes, img);
           inl.data = bytes;
           inl.mime = mime;
-          inl.width = img.width * 0.75;
-          inl.height = img.height * 0.75;
+          inl.width = extent && extent.w > 0 && extent.h > 0 ? extent.w : img.width * 0.75;
+          inl.height = extent && extent.w > 0 && extent.h > 0 ? extent.h : img.height * 0.75;
         } else {
           dropped++;
           list.splice(list.indexOf(inl), 1);
@@ -216,27 +258,23 @@ export async function convertDocxToPdf(
   await Promise.all(pending);
   if (dropped) warnings.push(`${dropped} image${dropped === 1 ? "" : "s"} in a format PDF cannot embed were skipped.`);
 
-  // fonts
+  // fonts: a recording layout pass finds every word and face, then the real pass measures exactly
   const fonts = new FontSet(doc);
-  let uni = false;
-  const scan = (bs: Block[]) => {
-    for (const b of bs) {
-      if (b.kind === "para") {
-        if (b.marker && needsUnicode(b.marker.label)) uni = true;
-        for (const i of b.inlines) if (i.kind === "text" && needsUnicode(i.text)) uni = true;
-      } else if (b.kind === "table") {
-        for (const r of b.rows) for (const c of r.cells) scan(c.blocks);
-      }
-    }
-  };
-  scan(blocks);
-  await fonts.prepare(uni, opts.loadFont ?? defaultLoadFont);
+  const recorded = new Map<string, { text: string; key: FontKey }>();
+  layoutDocument(blocks, spec, (text, key, size) => {
+    recorded.set(`${key.family}|${key.bold}|${key.italic}|${text}`, { text, key });
+    return text.length * size * 0.5;
+  });
+  await fonts.prepare(recorded.values(), opts.loadFont ?? defaultLoadFont);
 
-  const pages = layoutDocument(blocks, spec, (text, key, size) => fonts.width(text, key, size));
-
+  const pages = layoutDocument(blocks, spec, (text, key, size) => fonts.width(text, key, size), {
+    lineFactor: (key) => fonts.lineFactor(key),
+  });
   await fonts.ensure(
     pages.flatMap((p) =>
-      p.cmds.flatMap((c) => (c.t === "text" ? [{ family: c.family, bold: c.bold, italic: c.italic }] : [])),
+      p.cmds.flatMap((c) =>
+        c.t === "text" ? [{ text: c.text, key: { family: c.family, bold: c.bold, italic: c.italic } }] : [],
+      ),
     ),
   );
 
@@ -264,13 +302,15 @@ function drawCmd(
   switch (c.t) {
     case "text": {
       const key = { family: c.family, bold: c.bold, italic: c.italic };
-      const font = fonts.font(key);
-      const text = fonts.encodable(c.text);
-      if (!text) return;
       const color = hex(c.color);
-      page.drawText(text, { x: c.x, y: H - c.y, size: c.size, font, color });
-      if (c.underline || c.strike) {
-        const w = font.widthOfTextAtSize(text, c.size);
+      let x = c.x;
+      for (const seg of fonts.segments(c.text, key)) {
+        if (!seg.text) continue;
+        page.drawText(seg.text, { x, y: H - c.y, size: c.size, font: seg.face.pdfFont(), color });
+        x += seg.face.advance(seg.text, c.size);
+      }
+      const w = x - c.x;
+      if (w > 0 && (c.underline || c.strike)) {
         const thickness = Math.max(0.5, c.size * 0.06);
         if (c.underline) {
           const y = H - c.y - c.size * 0.14;

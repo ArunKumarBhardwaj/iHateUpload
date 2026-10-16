@@ -1,7 +1,35 @@
 /** Document model built from mammoth's HTML. Pure data, no layout. */
 import { parseHtml, type HNode } from "./html";
 
-export type Family = "sans" | "serif" | "mono";
+export type Family = "sans" | "serif" | "mono" | "carlito" | "caladea";
+
+export interface LineSpec {
+  kind: "mult" | "exact" | "atLeast";
+  v: number;
+}
+export interface Spacing {
+  before?: number;
+  after?: number;
+  line?: LineSpec;
+}
+/** Properties a docx paragraph style contributes before run-level overrides. */
+export interface ParaBase {
+  family?: Family;
+  size?: number;
+  color?: string;
+  bold?: boolean;
+  italic?: boolean;
+}
+export interface TableInfo {
+  /** column widths in points */
+  grid: number[];
+  widthPt?: number;
+  /** percent of the text width (100 = full width) */
+  widthPct?: number;
+  /** null = no borders */
+  borders: { color: string; width: number } | null;
+  fills: (string | undefined)[][];
+}
 export type Align = "left" | "center" | "right" | "justify";
 
 export interface InlineStyle {
@@ -33,6 +61,10 @@ export interface Para {
   /** extra left indent in points (non-list paragraphs) */
   indent: number;
   marker?: { label: string; level: number };
+  spacing?: Spacing;
+  base?: ParaBase;
+  /** true when `base` and `spacing` came from the docx's own styles */
+  docxStyled?: boolean;
 }
 
 export interface Cell {
@@ -40,6 +72,7 @@ export interface Cell {
   colSpan: number;
   rowSpan: number;
   header: boolean;
+  fill?: string;
 }
 export interface Row {
   header: boolean;
@@ -48,6 +81,7 @@ export interface Row {
 export interface TableBlock {
   kind: "table";
   rows: Row[];
+  info?: TableInfo;
 }
 export interface PageBreak {
   kind: "pagebreak";
@@ -117,6 +151,21 @@ function applyMarker(ctx: InlineCtx, key: string, value: string) {
       if (Number.isFinite(n) && n > 0) ctx.para.indent = Math.min(n, 240);
       break;
     }
+    case "sb":
+    case "sa": {
+      const n = Number(value);
+      if (Number.isFinite(n) && n >= 0 && n <= 400) {
+        ctx.para.spacing = { ...ctx.para.spacing, [key === "sb" ? "before" : "after"]: n };
+      }
+      break;
+    }
+    case "sl": {
+      const [k, num] = value.split(":");
+      const v = Number(num);
+      const kind = k === "m" ? "mult" : k === "e" ? "exact" : k === "a" ? "atLeast" : undefined;
+      if (kind && Number.isFinite(v) && v > 0 && v < 1000) ctx.para.spacing = { ...ctx.para.spacing, line: { kind, v } };
+      break;
+    }
     case "c":
       ctx.cur.color = /^[0-9a-f]{6}$/i.test(value) ? value.toUpperCase() : undefined;
       break;
@@ -126,7 +175,7 @@ function applyMarker(ctx: InlineCtx, key: string, value: string) {
       break;
     }
     case "f":
-      ctx.cur.family = value === "serif" || value === "mono" || value === "sans" ? value : undefined;
+      ctx.cur.family = ["serif", "mono", "sans", "carlito", "caladea"].includes(value) ? (value as Family) : undefined;
       break;
   }
 }

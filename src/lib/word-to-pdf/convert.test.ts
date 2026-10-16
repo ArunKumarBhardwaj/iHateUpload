@@ -116,7 +116,7 @@ describe("convertDocxToPdf: fidelity to the docx", () => {
     const doc = await PDFDocument.load(out.bytes);
     const content = pageContent(doc, 0);
     // image drawn 216 x 108 pt (wide) although the bitmap is square
-    expect(content).toMatch(/q\s+216(\.0+)?\s+0\s+0\s+108(\.0+)?\s+[\d.]+\s+[\d.]+\s+cm/);
+    expect(content).toMatch(/\n216(\.0+)?\s+0\s+0\s+108(\.0+)?\s+0\s+0\s+cm/);
     // shaded header cells (D9E2F3) and the heading colour (1F4E79)
     expect(content).toMatch(/0\.85\d*\s+0\.88\d*\s+0\.95\d*\s+rg/);
     expect(content).toMatch(/0\.12\d*\s+0\.30\d*\s+0\.47\d*\s+rg/);

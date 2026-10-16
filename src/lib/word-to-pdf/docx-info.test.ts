@@ -20,7 +20,7 @@ describe("familyForFont", () => {
 
 describe("parseDocxInfo: drawings", () => {
   test("reads image extents in points, in document order", () => {
-    const doc = `<w:document ${NS}><w:body><w:p><w:r><w:drawing><wp:inline><wp:extent cx="2743200" cy="1371600"/></wp:inline></w:drawing></w:r></w:p><w:p><w:r><w:drawing><wp:anchor><wp:extent cx="127000" cy="254000"/></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>`;
+    const doc = `<w:document ${NS}><w:body><w:p><w:r><w:drawing><wp:inline><wp:extent cx="2743200" cy="1371600"/><a:graphic><a:blip/></a:graphic></wp:inline></w:drawing></w:r></w:p><w:p><w:r><w:drawing><wp:anchor><wp:extent cx="127000" cy="254000"/><a:graphic><a:blip/></a:graphic></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>`;
     const info = parseDocxInfo({ document: doc });
     expect(info.images).toEqual([
       { w: 216, h: 108 },

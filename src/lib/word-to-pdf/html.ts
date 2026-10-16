@@ -42,7 +42,7 @@ export function parseHtml(html: string): HNode[] {
     children: [],
   };
   const stack = [root];
-  const re = /<!--[\s\S]*?-->|<\/([a-zA-Z][\w-]*)\s*>|<([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g;
+  const re = /<!--[\s\S]*?-->|<\/([a-zA-Z][\w:.-]*)\s*>|<([a-zA-Z][\w:.-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g;
   let last = 0;
   let m: RegExpExecArray | null;
   const top = () => stack[stack.length - 1];

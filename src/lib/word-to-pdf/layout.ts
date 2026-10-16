@@ -3,7 +3,7 @@
  * supplies a text measurer, so the same code runs against pdf-lib fonts and in unit tests.
  * Coordinates in the output are top-down from the page's top-left corner, in points.
  */
-import type { Align, Block, Family, Inline, InlineStyle, Para, TableBlock } from "./model";
+import type { Align, Block, Family, Inline, InlineStyle, LineSpec, Para, TableBlock } from "./model";
 import type { PageSpec } from "./page";
 
 export interface FontKey {
@@ -66,6 +66,7 @@ interface Ctx {
   bold: boolean;
   maxImgH: number;
   nextTable: { n: number };
+  lineFactor: (key: FontKey) => number;
 }
 
 interface Resolved {
@@ -87,6 +88,7 @@ type Atom =
 const clean = (s: string) => s.replace(/ /g, " ").replace(/[​­\r\n\t]/g, "");
 
 function baseSizeOf(p: Para): number {
+  if (p.docxStyled && p.base?.size) return p.base.size;
   if (p.title) return TITLE_SIZE;
   if (p.heading > 0) return HEADING_SIZE[p.heading] ?? BASE_SIZE;
   return BASE_SIZE;
@@ -94,17 +96,18 @@ function baseSizeOf(p: Para): number {
 
 function resolve(style: InlineStyle, p: Para, ctx: Ctx): Resolved {
   const base = style.size ?? baseSizeOf(p);
+  const db = p.docxStyled ? p.base : undefined;
   const sc = style.script;
   const isLink = !!style.href;
   return {
     size: sc ? base * 0.65 : base,
     rise: sc === "sup" ? base * 0.35 : sc === "sub" ? -base * 0.15 : 0,
     key: {
-      family: style.family ?? "sans",
-      bold: style.bold || p.heading > 0 || ctx.bold,
-      italic: style.italic,
+      family: style.family ?? db?.family ?? "sans",
+      bold: style.bold || (p.docxStyled ? !!db?.bold : p.heading > 0) || ctx.bold,
+      italic: style.italic || !!db?.italic,
     },
-    color: style.color ?? (isLink ? LINK_COLOR : undefined),
+    color: style.color ?? db?.color ?? (isLink ? LINK_COLOR : undefined),
     underline: style.underline || isLink,
     strike: style.strike,
     href: style.href,
@@ -221,17 +224,35 @@ function sameRun(a: Resolved, b: Resolved): boolean {
   );
 }
 
-function lineItem(line: Line, x0: number, avail: number, align: Align, last: boolean, fallbackSize: number): Item {
+function lineItem(
+  line: Line,
+  x0: number,
+  avail: number,
+  align: Align,
+  last: boolean,
+  fallbackSize: number,
+  ctx: Ctx,
+  spec: LineSpec | undefined,
+): Item {
   const atoms = line.atoms;
   let maxSize = 0;
+  let natural = 0;
   let imgH = 0;
   for (const a of atoms) {
     if (a.k === "i") imgH = Math.max(imgH, a.h);
-    else if (a.k === "w" || a.k === "s") maxSize = Math.max(maxSize, a.r.size);
+    else if (a.k === "w" || a.k === "s") {
+      maxSize = Math.max(maxSize, a.r.size);
+      natural = Math.max(natural, a.r.size * ctx.lineFactor(a.r.key));
+    }
   }
   if (!maxSize) maxSize = fallbackSize;
+  if (!natural) natural = maxSize * 1.22;
   const descent = maxSize * 0.25;
-  const lineH = Math.max(maxSize * 1.22, imgH ? imgH + descent + maxSize * 0.05 : 0);
+  let textH = natural;
+  if (spec?.kind === "mult") textH = natural * spec.v;
+  else if (spec?.kind === "exact") textH = spec.v;
+  else if (spec?.kind === "atLeast") textH = Math.max(natural, spec.v);
+  const lineH = Math.max(textH, imgH ? imgH + descent + maxSize * 0.05 : 0);
   const baseline = lineH - descent - maxSize * 0.05;
 
   const justify = align === "justify" && !last && !line.hardBreak;
@@ -301,7 +322,7 @@ function paraItems(p: Para, width: number, ctx: Ctx): Item[] {
   const atoms = atomise(p, ctx, avail);
   const lines = breakLines(atoms, avail, ctx);
   const size = baseSizeOf(p);
-  const items = lines.map((l, i) => lineItem(l, textX, avail, p.align, i === lines.length - 1, size));
+  const items = lines.map((l, i) => lineItem(l, textX, avail, p.align, i === lines.length - 1, size, ctx, p.spacing?.line));
 
   if (p.marker?.label && items.length) {
     const first = atoms.find((a) => a.k === "w") as Extract<Atom, { k: "w" }> | undefined;
@@ -327,9 +348,9 @@ function paraItems(p: Para, width: number, ctx: Ctx): Item[] {
 
   if (!ctx.compact && items.length) {
     const h = p.heading;
-    items[0].before = p.title ? 4 : h === 1 ? 16 : h === 2 ? 13 : h > 0 ? 10 : 0;
+    items[0].before = p.spacing?.before ?? (p.title ? 4 : h === 1 ? 16 : h === 2 ? 13 : h > 0 ? 10 : 0);
     const lastItem = items[items.length - 1];
-    lastItem.after = p.title ? 10 : h > 0 ? 6 : p.marker ? 3 : 7;
+    lastItem.after = p.spacing?.after ?? (p.title ? 10 : h > 0 ? 6 : p.marker ? 3 : 7);
     if (h > 0 || p.title) lastItem.keepNext = true;
   } else if (ctx.compact && items.length) {
     items[items.length - 1].after = p.marker ? 1 : 0;
@@ -377,17 +398,23 @@ function blockWidths(blocks: Block[], ctx: Ctx, avail: number): { min: number; m
 function tableItems(t: TableBlock, width: number, ctx: Ctx): Item[] {
   // grid occupancy for row spans
   const rows = t.rows;
-  const cols = Math.max(
+  const info = t.info;
+  const cellCols = Math.max(
     1,
     ...rows.map((r) => r.cells.reduce((n, c) => n + c.colSpan, 0)),
   );
-  const pad = CELL_PAD_X * 2;
+  const useGrid = !!info && info.grid.length >= cellCols;
+  const cols = useGrid ? (info as NonNullable<typeof info>).grid.length : cellCols;
+  const padX = info ? 5.4 : CELL_PAD_X;
+  const padY = info ? 2 : CELL_PAD_Y;
+  const pad = padX * 2;
+  const border = info ? info.borders : { color: BORDER_COLOR, width: 0.5 };
   const mins = new Array<number>(cols).fill(8 + pad);
   const maxs = new Array<number>(cols).fill(8 + pad);
   for (const row of rows) {
     let col = 0;
     for (const cell of row.cells) {
-      const cctx = { ...ctx, compact: true, bold: ctx.bold || cell.header };
+      const cctx = { ...ctx, compact: true, bold: ctx.bold || (!info && cell.header) };
       const w = blockWidths(cell.blocks, cctx, width - pad);
       if (cell.colSpan === 1 && col < cols) {
         mins[col] = Math.max(mins[col], w.min + pad);
@@ -401,7 +428,7 @@ function tableItems(t: TableBlock, width: number, ctx: Ctx): Item[] {
     let col = 0;
     for (const cell of row.cells) {
       if (cell.colSpan > 1) {
-        const cctx = { ...ctx, compact: true, bold: ctx.bold || cell.header };
+        const cctx = { ...ctx, compact: true, bold: ctx.bold || (!info && cell.header) };
         const w = blockWidths(cell.blocks, cctx, width - pad);
         const idx = Array.from({ length: cell.colSpan }, (_, k) => col + k).filter((k) => k < cols);
         const have = idx.reduce((n, k) => n + maxs[k], 0);
@@ -414,7 +441,14 @@ function tableItems(t: TableBlock, width: number, ctx: Ctx): Item[] {
   const sumMax = maxs.reduce((a, b) => a + b, 0);
   const sumMin = mins.reduce((a, b) => a + b, 0);
   let widths: number[];
-  if (sumMax <= width) {
+  if (useGrid && info) {
+    const sumGrid = info.grid.reduce((a, b) => a + b, 0);
+    const target = Math.min(
+      info.widthPct ? (width * info.widthPct) / 100 : (info.widthPt ?? sumGrid),
+      width,
+    );
+    widths = info.grid.map((g) => (g * target) / sumGrid);
+  } else if (sumMax <= width) {
     const target = sumMax >= width * 0.5 ? width : sumMax * 1.4;
     widths = maxs.map((m) => (m / sumMax) * target);
   } else if (sumMin >= width) {
@@ -435,29 +469,29 @@ function tableItems(t: TableBlock, width: number, ctx: Ctx): Item[] {
     const bodies: { x: number; items: Item[]; h: number }[] = [];
     let rowH = 0;
     let col = 0;
-    const placed: { col: number; span: number; header: boolean }[] = [];
+    const placed: { col: number; span: number; fill?: string }[] = [];
     for (const cell of row.cells) {
       while (col < cols && occupied[col] > 0) col++;
       if (col >= cols) break;
       const span = Math.min(cell.colSpan, cols - col);
       const w = xs[col + span] - xs[col];
-      const cctx: Ctx = { ...ctx, compact: true, bold: ctx.bold || cell.header };
+      const cctx: Ctx = { ...ctx, compact: true, bold: ctx.bold || (!info && cell.header) };
       const inner = flowItems(cell.blocks, w - pad, cctx);
       const h = inner.reduce((n, it) => n + it.before + it.h + it.after, 0);
-      bodies.push({ x: xs[col] + CELL_PAD_X, items: inner, h });
+      bodies.push({ x: xs[col] + padX, items: inner, h });
       rowH = Math.max(rowH, h);
-      placed.push({ col, span, header: cell.header });
+      placed.push({ col, span, fill: cell.fill ?? (!info && cell.header ? HEADER_FILL : undefined) });
       if (cell.rowSpan > 1) for (let k = 0; k < span; k++) occupied[col + k] = cell.rowSpan;
       col += span;
     }
     for (let k = 0; k < cols; k++) if (occupied[k] > 0 && !placed.some((c) => k >= c.col && k < c.col + c.span)) occupied[k]--;
-    const height = Math.max(rowH, ctx.measure("M", { family: "sans", bold: false, italic: false }, BASE_SIZE) * 1.22) + CELL_PAD_Y * 2;
+    const height = Math.max(rowH, BASE_SIZE * 1.22) + padY * 2;
     // fills first so text draws on top
     placed.forEach((c) => {
-      if (c.header) cmds.push({ t: "rect", x: xs[c.col], y: 0, w: xs[c.col + c.span] - xs[c.col], h: height, fill: HEADER_FILL });
+      if (c.fill) cmds.push({ t: "rect", x: xs[c.col], y: 0, w: xs[c.col + c.span] - xs[c.col], h: height, fill: c.fill });
     });
     bodies.forEach((b) => {
-      let y = CELL_PAD_Y;
+      let y = padY;
       for (const it of b.items) {
         y += it.before;
         for (const c of it.cmds) cmds.push(shift(c, b.x, y));
@@ -470,9 +504,11 @@ function tableItems(t: TableBlock, width: number, ctx: Ctx): Item[] {
       edges.add(c.col);
       edges.add(c.col + c.span);
     });
-    for (const e of edges) cmds.push({ t: "line", x1: xs[e], y1: 0, x2: xs[e], y2: height, width: 0.5, color: BORDER_COLOR });
-    if (ri === 0) cmds.push({ t: "line", x1: 0, y1: 0, x2: total, y2: 0, width: 0.5, color: BORDER_COLOR });
-    cmds.push({ t: "line", x1: 0, y1: height, x2: total, y2: height, width: 0.5, color: BORDER_COLOR });
+    if (border) {
+      for (const e of edges) cmds.push({ t: "line", x1: xs[e], y1: 0, x2: xs[e], y2: height, width: border.width, color: border.color });
+      if (ri === 0) cmds.push({ t: "line", x1: 0, y1: 0, x2: total, y2: 0, width: border.width, color: border.color });
+      cmds.push({ t: "line", x1: 0, y1: height, x2: total, y2: height, width: border.width, color: border.color });
+    }
     items.push({ h: height, before: 0, after: 0, cmds, isHeader: row.header });
   });
   const headers = items.filter((i) => i.isHeader);
@@ -503,7 +539,17 @@ function flowItems(blocks: Block[], width: number, ctx: Ctx): Item[] {
 
 // ---- pages ----------------------------------------------------------------------------------
 
-export function layoutDocument(blocks: Block[], page: PageSpec, measure: Measurer): LaidOutPage[] {
+export interface LayoutOptions {
+  /** natural line height as a multiple of the font size */
+  lineFactor?: (key: FontKey) => number;
+}
+
+export function layoutDocument(
+  blocks: Block[],
+  page: PageSpec,
+  measure: Measurer,
+  opts: LayoutOptions = {},
+): LaidOutPage[] {
   const left = page.margin.left;
   const width = page.width - page.margin.left - page.margin.right;
   const top = page.margin.top;
@@ -514,6 +560,7 @@ export function layoutDocument(blocks: Block[], page: PageSpec, measure: Measure
     bold: false,
     maxImgH: (bottom - top) * 0.9,
     nextTable: { n: 0 },
+    lineFactor: opts.lineFactor ?? (() => 1.22),
   };
   const items = flowItems(blocks, width, ctx);
 
