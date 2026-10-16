@@ -1,0 +1,1084 @@
+{
+ "sides": {
+  "ours": "Ours (Editable)",
+  "rival": "ihatepdf.cv (Editable)",
+  "rival-exact": "ihatepdf.cv (Exact)"
+ },
+ "documents": {
+  "annotations": {
+   "ours": {
+    "failed": false,
+    "overall": 0.6666666666666666,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 1,
+     "fonts": 0,
+     "comments": 0
+    },
+    "visual": 0.18634471219357643,
+    "pageVisual": [
+     0.18634471219357643
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.75,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 1,
+     "fonts": 0,
+     "comments": 0.5
+    },
+    "visual": 0.4612661257109992,
+    "pageVisual": [
+     0.4612661257109992
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.5833333333333334,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 0,
+     "headings": 1,
+     "fonts": 0,
+     "comments": 0.5
+    },
+    "visual": 0.8182300646412197,
+    "pageVisual": [
+     0.8182300646412197
+    ],
+    "pageDelta": 0
+   }
+  },
+  "bank-statement": {
+   "ours": {
+    "failed": false,
+    "overall": 0.6873626373626374,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 0.25,
+     "tables": 0.06153846153846154,
+     "fonts": 0.5,
+     "headerFooter": 1
+    },
+    "visual": 0.25658541622774217,
+    "pageVisual": [
+     0.22656413092211153,
+     0.14384514735816542,
+     0.3993469704029497
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.6590849356715848,
+    "features": {
+     "text": 0.9546201907267347,
+     "order": 1,
+     "editability": 1,
+     "headings": 0.25,
+     "tables": 0.2423076923076923,
+     "fonts": 0.5,
+     "headerFooter": 0.6666666666666666
+    },
+    "visual": 0.38253057580822963,
+    "pageVisual": [
+     0.2551905372757925,
+     0.2769159734048471,
+     0.6154852167440494
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.516227792814442,
+    "features": {
+     "text": 0.9546201907267347,
+     "order": 1,
+     "editability": 0,
+     "headings": 0.25,
+     "tables": 0.2423076923076923,
+     "fonts": 0.5,
+     "headerFooter": 0.6666666666666666
+    },
+    "visual": 0.405643617039752,
+    "pageVisual": [
+     0.34765689211683415,
+     0.31803983766580235,
+     0.5512341213366196
+    ],
+    "pageDelta": 0
+   }
+  },
+  "brochure": {
+   "ours": {
+    "failed": false,
+    "overall": 0.9285714285714286,
+    "features": {
+     "text": 1,
+     "editability": 1,
+     "headings": 1,
+     "lists": 1,
+     "tables": 1,
+     "images": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.5568660672582856,
+    "pageVisual": [
+     0.5568660672582856
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.8214285714285714,
+    "features": {
+     "text": 1,
+     "editability": 1,
+     "headings": 1,
+     "lists": 0.25,
+     "tables": 1,
+     "images": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.49201841224687864,
+    "pageVisual": [
+     0.49201841224687864
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.6785714285714286,
+    "features": {
+     "text": 1,
+     "editability": 0,
+     "headings": 1,
+     "lists": 0.25,
+     "tables": 1,
+     "images": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.8136099907585792,
+    "pageVisual": [
+     0.8136099907585792
+    ],
+    "pageDelta": 0
+   }
+  },
+  "cjk": {
+   "ours": {
+    "failed": false,
+    "overall": 1,
+    "features": {
+     "text": 1,
+     "editability": 1,
+     "headings": 1
+    },
+    "visual": 0,
+    "pageVisual": [
+     0
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 1,
+    "features": {
+     "text": 1,
+     "editability": 1,
+     "headings": 1
+    },
+    "visual": 0.05439248012113859,
+    "pageVisual": [
+     0.05439248012113859
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.6666666666666666,
+    "features": {
+     "text": 1,
+     "editability": 0,
+     "headings": 1
+    },
+    "visual": 0.2037601709291465,
+    "pageVisual": [
+     0.2037601709291465
+    ],
+    "pageDelta": 0
+   }
+  },
+  "contract": {
+   "ours": {
+    "failed": false,
+    "overall": 0.6883210970134831,
+    "features": {
+     "text": 0.9943138741470812,
+     "order": 1,
+     "editability": 1,
+     "headings": 0.16666666666666666,
+     "lists": 0.375,
+     "runs": 0.47058823529411764,
+     "fonts": 0.5,
+     "headerFooter": 1
+    },
+    "visual": 0.7139343690762954,
+    "pageVisual": [
+     0.6915968426826493,
+     0.7362718954699413
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.5600989590301625,
+    "features": {
+     "text": 0.9685367702805155,
+     "order": 1,
+     "editability": 1,
+     "headings": 0.16666666666666666,
+     "lists": 0.375,
+     "runs": 0.47058823529411764,
+     "fonts": 0.5,
+     "headerFooter": 0
+    },
+    "visual": 0.3818049230207692,
+    "pageVisual": [
+     0.1847292710312207,
+     0.5788805750103176
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.4350989590301625,
+    "features": {
+     "text": 0.9685367702805155,
+     "order": 1,
+     "editability": 0,
+     "headings": 0.16666666666666666,
+     "lists": 0.375,
+     "runs": 0.47058823529411764,
+     "fonts": 0.5,
+     "headerFooter": 0
+    },
+    "visual": 0.8404440057213391,
+    "pageVisual": [
+     0.7908066442382711,
+     0.8900813672044072
+    ],
+    "pageDelta": 0
+   }
+  },
+  "cv": {
+   "ours": {
+    "failed": false,
+    "overall": 0.7385765362250512,
+    "features": {
+     "text": 0.9731258840169731,
+     "editability": 1,
+     "headings": 0.8333333333333334,
+     "lists": 0.625,
+     "links": 0.5,
+     "fonts": 0.5
+    },
+    "visual": 0.12548093456505863,
+    "pageVisual": [
+     0.12138531949146683,
+     0.12957654963865042
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.6344098695583843,
+    "features": {
+     "text": 0.9731258840169731,
+     "editability": 1,
+     "headings": 0.6666666666666666,
+     "lists": 0,
+     "links": 0.6666666666666666,
+     "fonts": 0.5
+    },
+    "visual": 0.2944371405552765,
+    "pageVisual": [
+     0.35660065538928254,
+     0.23227362572127044
+    ],
+    "pageDelta": 2
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.4677432028917177,
+    "features": {
+     "text": 0.9731258840169731,
+     "editability": 0,
+     "headings": 0.6666666666666666,
+     "lists": 0,
+     "links": 0.6666666666666666,
+     "fonts": 0.5
+    },
+    "visual": 0.7488840735501188,
+    "pageVisual": [
+     0.5870182435889042,
+     0.9107499035113333
+    ],
+    "pageDelta": 0
+   }
+  },
+  "gov-form": {
+   "ours": {
+    "failed": false,
+    "overall": 0.8333333333333334,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 0.5,
+     "tables": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.1895220204897634,
+    "pageVisual": [
+     0.1895220204897634
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.8333333333333334,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 0.5,
+     "tables": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.5325469972954118,
+    "pageVisual": [
+     0.5325469972954118
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.6666666666666666,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 0,
+     "headings": 0.5,
+     "tables": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.7102380191345486,
+    "pageVisual": [
+     0.7102380191345486
+    ],
+    "pageDelta": 0
+   }
+  },
+  "gov-form-acro": {
+   "ours": {
+    "failed": false,
+    "overall": 0.8,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 1,
+     "forms": 0
+    },
+    "visual": 0.21174649127257333,
+    "pageVisual": [
+     0.21174649127257333
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.8,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 1,
+     "forms": 0
+    },
+    "visual": 0.4375895476540057,
+    "pageVisual": [
+     0.4375895476540057
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.6,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 0,
+     "headings": 1,
+     "forms": 0
+    },
+    "visual": 0.9598022912857052,
+    "pageVisual": [
+     0.9598022912857052
+    ],
+    "pageDelta": 0
+   }
+  },
+  "invoice": {
+   "ours": {
+    "failed": false,
+    "overall": 0.7012780869923727,
+    "features": {
+     "text": 1,
+     "order": 0.98989898989899,
+     "editability": 1,
+     "headings": 0,
+     "tables": 0.41904761904761906,
+     "images": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.20273724671479665,
+    "pageVisual": [
+     0.20273724671479665
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.753968253968254,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 0.5,
+     "tables": 0.2777777777777778,
+     "images": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.16472313876720668,
+    "pageVisual": [
+     0.16472313876720668
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.611111111111111,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 0,
+     "headings": 0.5,
+     "tables": 0.2777777777777778,
+     "images": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.5936508944525656,
+    "pageVisual": [
+     0.5936508944525656
+    ],
+    "pageDelta": 0
+   }
+  },
+  "latex-cff": {
+   "ours": {
+    "failed": false,
+    "overall": 0.75,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 1,
+     "runs": 0.5,
+     "fonts": 0
+    },
+    "visual": 0.5888092973629626,
+    "pageVisual": [
+     0.420039512562257,
+     0.7575790821636683
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.75,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 1,
+     "runs": 0.5,
+     "fonts": 0
+    },
+    "visual": 0.5629383972057904,
+    "pageVisual": [
+     0.28793190738955304,
+     0.8379448870220279
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.5833333333333334,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 0,
+     "headings": 1,
+     "runs": 0.5,
+     "fonts": 0
+    },
+    "visual": 0.7338573403539026,
+    "pageVisual": [
+     0.6478464799939674,
+     0.8198682007138378
+    ],
+    "pageDelta": 0
+   }
+  },
+  "letter": {
+   "ours": {
+    "failed": false,
+    "overall": 0.8333333333333333,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "runs": 0.6666666666666666,
+     "fonts": 0.5
+    },
+    "visual": 0.491629521815955,
+    "pageVisual": [
+     0.20849689848396546,
+     0.7747621451479445
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.8333333333333333,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "runs": 0.6666666666666666,
+     "fonts": 0.5
+    },
+    "visual": 0.4667691203436527,
+    "pageVisual": [
+     0.3094929099849254,
+     0.62404533070238
+    ],
+    "pageDelta": 1
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.6333333333333333,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 0,
+     "runs": 0.6666666666666666,
+     "fonts": 0.5
+    },
+    "visual": 0.6992696917501655,
+    "pageVisual": [
+     0.5789964872969565,
+     0.8195428962033746
+    ],
+    "pageDelta": 0
+   }
+  },
+  "memo-pdflib": {
+   "ours": {
+    "failed": false,
+    "overall": 0.8333333333333334,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 1,
+     "lists": 1,
+     "fonts": 0
+    },
+    "visual": 0.4108975857675483,
+    "pageVisual": [
+     0.4108975857675483
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.8333333333333334,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 1,
+     "lists": 1,
+     "fonts": 0
+    },
+    "visual": 0.6475725294714739,
+    "pageVisual": [
+     0.6475725294714739
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.6666666666666666,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 0,
+     "headings": 1,
+     "lists": 1,
+     "fonts": 0
+    },
+    "visual": 0.8571166596060332,
+    "pageVisual": [
+     0.8571166596060332
+    ],
+    "pageDelta": 0
+   }
+  },
+  "newsletter": {
+   "ours": {
+    "failed": false,
+    "overall": 0.6666666666666666,
+    "features": {
+     "text": 1,
+     "editability": 1,
+     "headings": 0.5,
+     "images": 1,
+     "columns": 0,
+     "fonts": 0.5
+    },
+    "visual": 0.22243705186950585,
+    "pageVisual": [
+     0.22243705186950585
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.8333333333333334,
+    "features": {
+     "text": 1,
+     "editability": 1,
+     "headings": 0.5,
+     "images": 1,
+     "columns": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.03666520317820391,
+    "pageVisual": [
+     0.03666520317820391
+    ],
+    "pageDelta": 12
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.5,
+    "features": {
+     "text": 1,
+     "editability": 0,
+     "headings": 0.5,
+     "images": 1,
+     "columns": 0,
+     "fonts": 0.5
+    },
+    "visual": 0.5209961547589745,
+    "pageVisual": [
+     0.5209961547589745
+    ],
+    "pageDelta": 0
+   }
+  },
+  "receipt": {
+   "ours": {
+    "failed": false,
+    "overall": 0.875,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.10693536514392671,
+    "pageVisual": [
+     0.10693536514392671
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.875,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.03313711009043875,
+    "pageVisual": [
+     0.03313711009043875
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.625,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 0,
+     "fonts": 0.5
+    },
+    "visual": 0.36035692196549196,
+    "pageVisual": [
+     0.36035692196549196
+    ],
+    "pageDelta": 0
+   }
+  },
+  "report-chart": {
+   "ours": {
+    "failed": false,
+    "overall": 0.8963470319634703,
+    "features": {
+     "text": 1,
+     "order": 0.9817351598173516,
+     "editability": 1,
+     "headings": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.2174119424902387,
+    "pageVisual": [
+     0.2174119424902387
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.8954727030625833,
+    "features": {
+     "text": 0.9773635153129161,
+     "order": 1,
+     "editability": 1,
+     "headings": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.3991127894115399,
+    "pageVisual": [
+     0.3991127894115399
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.6954727030625832,
+    "features": {
+     "text": 0.9773635153129161,
+     "order": 1,
+     "editability": 0,
+     "headings": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.9344697635620545,
+    "pageVisual": [
+     0.9344697635620545
+    ],
+    "pageDelta": 0
+   }
+  },
+  "research-paper": {
+   "ours": {
+    "failed": false,
+    "overall": 0.7295269704922884,
+    "features": {
+     "text": 0.9701871966720592,
+     "order": 0.9917491749174917,
+     "editability": 1,
+     "headings": 1,
+     "lists": 0.3333333333333333,
+     "runs": 0.5,
+     "images": 1,
+     "columns": 1,
+     "fonts": 0.5,
+     "footnotes": 0
+    },
+    "visual": 0.16005603291135184,
+    "pageVisual": [
+     0.19806029163972455,
+     0.12205177418297916
+    ],
+    "pageDelta": 2
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.5883523892251767,
+    "features": {
+     "text": 0.9584007395424081,
+     "order": 0.9917898193760263,
+     "editability": 1,
+     "headings": 0.6,
+     "lists": 0.3333333333333333,
+     "runs": 0.5,
+     "images": 1,
+     "columns": 0,
+     "fonts": 0.5,
+     "footnotes": 0
+    },
+    "visual": 0.11169828338268925,
+    "pageVisual": [
+     0.15191475036876045,
+     0.07148181639661805
+    ],
+    "pageDelta": 1
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.48835238922517676,
+    "features": {
+     "text": 0.9584007395424081,
+     "order": 0.9917898193760263,
+     "editability": 0,
+     "headings": 0.6,
+     "lists": 0.3333333333333333,
+     "runs": 0.5,
+     "images": 1,
+     "columns": 0,
+     "fonts": 0.5,
+     "footnotes": 0
+    },
+    "visual": 0.6040302514912702,
+    "pageVisual": [
+     0.6062577856931171,
+     0.6018027172894234
+    ],
+    "pageDelta": 0
+   }
+  },
+  "rtl": {
+   "ours": {
+    "failed": false,
+    "overall": 0.9940828402366865,
+    "features": {
+     "text": 0.9822485207100592,
+     "editability": 1,
+     "headings": 1
+    },
+    "visual": 0.13172773556465503,
+    "pageVisual": [
+     0.13172773556465503
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.9940828402366865,
+    "features": {
+     "text": 0.9822485207100592,
+     "editability": 1,
+     "headings": 1
+    },
+    "visual": 0.21259828377922352,
+    "pageVisual": [
+     0.21259828377922352
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.6607495069033531,
+    "features": {
+     "text": 0.9822485207100592,
+     "editability": 0,
+     "headings": 1
+    },
+    "visual": 0.7807007868987652,
+    "pageVisual": [
+     0.7807007868987652
+    ],
+    "pageDelta": 0
+   }
+  },
+  "scanned-letter": {
+   "ours": {
+    "failed": false,
+    "overall": 0.9864773495605138,
+    "features": {
+     "text": 0.9594320486815415,
+     "order": 1,
+     "editability": 1
+    },
+    "visual": 0.41082946402020937,
+    "pageVisual": [
+     0.3967923626264223,
+     0.42486656541399637
+    ],
+    "pageDelta": 0
+   },
+   "rival": {
+    "failed": false,
+    "overall": 1,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1
+    },
+    "visual": 0.49779050986820317,
+    "pageVisual": [
+     0.506668637039577,
+     0.48891238269682935
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.6666666666666666,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 0
+    },
+    "visual": 0.5475051568974733,
+    "pageVisual": [
+     0.5518927682610812,
+     0.5431175455338653
+    ],
+    "pageDelta": 0
+   }
+  },
+  "slides": {
+   "ours": {
+    "failed": false,
+    "overall": 0.861111111111111,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 0.6666666666666666,
+     "lists": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.10165675986248718,
+    "pageVisual": [
+     0.00013368488140325406,
+     0.03067213267803503,
+     0.27416446202802325
+    ],
+    "pageDelta": 1
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.6944444444444443,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 1,
+     "headings": 0.6666666666666666,
+     "lists": 0,
+     "fonts": 0.5
+    },
+    "visual": 0.2552675159145344,
+    "pageVisual": [
+     0.00118144947001839,
+     0.33377341019369544,
+     0.43084768807988927
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.5277777777777778,
+    "features": {
+     "text": 1,
+     "order": 1,
+     "editability": 0,
+     "headings": 0.6666666666666666,
+     "lists": 0,
+     "fonts": 0.5
+    },
+    "visual": 0.552830882963246,
+    "pageVisual": [
+     0,
+     0.6741453135174367,
+     0.9843473353723013
+    ],
+    "pageDelta": 0
+   }
+  },
+  "spreadsheet": {
+   "ours": {
+    "failed": false,
+    "overall": 0.888997555012225,
+    "features": {
+     "text": 0.9449877750611247,
+     "editability": 1,
+     "headings": 1,
+     "tables": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.17323921189862407,
+    "pageVisual": [
+     0.34647842379724814,
+     0
+    ],
+    "pageDelta": -1
+   },
+   "rival": {
+    "failed": false,
+    "overall": 0.888997555012225,
+    "features": {
+     "text": 0.9449877750611247,
+     "editability": 1,
+     "headings": 1,
+     "tables": 1,
+     "fonts": 0.5
+    },
+    "visual": 0.2778172303937101,
+    "pageVisual": [
+     0.2793422265642679,
+     0.27629223422315236
+    ],
+    "pageDelta": 0
+   },
+   "rival-exact": {
+    "failed": false,
+    "overall": 0.638997555012225,
+    "features": {
+     "text": 0.9449877750611247,
+     "editability": 0,
+     "headings": 1,
+     "tables": 0.75,
+     "fonts": 0.5
+    },
+    "visual": 0.4362196128640631,
+    "pageVisual": [
+     0.3680425976234414,
+     0.5043966281046848
+    ],
+    "pageDelta": 0
+   }
+  }
+ }
+}

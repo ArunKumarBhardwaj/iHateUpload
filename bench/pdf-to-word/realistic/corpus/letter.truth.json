@@ -1,0 +1,36 @@
+{
+  "name": "letter",
+  "category": "letter",
+  "description": "Business letter with sender block, date, recipient, bold subject and signature",
+  "paragraphs": [
+    "Halvorsen & Pike Architects",
+    "1200 Mill Race Lane, Suite 4, Madison, WI 53703",
+    "14 September 2026",
+    "Ms. Odalys Moreno",
+    "Director of Facilities, Eastgate School District",
+    "77 Cedar Court, Madison, WI 53704",
+    "Re: Proposal for the library roof replacement",
+    "Dear Ms. Moreno,",
+    "Yellow compass dagger umbrella kettle mosaic pocket oyster garden. Paper tunnel valley harbor vessel dagger bridge silver market saddle kettle hollow. Market kettle marble oyster velvet pepper silver prairie velvet glacier raven oyster cobalt hollow. Compass ribbon engine compass zenith tunnel feather window jungle kernel zenith lantern prairie. Saddle quartz candle feather silver engine zenith nectar. Stone willow wagon kernel feather kettle.",
+    "Island compass ember river hollow anchor lantern yonder. Nectar violet breeze vessel compass bridge umbrella basket orchard raven velvet saddle ribbon falcon quartz. Glacier pepper falcon mosaic marble meadow yonder garden bridge cobalt velvet. Market umbrella marble cobalt silver morning meadow hollow hollow engine quartz jungle yellow meadow meadow. Meadow engine mirror copper pepper engine stone glacier garden needle quiver wagon. Zephyr.",
+    "Silver dagger quartz timber candle compass opal quiver tunnel breeze. Copper zephyr oyster jasper valley compass vessel meadow summit. Copper garden ladder pocket thunder opal river river violet. Ember raven river pocket thunder thunder amber raven lantern orchard summit jasper. Basket whisper tunnel amber zephyr summit umbrella silver. Vessel willow forest ribbon violet quiver umbrella opal cobalt. Anchor zephyr morning kernel jasper.",
+    "Vessel pocket timber harbor marble prairie dagger lagoon glacier cobalt window quartz tunnel. Mosaic falcon basket umbrella summit garden candle bridge thunder valley candle. Jungle dagger lagoon kettle dagger zenith compass stone kernel violet. Letter paper amber market zephyr lagoon candle cobalt ivory pepper. Zenith umbrella copper velvet raven ivory kernel glacier engine cobalt letter glacier amber garden. Morning basket prairie jungle.",
+    "Sincerely,",
+    "Jonas Halvorsen",
+    "Principal Architect"
+  ],
+  "pages": 2,
+  "order": true,
+  "fonts": [
+    "Georgia"
+  ],
+  "runs": [
+    [
+      {
+        "text": "Re: Proposal for the library roof replacement",
+        "b": true,
+        "color": "000000"
+      }
+    ]
+  ]
+}

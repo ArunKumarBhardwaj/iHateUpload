@@ -1,0 +1,110 @@
+{
+  "name": "contract",
+  "category": "contract",
+  "description": "Numbered clauses, nested numbered list, bold defined terms, running footer",
+  "paragraphs": [
+    "SERVICE AGREEMENT",
+    "This Agreement is made between Larkspur Analytics Ltd (the Provider) and Stonebridge Dental Group (the Client).",
+    "1. Definitions",
+    "Wagon pepper morning lagoon quartz falcon copper forest saddle basket oyster. Ladder yellow bridge unity dagger quiver needle engine ivory. Raven morning wagon morning copper lagoon ribbon compass basket. Pocket mosaic nectar wagon raven marble prairie pepper engine needle hollow saddle feather thunder prairie. Engine unity zephyr feather pocket copper silver dagger compass paper ember.",
+    "2. Services",
+    "Copper timber lantern glacier yonder falcon feather summit zenith umbrella. Timber vessel orchard window market falcon breeze summit opal vessel meadow jasper. Velvet harbor window marble quiver pocket jungle glacier paper falcon hollow jasper. Summit thunder harbor garden thunder garden pocket pocket ember tunnel. Forest jungle lantern glacier wagon hollow yonder zephyr wagon cobalt quartz.",
+    "Monthly data quality report delivered by the fifth working day.",
+    "Quarterly review meeting with the Client's practice managers.",
+    "Email support during business hours with a one-day response target.",
+    "3. Fees and payment",
+    "Forest candle unity pocket copper lantern ivory anchor anchor mirror compass quiver harbor basket raven. Market marble zephyr garden quartz bridge willow lagoon summit falcon zephyr. Wagon zephyr mosaic forest unity yellow hollow meadow ember umbrella feather saddle kernel whisper breeze. Prairie zephyr falcon nectar oyster anchor market hollow ribbon letter forest raven pocket jasper.",
+    "4. Confidentiality",
+    "Stone zephyr kernel orchard timber harbor needle wagon engine mosaic silver marble letter breeze market. Harbor tunnel engine wagon harbor zephyr kettle raven yonder yonder amber paper. Kernel river vessel bridge market meadow prairie stone mosaic feather. Opal vessel jungle whisper velvet anchor whisper ivory timber compass wagon ribbon kettle thunder ember. Jasper ember quiver.",
+    "5. Term and termination",
+    "Candle garden bridge kernel velvet ember letter velvet kettle silver. Compass lantern kettle river valley pocket violet meadow amber vessel engine. Letter summit stone silver needle kettle pepper umbrella quartz timber window thunder river. Velvet falcon jungle stone copper basket paper unity summit zenith quiver jungle meadow mosaic. Needle oyster opal quartz silver tunnel ember.",
+    "Nectar ribbon cobalt orchard velvet ivory saddle hollow glacier bridge garden. Zephyr harbor tunnel quartz breeze umbrella garden copper harbor garden nectar engine harbor summit. Timber violet paper whisper nectar stone ribbon unity jungle. Candle island breeze quartz mirror stone."
+  ],
+  "pages": 2,
+  "order": true,
+  "footer": "Service Agreement - Confidential",
+  "pageNumbers": true,
+  "fonts": [
+    "Times New Roman"
+  ],
+  "headings": [
+    {
+      "text": "SERVICE AGREEMENT",
+      "level": 1
+    },
+    {
+      "text": "1. Definitions",
+      "level": 2
+    },
+    {
+      "text": "2. Services",
+      "level": 2
+    },
+    {
+      "text": "3. Fees and payment",
+      "level": 2
+    },
+    {
+      "text": "4. Confidentiality",
+      "level": 2
+    },
+    {
+      "text": "5. Term and termination",
+      "level": 2
+    }
+  ],
+  "runs": [
+    [
+      {
+        "text": "This Agreement is made between ",
+        "color": "000000"
+      },
+      {
+        "text": "Larkspur Analytics Ltd",
+        "b": true,
+        "color": "000000"
+      },
+      {
+        "text": " (the ",
+        "color": "000000"
+      },
+      {
+        "text": "Provider",
+        "b": true,
+        "color": "000000"
+      },
+      {
+        "text": ") and ",
+        "color": "000000"
+      },
+      {
+        "text": "Stonebridge Dental Group",
+        "b": true,
+        "color": "000000"
+      },
+      {
+        "text": " (the ",
+        "color": "000000"
+      },
+      {
+        "text": "Client",
+        "b": true,
+        "color": "000000"
+      },
+      {
+        "text": ").",
+        "color": "000000"
+      }
+    ]
+  ],
+  "lists": [
+    {
+      "type": "number",
+      "items": [
+        "Monthly data quality report delivered by the fifth working day.",
+        "Quarterly review meeting with the Client's practice managers.",
+        "Email support during business hours with a one-day response target."
+      ]
+    }
+  ]
+}

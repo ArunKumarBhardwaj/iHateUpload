@@ -1,0 +1,89 @@
+{
+  "name": "research-paper",
+  "category": "paper",
+  "description": "Two-column paper: abstract, footnotes, figure with caption, equations as text, references",
+  "paragraphs": [
+    "Seasonal Drift of Estuarine Salinity Under Variable Discharge",
+    "Ingrid Lindqvist1, Tomas Brandt and Aiko Hasegawa",
+    "Abstract. We measure salinity at nine stations over eleven months and relate drift to river discharge. Market kettle paper ivory mirror needle harbor meadow saddle morning paper ember mirror. Quiver velvet dagger thunder cobalt pepper nectar quartz river quiver compass unity ivory island. Letter marble falcon river river mirror prairie wagon cobalt kernel umbrella umbrella garden.",
+    "1 Introduction",
+    "Quartz nectar feather ladder needle tunnel jasper opal breeze anchor. Dagger ladder yonder quiver ember cobalt vessel ivory window garden quartz prairie whisper. Thunder ladder saddle umbrella basket hollow candle vessel amber hollow ivory garden. Letter dagger jasper yellow zenith zenith yonder umbrella raven vessel lagoon. Yellow vessel basket violet forest zephyr saddle lantern quiver window. Bridge island raven market breeze engine thunder zenith pepper candle river harbor amber zephyr.",
+    "Dagger lagoon silver morning silver wagon cobalt umbrella falcon velvet vessel bridge willow morning. Needle jungle saddle ribbon breeze river ladder jasper orchard kettle marble. Paper engine candle silver prairie ivory nectar anchor garden orchard meadow forest silver feather pocket. Saddle ladder anchor willow raven summit thunder velvet. Copper ivory river morning anchor yonder compass tunnel harbor violet. Stone yonder compass paper river mirror cobalt prairie quartz tunnel prairie zephyr.",
+    "2 Methods",
+    "Prairie wagon meadow umbrella willow pepper morning harbor saddle copper yellow prairie candle lagoon. Velvet pocket timber glacier kettle raven island mosaic kettle whisper jasper anchor breeze. Ivory kettle dagger unity quiver opal basket copper garden. Cobalt zephyr vessel meadow falcon meadow prairie pocket ladder. Nectar jasper paper opal pocket raven opal ember glacier island garden pocket umbrella. Quartz yellow garden raven ember wagon nectar unity yonder zenith opal market.",
+    "Quartz bridge umbrella umbrella opal hollow lantern tunnel pepper harbor bridge. Hollow velvet basket umbrella pepper harbor paper basket market velvet. Orchard marble jasper feather falcon ladder zenith vessel. Lagoon kernel lagoon jasper jungle willow ribbon marble marble ribbon ivory kernel feather. Basket feather window meadow jungle ivory falcon timber oyster paper jasper morning. Ladder wagon quartz yellow copper nectar velvet orchard falcon bridge ribbon. Thunder opal anchor tunnel river.",
+    "S(t) = S0 + k Q(t)^-0.5 (1)",
+    "Letter kettle cobalt window meadow amber jasper marble ribbon. Garden river whisper vessel ribbon window forest copper amber quartz. Quartz letter window paper river island lagoon bridge yellow. Jasper candle paper nectar marble velvet prairie opal lagoon. Dagger jasper morning.",
+    "3 Results",
+    "Willow zephyr nectar dagger feather breeze jungle compass lantern. Umbrella garden silver kettle dagger dagger island glacier valley jasper island river kernel letter quartz. Saddle jungle needle zenith basket forest island morning market umbrella paper zephyr engine zephyr jungle. Mirror feather pepper ember timber window candle glacier jungle feather quartz ladder saddle. Silver opal saddle candle quiver willow hollow mirror saddle pocket whisper letter letter umbrella. Nectar opal bridge falcon.",
+    "Orchard engine saddle prairie jungle mirror garden summit falcon prairie basket. Umbrella timber forest tunnel tunnel harbor meadow kernel oyster compass zenith. Timber silver opal engine oyster copper window candle velvet forest. Ember velvet whisper island mosaic morning vessel velvet hollow pepper. Timber cobalt mosaic ribbon unity glacier zephyr yellow kernel window falcon yellow falcon. Feather anchor dagger amber forest cobalt mirror island. Market zenith ribbon whisper jasper candle island.",
+    "Figure 1: Mean salinity by station across the sampling period.",
+    "References",
+    "Marsh, D. (2019). Tidal mixing in narrow channels. Journal of Coastal Studies, 41, 112-130.",
+    "Okafor, N. and Weiss, P. (2021). Discharge variability and salt wedges. Estuarine Letters, 8, 45-61.",
+    "Sato, K. (2022). A practical guide to conductivity sensors. Field Methods Review, 15, 201-219.",
+    "1 Corresponding author, Department of Applied Ecology, Lindqvist Institute.",
+    "2 All sampling sites were permitted under licence ER-2291."
+  ],
+  "pages": 2,
+  "order": true,
+  "columns": 2,
+  "fonts": [
+    "Times New Roman"
+  ],
+  "images": {
+    "count": 1,
+    "labels": [
+      "1"
+    ]
+  },
+  "footnotes": [
+    "Corresponding author, Department of Applied Ecology, Lindqvist Institute.",
+    "All sampling sites were permitted under licence ER-2291."
+  ],
+  "headings": [
+    {
+      "text": "Seasonal Drift of Estuarine Salinity Under Variable Discharge",
+      "level": 1
+    },
+    {
+      "text": "1 Introduction",
+      "level": 2
+    },
+    {
+      "text": "2 Methods",
+      "level": 2
+    },
+    {
+      "text": "3 Results",
+      "level": 2
+    },
+    {
+      "text": "References",
+      "level": 2
+    }
+  ],
+  "runs": [
+    [
+      {
+        "text": "Abstract. ",
+        "b": true,
+        "color": "000000"
+      },
+      {
+        "text": "We measure salinity at nine stations over eleven months and relate drift to river discharge. Market kettle paper ivory mirror needle harbor meadow saddle morning paper ember mirror. Quiver velvet dagger thunder cobalt pepper nectar quartz river quiver compass unity ivory island. Letter marble falcon river river mirror prairie wagon cobalt kernel umbrella umbrella garden.",
+        "color": "000000"
+      }
+    ]
+  ],
+  "lists": [
+    {
+      "type": "number",
+      "items": [
+        "Marsh, D. (2019). Tidal mixing in narrow channels. Journal of Coastal Studies, 41, 112-130.",
+        "Okafor, N. and Weiss, P. (2021). Discharge variability and salt wedges. Estuarine Letters, 8, 45-61.",
+        "Sato, K. (2022). A practical guide to conductivity sensors. Field Methods Review, 15, 201-219."
+      ]
+    }
+  ]
+}

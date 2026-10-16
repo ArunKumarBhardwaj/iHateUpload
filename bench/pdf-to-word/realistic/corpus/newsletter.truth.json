@@ -1,0 +1,53 @@
+{
+  "name": "newsletter",
+  "category": "newsletter",
+  "description": "Three-column newsletter with pull quote and two images",
+  "paragraphs": [
+    "The Maple Street Courier",
+    "Volume 12 - Autumn edition - A neighbourhood publication",
+    "Orchard day returns",
+    "Opal forest mosaic falcon dagger meadow timber forest zephyr. Violet ribbon unity thunder glacier zephyr marble quartz raven prairie kettle quiver morning. Orchard window quiver copper pepper needle paper nectar ember morning garden needle compass. Thunder saddle vessel tunnel harbor pepper velvet quartz kernel umbrella wagon quartz amber. Candle unity violet zephyr saddle amber yonder timber stone glacier bridge. Zephyr yonder glacier summit kernel pocket dagger willow silver unity cobalt.",
+    "Volunteers sorting apples at last year's event.",
+    "Whisper ivory velvet falcon prairie garden umbrella saddle velvet quartz ribbon needle morning mosaic. Tunnel vessel nectar market valley violet cobalt morning meadow raven zephyr river ladder. Morning engine candle morning thunder mosaic letter opal. Nectar anchor vessel quartz vessel mosaic mirror lantern timber unity paper marble whisper. Jungle island mosaic glacier saddle mosaic garden river vessel quiver timber mosaic.",
+    "Every harvest begins with someone willing to carry the first crate.",
+    "Library hours change",
+    "Jasper prairie whisper ladder lagoon harbor basket tunnel pepper raven market oyster silver falcon feather. Zephyr morning ribbon breeze velvet raven engine saddle dagger stone forest harbor pepper. Ladder candle ladder lantern jasper vessel mirror summit wagon forest paper copper zephyr ember violet. Wagon mosaic engine velvet yonder prairie thunder ivory window violet harbor. Compass glacier mirror oyster timber jasper compass copper unity mosaic zenith market harbor. Silver raven glacier kernel window quiver glacier raven candle window marble zephyr ivory.",
+    "Road works update",
+    "Zenith orchard violet breeze glacier garden ivory quartz ladder. Falcon hollow ember raven glacier candle anchor market velvet cobalt. Stone ember orchard wagon zenith yonder timber marble lagoon mirror thunder market quartz meadow. Quiver zephyr ivory oyster thunder copper amber orchard anchor unity letter marble basket. Silver garden falcon needle quartz quartz amber hollow yellow copper. Pocket mirror tunnel lagoon yellow nectar yonder mirror opal forest pocket. Opal jungle copper paper nectar ivory saddle stone.",
+    "The new crossing on Elm Avenue.",
+    "Garden club notes",
+    "Forest feather needle mirror zenith thunder island engine meadow yellow lantern meadow. Yellow nectar quartz glacier anchor marble needle thunder market willow ribbon mirror opal oyster basket. Yonder velvet falcon basket amber harbor mirror needle jungle letter. Prairie compass whisper engine opal umbrella quiver garden zenith glacier compass ladder. Falcon ladder vessel lagoon window breeze violet tunnel stone silver. Quiver mosaic jungle candle ladder hollow zephyr vessel basket. Timber harbor willow unity quartz vessel cobalt zenith opal island. Quiver basket.",
+    "Jungle falcon ribbon island copper velvet marble thunder thunder lantern kernel willow harbor. Tunnel meadow island unity island letter needle forest raven timber lantern silver jasper letter. Lagoon velvet stone dagger compass jasper copper lagoon. Whisper pepper summit meadow pepper garden saddle bridge needle candle. Zephyr compass raven forest zephyr zenith amber oyster thunder mosaic nectar quartz whisper needle. Saddle."
+  ],
+  "pages": 1,
+  "columns": 3,
+  "fonts": [
+    "Georgia"
+  ],
+  "images": {
+    "count": 2,
+    "labels": []
+  },
+  "headings": [
+    {
+      "text": "The Maple Street Courier",
+      "level": 1
+    },
+    {
+      "text": "Orchard day returns",
+      "level": 2
+    },
+    {
+      "text": "Library hours change",
+      "level": 2
+    },
+    {
+      "text": "Road works update",
+      "level": 2
+    },
+    {
+      "text": "Garden club notes",
+      "level": 2
+    }
+  ]
+}

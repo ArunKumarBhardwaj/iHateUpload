@@ -1,0 +1,181 @@
+{
+  "name": "invoice",
+  "category": "invoice",
+  "description": "Invoice with logo image, shaded line-item table and totals",
+  "paragraphs": [
+    "Brightwater Supply Co.",
+    "418 Alder Street, Portland, OR 97205",
+    "INVOICE",
+    "Invoice no. 2047-0193",
+    "Bill to: Fernhill Bakery LLC, 92 Quarry Road, Salem, OR 97301",
+    "Issue date: 3 March 2026",
+    "Due date: 2 April 2026",
+    "Description",
+    "Qty",
+    "Unit price",
+    "Amount",
+    "Stainless mixing bowl, 12 qt",
+    "6",
+    "$38.50",
+    "$231.00",
+    "Parchment sheets, box of 500",
+    "10",
+    "$21.75",
+    "$217.50",
+    "Digital kitchen scale",
+    "3",
+    "$54.00",
+    "$162.00",
+    "Silicone spatula set",
+    "12",
+    "$9.90",
+    "$118.80",
+    "Delivery and handling",
+    "1",
+    "$45.00",
+    "$45.00",
+    "Subtotal",
+    "$774.30",
+    "Sales tax (8.25%)",
+    "$63.88",
+    "Total due",
+    "$838.18",
+    "Payment terms: net 30. Please quote the invoice number on your transfer. Thank you for your business."
+  ],
+  "pages": 1,
+  "order": true,
+  "fonts": [
+    "Arial"
+  ],
+  "images": {
+    "count": 1,
+    "labels": []
+  },
+  "headings": [
+    {
+      "text": "INVOICE",
+      "level": 1
+    }
+  ],
+  "tables": [
+    {
+      "rows": [
+        [
+          {
+            "text": "Description",
+            "shaded": true
+          },
+          {
+            "text": "Qty",
+            "shaded": true
+          },
+          {
+            "text": "Unit price",
+            "shaded": true
+          },
+          {
+            "text": "Amount",
+            "shaded": true
+          }
+        ],
+        [
+          {
+            "text": "Stainless mixing bowl, 12 qt"
+          },
+          {
+            "text": "6"
+          },
+          {
+            "text": "$38.50"
+          },
+          {
+            "text": "$231.00"
+          }
+        ],
+        [
+          {
+            "text": "Parchment sheets, box of 500"
+          },
+          {
+            "text": "10"
+          },
+          {
+            "text": "$21.75"
+          },
+          {
+            "text": "$217.50"
+          }
+        ],
+        [
+          {
+            "text": "Digital kitchen scale"
+          },
+          {
+            "text": "3"
+          },
+          {
+            "text": "$54.00"
+          },
+          {
+            "text": "$162.00"
+          }
+        ],
+        [
+          {
+            "text": "Silicone spatula set"
+          },
+          {
+            "text": "12"
+          },
+          {
+            "text": "$9.90"
+          },
+          {
+            "text": "$118.80"
+          }
+        ],
+        [
+          {
+            "text": "Delivery and handling"
+          },
+          {
+            "text": "1"
+          },
+          {
+            "text": "$45.00"
+          },
+          {
+            "text": "$45.00"
+          }
+        ],
+        [
+          {
+            "text": "Subtotal",
+            "cs": 3
+          },
+          {
+            "text": "$774.30"
+          }
+        ],
+        [
+          {
+            "text": "Sales tax (8.25%)",
+            "cs": 3
+          },
+          {
+            "text": "$63.88"
+          }
+        ],
+        [
+          {
+            "text": "Total due",
+            "cs": 3
+          },
+          {
+            "text": "$838.18"
+          }
+        ]
+      ]
+    }
+  ]
+}

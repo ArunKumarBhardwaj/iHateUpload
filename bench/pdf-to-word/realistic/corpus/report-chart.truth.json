@@ -1,0 +1,30 @@
+{
+  "name": "report-chart",
+  "category": "report",
+  "description": "Report with a vector bar chart and caption",
+  "paragraphs": [
+    "Regional Sales Review",
+    "Quartz wagon violet opal quartz paper quartz wagon kettle mirror opal island. Cobalt harbor candle ribbon basket anchor umbrella silver violet umbrella island opal lagoon. Velvet yellow lantern window glacier yonder thunder letter hollow whisper saddle umbrella opal letter. Mosaic anchor stone paper nectar needle pepper meadow oyster glacier bridge amber window kettle. Yonder island ladder whisper window glacier island ivory compass saddle whisper nectar harbor. Zephyr yellow silver marble.",
+    "Quarterly revenue",
+    "Sales (k)",
+    "Q1 42 Q2 58 Q3 51 Q4 73",
+    "Figure 1: Revenue by quarter, in thousands of dollars.",
+    "Unity opal zephyr feather timber violet jungle compass pepper river quiver. Feather silver paper hollow saddle oyster engine tunnel yellow quiver. Violet wagon umbrella needle bridge amber amber zenith ember forest forest amber yonder whisper timber. Ivory amber garden thunder breeze needle yellow valley falcon velvet bridge. Anchor candle mosaic unity hollow river jungle opal tunnel ember zephyr river. Needle harbor lagoon garden paper zenith wagon ember nectar timber yonder.",
+    "Harbor violet basket island quartz window garden ladder. Island falcon feather orchard violet anchor yonder thunder kettle lantern. Velvet tunnel amber river forest harbor mosaic forest mosaic morning zephyr mosaic glacier. Bridge bridge hollow valley engine orchard bridge quiver zephyr falcon umbrella hollow ember anchor. Valley copper forest yellow river tunnel willow prairie pepper quiver."
+  ],
+  "pages": 1,
+  "order": true,
+  "fonts": [
+    "Arial"
+  ],
+  "headings": [
+    {
+      "text": "Regional Sales Review",
+      "level": 1
+    },
+    {
+      "text": "Quarterly revenue",
+      "level": 2
+    }
+  ]
+}

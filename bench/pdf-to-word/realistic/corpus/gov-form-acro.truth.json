@@ -1,0 +1,53 @@
+{
+  "name": "gov-form-acro",
+  "category": "form",
+  "description": "Fillable AcroForm (pdf-lib) with text fields and checkboxes",
+  "paragraphs": [
+    "Vehicle Registration Renewal",
+    "Registered owner",
+    "Licence plate",
+    "Odometer reading",
+    "Mailing address",
+    "Insurance verified",
+    "Emissions test passed",
+    "Change of address"
+  ],
+  "order": true,
+  "headings": [
+    {
+      "text": "Vehicle Registration Renewal",
+      "level": 1
+    }
+  ],
+  "formFields": [
+    {
+      "type": "text",
+      "name": "owner"
+    },
+    {
+      "type": "text",
+      "name": "plate"
+    },
+    {
+      "type": "text",
+      "name": "odometer"
+    },
+    {
+      "type": "text",
+      "name": "address"
+    },
+    {
+      "type": "checkbox",
+      "name": "insurance"
+    },
+    {
+      "type": "checkbox",
+      "name": "emissions"
+    },
+    {
+      "type": "checkbox",
+      "name": "coa"
+    }
+  ],
+  "pages": 1
+}

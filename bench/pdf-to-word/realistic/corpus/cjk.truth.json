@@ -1,0 +1,19 @@
+{
+  "name": "cjk",
+  "category": "cjk",
+  "description": "Simplified Chinese and Japanese paragraphs",
+  "paragraphs": [
+    "地区图书馆通知",
+    "欢迎来到市中心图书馆。图书馆每周一至周六上午九点开放，下午六点关闭。借阅图书时请出示读者证，逾期归还需要缴纳少量滞纳金。",
+    "図書館からのお知らせです。開館時間は月曜日から土曜日の午前九時から午後六時までです。本を借りるときは、利用者カードをご提示ください。",
+    "Library notice in English: open Monday to Saturday, nine to six."
+  ],
+  "pages": 1,
+  "charMode": true,
+  "headings": [
+    {
+      "text": "地区图书馆通知",
+      "level": 1
+    }
+  ]
+}

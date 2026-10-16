@@ -1,0 +1,12 @@
+{
+  "annotations": "The four lines are merged into one paragraph; the yellow highlight and the sticky-note comment are dropped (iHP keeps line breaks and the highlight).",
+  "cv": "The dark sidebar fill is lost, so its white text sits on white and is invisible; icons dropped; links kept.",
+  "newsletter": "Three columns are not rebuilt (one flow); pull quote and wrapped images collide with body text.",
+  "research-paper": "Two columns collapse to one flow; the equation and footnote text are jumbled together, and the footnote stays in the body instead of becoming a Word footnote.",
+  "invoice": "Table loses cell padding and rules; logo, title and company name are reordered; the bill-to lines run together.",
+  "rival:research-paper": "Columns collapse to one flow with the equation and footnote garbled; the second page picks up stray fragments.",
+  "rival:newsletter": "Three columns turn into one character per line, so the page is unreadable (text still scores high structurally).",
+  "rival:receipt": "Page looks right but text is set larger so it re-wraps; the ink map misses at this tiny page size (metric is also harsh for ours here).",
+  "rival:invoice": "Table cells scattered and the last rows cut off; logo moved below the title.",
+  "rival:cv": "Sidebar column collapses to one character per line; main column intact."
+}

@@ -1,0 +1,61 @@
+{
+  "name": "latex-cff",
+  "category": "typeset",
+  "description": "LaTeX-like page set in Source Serif 4 (OFL, OTF/CFF outlines) so a CFF font gets embedded",
+  "paragraphs": [
+    "On the Stability of Iterated Averaging",
+    "Mirela Vasquez and Daniel Okoye",
+    "Abstract. We study repeated local averaging on a ring of agents and bound the rate at which disagreement vanishes. Paper umbrella unity letter river dagger zephyr saddle glacier market. Velvet pepper hollow amber quartz kernel zenith pocket compass raven basket jungle pocket forest basket. Ribbon thunder velvet harbor wagon.",
+    "1 Introduction",
+    "Ribbon quartz whisper lantern basket hollow harbor stone umbrella oyster letter engine. Anchor letter anchor feather opal garden glacier basket valley island garden hollow river. Violet pepper kettle island morning window quartz tunnel. Hollow lantern violet kernel thunder vessel copper quiver letter raven garden lantern willow pocket needle. Pepper basket hollow silver vessel quartz summit willow engine ladder. Copper opal meadow window marble violet nectar oyster valley lantern market mosaic. Needle anchor candle ember pocket orchard zephyr island. Marble forest violet bridge kettle amber paper.",
+    "Willow morning copper breeze raven mirror raven market forest engine paper. Letter amber cobalt ivory needle garden river amber anchor marble hollow. Engine velvet basket yellow paper bridge jungle ladder. Jasper wagon umbrella amber morning raven ember ember kettle velvet garden anchor forest. Marble mosaic needle ember unity whisper marble kernel mosaic lantern. Morning cobalt needle forest anchor breeze quartz jasper. Cobalt quiver needle mirror jungle pepper kernel cobalt yellow silver velvet. Copper quiver meadow.",
+    "2 Main result",
+    "Theorem 1. For every n at least 3, the spectral gap satisfies gap(n) >= 1 - cos(2*pi/n).",
+    "x(t+1) = W x(t), with W = (I + P) / 2 (2)",
+    "Timber marble willow breeze mirror yonder market lagoon kettle. Pocket needle vessel tunnel marble copper window market paper island river. Quartz opal thunder saddle amber river cobalt ember feather bridge jasper ember amber whisper. Saddle wagon yellow marble saddle jungle feather jungle velvet falcon marble summit kernel pocket. Orchard oyster lagoon pepper raven zenith saddle breeze kettle wagon glacier yonder copper bridge wagon. Yellow quartz mirror quiver market garden harbor paper whisper velvet. Copper summit whisper vessel stone kernel prairie valley amber letter kettle opal.",
+    "Paper compass raven meadow velvet stone prairie morning tunnel pepper. Feather prairie whisper oyster ribbon forest market summit saddle dagger bridge anchor timber. Jungle pocket glacier vessel jungle pepper feather lantern opal willow. Zephyr tunnel zephyr bridge needle tunnel yonder whisper. Letter zephyr valley saddle cobalt paper needle kettle timber. Violet velvet mosaic island morning river zephyr unity prairie copper."
+  ],
+  "pages": 2,
+  "order": true,
+  "fonts": [
+    "SourceSerif4"
+  ],
+  "headings": [
+    {
+      "text": "On the Stability of Iterated Averaging",
+      "level": 1
+    },
+    {
+      "text": "1 Introduction",
+      "level": 2
+    },
+    {
+      "text": "2 Main result",
+      "level": 2
+    }
+  ],
+  "runs": [
+    [
+      {
+        "text": "Abstract. ",
+        "b": true,
+        "color": "000000"
+      },
+      {
+        "text": "We study repeated local averaging on a ring of agents and bound the rate at which disagreement vanishes. Paper umbrella unity letter river dagger zephyr saddle glacier market. Velvet pepper hollow amber quartz kernel zenith pocket compass raven basket jungle pocket forest basket. Ribbon thunder velvet harbor wagon.",
+        "color": "000000"
+      }
+    ],
+    [
+      {
+        "text": "Theorem 1. ",
+        "b": true,
+        "color": "000000"
+      },
+      {
+        "text": "For every n at least 3, the spectral gap satisfies gap(n) >= 1 - cos(2*pi/n).",
+        "color": "000000"
+      }
+    ]
+  ]
+}

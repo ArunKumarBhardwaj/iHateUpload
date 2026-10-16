@@ -1,0 +1,46 @@
+{
+  "name": "slides",
+  "category": "slides",
+  "description": "Landscape slides: big titles, bullets, shape diagram",
+  "paragraphs": [
+    "Q3 Product Review",
+    "Meridian Labs - Platform Team",
+    "What shipped this quarter",
+    "Faster onboarding flow, median setup time down to four minutes",
+    "Offline mode for the mobile app",
+    "Audit log export for enterprise admins",
+    "How a request flows",
+    "Client",
+    "Gateway",
+    "Worker"
+  ],
+  "pages": 3,
+  "order": true,
+  "fonts": [
+    "Arial"
+  ],
+  "headings": [
+    {
+      "text": "Q3 Product Review",
+      "level": 1
+    },
+    {
+      "text": "What shipped this quarter",
+      "level": 1
+    },
+    {
+      "text": "How a request flows",
+      "level": 1
+    }
+  ],
+  "lists": [
+    {
+      "type": "bullet",
+      "items": [
+        "Faster onboarding flow, median setup time down to four minutes",
+        "Offline mode for the mobile app",
+        "Audit log export for enterprise admins"
+      ]
+    }
+  ]
+}

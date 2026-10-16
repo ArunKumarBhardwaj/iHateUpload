@@ -1,0 +1,83 @@
+{
+  "name": "cv",
+  "category": "cv",
+  "description": "Sidebar CV with icons and links",
+  "paragraphs": [
+    "Contact",
+    "priya.raman@example.com",
+    "+1 555 0142",
+    "Austin, Texas",
+    "example.com/priya-raman",
+    "example.org/in/priyaraman",
+    "Skills",
+    "Python",
+    "SQL and data modelling",
+    "Dashboards",
+    "Stakeholder workshops",
+    "Priya Raman",
+    "Senior Data Analyst",
+    "Experience",
+    "Lead Analyst, Copperline Logistics (2022 to 2026)",
+    "Cut weekly reporting time from two days to three hours with a shared data model.",
+    "Led a four-person team that forecast regional demand within 6 percent.",
+    "Introduced quarterly review sessions with operations managers.",
+    "Analyst, Tidewater Retail (2018 to 2022)",
+    "Built the first store-level margin dashboard used by 40 managers.",
+    "Automated month-end reconciliation across three ledgers.",
+    "Education",
+    "B.S. Statistics, University of Northfield, 2018"
+  ],
+  "pages": 2,
+  "fonts": [
+    "Arial"
+  ],
+  "links": [
+    {
+      "url": "https://example.com/priya-raman",
+      "text": "example.com/priya-raman"
+    },
+    {
+      "url": "https://example.org/in/priyaraman",
+      "text": "example.org/in/priyaraman"
+    }
+  ],
+  "headings": [
+    {
+      "text": "Priya Raman",
+      "level": 1
+    },
+    {
+      "text": "Experience",
+      "level": 2
+    },
+    {
+      "text": "Lead Analyst, Copperline Logistics (2022 to 2026)",
+      "level": 3
+    },
+    {
+      "text": "Analyst, Tidewater Retail (2018 to 2022)",
+      "level": 3
+    },
+    {
+      "text": "Education",
+      "level": 2
+    }
+  ],
+  "lists": [
+    {
+      "type": "bullet",
+      "items": [
+        "Cut weekly reporting time from two days to three hours with a shared data model.",
+        "Led a four-person team that forecast regional demand within 6 percent.",
+        "Introduced quarterly review sessions with operations managers."
+      ]
+    },
+    {
+      "type": "bullet",
+      "items": [
+        "Built the first store-level margin dashboard used by 40 managers.",
+        "Automated month-end reconciliation across three ledgers."
+      ]
+    }
+  ]
+}

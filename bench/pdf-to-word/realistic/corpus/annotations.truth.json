@@ -1,0 +1,27 @@
+{
+  "name": "annotations",
+  "category": "annotated",
+  "description": "Text page with sticky notes and a highlight (PDF annotations)",
+  "paragraphs": [
+    "Project Brief: Community Garden",
+    "The garden will occupy the vacant lot beside the library.",
+    "Beds will be built from reclaimed timber donated by local mills.",
+    "Volunteers meet on the first Saturday of each month.",
+    "The budget request is 4,800 dollars for soil, seeds and tools."
+  ],
+  "order": true,
+  "headings": [
+    {
+      "text": "Project Brief: Community Garden",
+      "level": 1
+    }
+  ],
+  "comments": [
+    "Check with the council about water access.",
+    "Can we confirm the timber donor list by May?"
+  ],
+  "fonts": [
+    "Helvetica"
+  ],
+  "pages": 1
+}

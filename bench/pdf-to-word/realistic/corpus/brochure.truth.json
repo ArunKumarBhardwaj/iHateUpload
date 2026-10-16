@@ -1,0 +1,95 @@
+{
+  "name": "brochure",
+  "category": "brochure",
+  "description": "Marketing brochure: hero image, headings, bullet list, borderless price table",
+  "paragraphs": [
+    "Cedar Hollow Retreat",
+    "Velvet kettle hollow zenith velvet amber quartz quartz. Engine needle umbrella basket umbrella paper bridge oyster ember nectar ladder morning paper forest. Thunder harbor quiver meadow willow unity mirror letter meadow timber prairie river. Unity unity needle basket morning thunder opal garden anchor oyster. Unity oyster valley engine dagger wagon.",
+    "What is included",
+    "Private cabin with woodstove and lake view",
+    "Breakfast baskets delivered each morning",
+    "Guided sunrise hike on Saturdays",
+    "Canoe and paddle hire",
+    "Seasonal rates",
+    "Spring (Apr - Jun)",
+    "$180 per night",
+    "Summer (Jul - Aug)",
+    "$240 per night",
+    "Autumn (Sep - Nov)",
+    "$200 per night",
+    "Winter (Dec - Mar)",
+    "$150 per night",
+    "Book at example.com/cedarhollow or call 555-0139."
+  ],
+  "pages": 1,
+  "fonts": [
+    "Georgia"
+  ],
+  "images": {
+    "count": 1,
+    "labels": []
+  },
+  "headings": [
+    {
+      "text": "Cedar Hollow Retreat",
+      "level": 1
+    },
+    {
+      "text": "What is included",
+      "level": 2
+    },
+    {
+      "text": "Seasonal rates",
+      "level": 2
+    }
+  ],
+  "lists": [
+    {
+      "type": "bullet",
+      "items": [
+        "Private cabin with woodstove and lake view",
+        "Breakfast baskets delivered each morning",
+        "Guided sunrise hike on Saturdays",
+        "Canoe and paddle hire"
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "rows": [
+        [
+          {
+            "text": "Spring (Apr - Jun)"
+          },
+          {
+            "text": "$180 per night"
+          }
+        ],
+        [
+          {
+            "text": "Summer (Jul - Aug)"
+          },
+          {
+            "text": "$240 per night"
+          }
+        ],
+        [
+          {
+            "text": "Autumn (Sep - Nov)"
+          },
+          {
+            "text": "$200 per night"
+          }
+        ],
+        [
+          {
+            "text": "Winter (Dec - Mar)"
+          },
+          {
+            "text": "$150 per night"
+          }
+        ]
+      ]
+    }
+  ]
+}

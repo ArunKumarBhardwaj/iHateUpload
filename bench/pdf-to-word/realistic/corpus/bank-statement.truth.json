@@ -1,0 +1,1402 @@
+{
+  "name": "bank-statement",
+  "category": "statement",
+  "description": "Multi-page transaction table with running header, footer and page x of y",
+  "paragraphs": [
+    "Statement of Account",
+    "Account holder: Marguerite Ellison",
+    "Statement period: 1 June 2026 to 30 June 2026",
+    "Date",
+    "Description",
+    "Debit",
+    "Credit",
+    "Balance",
+    "06/01/2026",
+    "Transfer from savings",
+    "1,384.00",
+    "5,594.55",
+    "06/01/2026",
+    "Coastline Electric",
+    "102.83",
+    "5,491.72",
+    "06/01/2026",
+    "Lumen Internet",
+    "119.55",
+    "5,372.17",
+    "06/02/2026",
+    "Harbor Pharmacy",
+    "70.30",
+    "5,301.87",
+    "06/02/2026",
+    "Transfer from savings",
+    "1,005.00",
+    "6,306.87",
+    "06/03/2026",
+    "Transfer from savings",
+    "1,162.00",
+    "7,468.87",
+    "06/03/2026",
+    "Harbor Pharmacy",
+    "156.29",
+    "7,312.58",
+    "06/04/2026",
+    "Oakridge Cafe",
+    "31.38",
+    "7,281.20",
+    "06/04/2026",
+    "Pinecrest Insurance",
+    "72.00",
+    "7,209.20",
+    "06/05/2026",
+    "Riverside Books",
+    "13.05",
+    "7,196.15",
+    "06/05/2026",
+    "Riverside Books",
+    "17.19",
+    "7,178.96",
+    "06/05/2026",
+    "Metro Transit pass",
+    "40.54",
+    "7,138.42",
+    "06/06/2026",
+    "Greenleaf Grocers",
+    "175.21",
+    "6,963.21",
+    "06/06/2026",
+    "Harbor Pharmacy",
+    "120.23",
+    "6,842.98",
+    "06/07/2026",
+    "Riverside Books",
+    "47.90",
+    "6,795.08",
+    "06/07/2026",
+    "Harbor Pharmacy",
+    "68.68",
+    "6,726.40",
+    "06/08/2026",
+    "Greenleaf Grocers",
+    "99.81",
+    "6,626.59",
+    "06/08/2026",
+    "Greenleaf Grocers",
+    "16.40",
+    "6,610.19",
+    "06/09/2026",
+    "Riverside Books",
+    "150.90",
+    "6,459.29",
+    "06/09/2026",
+    "Greenleaf Grocers",
+    "182.77",
+    "6,276.52",
+    "06/10/2026",
+    "Greenleaf Grocers",
+    "181.02",
+    "6,095.50",
+    "06/10/2026",
+    "Oakridge Cafe",
+    "41.05",
+    "6,054.45",
+    "06/10/2026",
+    "Pinecrest Insurance",
+    "15.26",
+    "6,039.19",
+    "06/11/2026",
+    "Transfer from savings",
+    "2,440.00",
+    "8,479.19",
+    "06/11/2026",
+    "Lumen Internet",
+    "86.22",
+    "8,392.97",
+    "06/12/2026",
+    "Riverside Books",
+    "18.80",
+    "8,374.17",
+    "06/12/2026",
+    "Transfer from savings",
+    "2,564.00",
+    "10,938.17",
+    "06/13/2026",
+    "Lumen Internet",
+    "121.48",
+    "10,816.69",
+    "06/13/2026",
+    "Oakridge Cafe",
+    "11.96",
+    "10,804.73",
+    "06/14/2026",
+    "Lumen Internet",
+    "156.98",
+    "10,647.75",
+    "06/14/2026",
+    "Oakridge Cafe",
+    "62.25",
+    "10,585.50",
+    "06/15/2026",
+    "Riverside Books",
+    "173.10",
+    "10,412.40",
+    "06/15/2026",
+    "Harbor Pharmacy",
+    "68.86",
+    "10,343.54",
+    "06/15/2026",
+    "Greenleaf Grocers",
+    "177.41",
+    "10,166.13",
+    "06/16/2026",
+    "Payroll deposit",
+    "1,588.00",
+    "11,754.13",
+    "06/16/2026",
+    "Transfer from savings",
+    "2,361.00",
+    "14,115.13",
+    "06/17/2026",
+    "Riverside Books",
+    "83.72",
+    "14,031.41",
+    "06/17/2026",
+    "Coastline Electric",
+    "122.32",
+    "13,909.09",
+    "06/18/2026",
+    "Pinecrest Insurance",
+    "134.37",
+    "13,774.72",
+    "06/18/2026",
+    "Riverside Books",
+    "42.92",
+    "13,731.80",
+    "06/19/2026",
+    "Coastline Electric",
+    "68.15",
+    "13,663.65",
+    "06/19/2026",
+    "Oakridge Cafe",
+    "10.94",
+    "13,652.71",
+    "06/20/2026",
+    "Coastline Electric",
+    "155.52",
+    "13,497.19",
+    "06/20/2026",
+    "Metro Transit pass",
+    "145.85",
+    "13,351.34",
+    "06/20/2026",
+    "Payroll deposit",
+    "1,554.00",
+    "14,905.34",
+    "06/21/2026",
+    "Payroll deposit",
+    "2,318.00",
+    "17,223.34",
+    "06/21/2026",
+    "Harbor Pharmacy",
+    "184.11",
+    "17,039.23",
+    "06/22/2026",
+    "Coastline Electric",
+    "21.32",
+    "17,017.91",
+    "06/22/2026",
+    "Transfer from savings",
+    "837.00",
+    "17,854.91",
+    "06/23/2026",
+    "Transfer from savings",
+    "2,207.00",
+    "20,061.91",
+    "06/23/2026",
+    "Pinecrest Insurance",
+    "57.59",
+    "20,004.32",
+    "06/24/2026",
+    "Payroll deposit",
+    "1,972.00",
+    "21,976.32",
+    "06/24/2026",
+    "Metro Transit pass",
+    "39.82",
+    "21,936.50",
+    "06/25/2026",
+    "Transfer from savings",
+    "2,555.00",
+    "24,491.50",
+    "06/25/2026",
+    "Pinecrest Insurance",
+    "26.52",
+    "24,464.98",
+    "06/25/2026",
+    "Oakridge Cafe",
+    "176.20",
+    "24,288.78",
+    "06/26/2026",
+    "Greenleaf Grocers",
+    "110.06",
+    "24,178.72",
+    "06/26/2026",
+    "Oakridge Cafe",
+    "135.19",
+    "24,043.53",
+    "06/27/2026",
+    "Lumen Internet",
+    "82.53",
+    "23,961.00",
+    "06/27/2026",
+    "Oakridge Cafe",
+    "18.25",
+    "23,942.75",
+    "06/28/2026",
+    "Lumen Internet",
+    "86.16",
+    "23,856.59",
+    "06/28/2026",
+    "Coastline Electric",
+    "110.84",
+    "23,745.75",
+    "06/29/2026",
+    "Harbor Pharmacy",
+    "108.51",
+    "23,637.24",
+    "06/29/2026",
+    "Oakridge Cafe",
+    "60.61",
+    "23,576.63",
+    "Closing balance 23,576.63"
+  ],
+  "pages": 3,
+  "order": true,
+  "header": "Northwind Credit Union - Statement of Account",
+  "footer": "Account ending 4471 - Confidential",
+  "pageNumbers": true,
+  "fonts": [
+    "Arial"
+  ],
+  "headings": [
+    {
+      "text": "Statement of Account",
+      "level": 1
+    }
+  ],
+  "tables": [
+    {
+      "rows": [
+        [
+          {
+            "text": "Date",
+            "shaded": true
+          },
+          {
+            "text": "Description",
+            "shaded": true
+          },
+          {
+            "text": "Debit",
+            "shaded": true
+          },
+          {
+            "text": "Credit",
+            "shaded": true
+          },
+          {
+            "text": "Balance",
+            "shaded": true
+          }
+        ],
+        [
+          {
+            "text": "06/01/2026"
+          },
+          {
+            "text": "Transfer from savings"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "1,384.00"
+          },
+          {
+            "text": "5,594.55"
+          }
+        ],
+        [
+          {
+            "text": "06/01/2026"
+          },
+          {
+            "text": "Coastline Electric"
+          },
+          {
+            "text": "102.83"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "5,491.72"
+          }
+        ],
+        [
+          {
+            "text": "06/01/2026"
+          },
+          {
+            "text": "Lumen Internet"
+          },
+          {
+            "text": "119.55"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "5,372.17"
+          }
+        ],
+        [
+          {
+            "text": "06/02/2026"
+          },
+          {
+            "text": "Harbor Pharmacy"
+          },
+          {
+            "text": "70.30"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "5,301.87"
+          }
+        ],
+        [
+          {
+            "text": "06/02/2026"
+          },
+          {
+            "text": "Transfer from savings"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "1,005.00"
+          },
+          {
+            "text": "6,306.87"
+          }
+        ],
+        [
+          {
+            "text": "06/03/2026"
+          },
+          {
+            "text": "Transfer from savings"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "1,162.00"
+          },
+          {
+            "text": "7,468.87"
+          }
+        ],
+        [
+          {
+            "text": "06/03/2026"
+          },
+          {
+            "text": "Harbor Pharmacy"
+          },
+          {
+            "text": "156.29"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "7,312.58"
+          }
+        ],
+        [
+          {
+            "text": "06/04/2026"
+          },
+          {
+            "text": "Oakridge Cafe"
+          },
+          {
+            "text": "31.38"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "7,281.20"
+          }
+        ],
+        [
+          {
+            "text": "06/04/2026"
+          },
+          {
+            "text": "Pinecrest Insurance"
+          },
+          {
+            "text": "72.00"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "7,209.20"
+          }
+        ],
+        [
+          {
+            "text": "06/05/2026"
+          },
+          {
+            "text": "Riverside Books"
+          },
+          {
+            "text": "13.05"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "7,196.15"
+          }
+        ],
+        [
+          {
+            "text": "06/05/2026"
+          },
+          {
+            "text": "Riverside Books"
+          },
+          {
+            "text": "17.19"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "7,178.96"
+          }
+        ],
+        [
+          {
+            "text": "06/05/2026"
+          },
+          {
+            "text": "Metro Transit pass"
+          },
+          {
+            "text": "40.54"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "7,138.42"
+          }
+        ],
+        [
+          {
+            "text": "06/06/2026"
+          },
+          {
+            "text": "Greenleaf Grocers"
+          },
+          {
+            "text": "175.21"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "6,963.21"
+          }
+        ],
+        [
+          {
+            "text": "06/06/2026"
+          },
+          {
+            "text": "Harbor Pharmacy"
+          },
+          {
+            "text": "120.23"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "6,842.98"
+          }
+        ],
+        [
+          {
+            "text": "06/07/2026"
+          },
+          {
+            "text": "Riverside Books"
+          },
+          {
+            "text": "47.90"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "6,795.08"
+          }
+        ],
+        [
+          {
+            "text": "06/07/2026"
+          },
+          {
+            "text": "Harbor Pharmacy"
+          },
+          {
+            "text": "68.68"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "6,726.40"
+          }
+        ],
+        [
+          {
+            "text": "06/08/2026"
+          },
+          {
+            "text": "Greenleaf Grocers"
+          },
+          {
+            "text": "99.81"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "6,626.59"
+          }
+        ],
+        [
+          {
+            "text": "06/08/2026"
+          },
+          {
+            "text": "Greenleaf Grocers"
+          },
+          {
+            "text": "16.40"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "6,610.19"
+          }
+        ],
+        [
+          {
+            "text": "06/09/2026"
+          },
+          {
+            "text": "Riverside Books"
+          },
+          {
+            "text": "150.90"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "6,459.29"
+          }
+        ],
+        [
+          {
+            "text": "06/09/2026"
+          },
+          {
+            "text": "Greenleaf Grocers"
+          },
+          {
+            "text": "182.77"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "6,276.52"
+          }
+        ],
+        [
+          {
+            "text": "06/10/2026"
+          },
+          {
+            "text": "Greenleaf Grocers"
+          },
+          {
+            "text": "181.02"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "6,095.50"
+          }
+        ],
+        [
+          {
+            "text": "06/10/2026"
+          },
+          {
+            "text": "Oakridge Cafe"
+          },
+          {
+            "text": "41.05"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "6,054.45"
+          }
+        ],
+        [
+          {
+            "text": "06/10/2026"
+          },
+          {
+            "text": "Pinecrest Insurance"
+          },
+          {
+            "text": "15.26"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "6,039.19"
+          }
+        ],
+        [
+          {
+            "text": "06/11/2026"
+          },
+          {
+            "text": "Transfer from savings"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "2,440.00"
+          },
+          {
+            "text": "8,479.19"
+          }
+        ],
+        [
+          {
+            "text": "06/11/2026"
+          },
+          {
+            "text": "Lumen Internet"
+          },
+          {
+            "text": "86.22"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "8,392.97"
+          }
+        ],
+        [
+          {
+            "text": "06/12/2026"
+          },
+          {
+            "text": "Riverside Books"
+          },
+          {
+            "text": "18.80"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "8,374.17"
+          }
+        ],
+        [
+          {
+            "text": "06/12/2026"
+          },
+          {
+            "text": "Transfer from savings"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "2,564.00"
+          },
+          {
+            "text": "10,938.17"
+          }
+        ],
+        [
+          {
+            "text": "06/13/2026"
+          },
+          {
+            "text": "Lumen Internet"
+          },
+          {
+            "text": "121.48"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "10,816.69"
+          }
+        ],
+        [
+          {
+            "text": "06/13/2026"
+          },
+          {
+            "text": "Oakridge Cafe"
+          },
+          {
+            "text": "11.96"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "10,804.73"
+          }
+        ],
+        [
+          {
+            "text": "06/14/2026"
+          },
+          {
+            "text": "Lumen Internet"
+          },
+          {
+            "text": "156.98"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "10,647.75"
+          }
+        ],
+        [
+          {
+            "text": "06/14/2026"
+          },
+          {
+            "text": "Oakridge Cafe"
+          },
+          {
+            "text": "62.25"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "10,585.50"
+          }
+        ],
+        [
+          {
+            "text": "06/15/2026"
+          },
+          {
+            "text": "Riverside Books"
+          },
+          {
+            "text": "173.10"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "10,412.40"
+          }
+        ],
+        [
+          {
+            "text": "06/15/2026"
+          },
+          {
+            "text": "Harbor Pharmacy"
+          },
+          {
+            "text": "68.86"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "10,343.54"
+          }
+        ],
+        [
+          {
+            "text": "06/15/2026"
+          },
+          {
+            "text": "Greenleaf Grocers"
+          },
+          {
+            "text": "177.41"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "10,166.13"
+          }
+        ],
+        [
+          {
+            "text": "06/16/2026"
+          },
+          {
+            "text": "Payroll deposit"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "1,588.00"
+          },
+          {
+            "text": "11,754.13"
+          }
+        ],
+        [
+          {
+            "text": "06/16/2026"
+          },
+          {
+            "text": "Transfer from savings"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "2,361.00"
+          },
+          {
+            "text": "14,115.13"
+          }
+        ],
+        [
+          {
+            "text": "06/17/2026"
+          },
+          {
+            "text": "Riverside Books"
+          },
+          {
+            "text": "83.72"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "14,031.41"
+          }
+        ],
+        [
+          {
+            "text": "06/17/2026"
+          },
+          {
+            "text": "Coastline Electric"
+          },
+          {
+            "text": "122.32"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "13,909.09"
+          }
+        ],
+        [
+          {
+            "text": "06/18/2026"
+          },
+          {
+            "text": "Pinecrest Insurance"
+          },
+          {
+            "text": "134.37"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "13,774.72"
+          }
+        ],
+        [
+          {
+            "text": "06/18/2026"
+          },
+          {
+            "text": "Riverside Books"
+          },
+          {
+            "text": "42.92"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "13,731.80"
+          }
+        ],
+        [
+          {
+            "text": "06/19/2026"
+          },
+          {
+            "text": "Coastline Electric"
+          },
+          {
+            "text": "68.15"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "13,663.65"
+          }
+        ],
+        [
+          {
+            "text": "06/19/2026"
+          },
+          {
+            "text": "Oakridge Cafe"
+          },
+          {
+            "text": "10.94"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "13,652.71"
+          }
+        ],
+        [
+          {
+            "text": "06/20/2026"
+          },
+          {
+            "text": "Coastline Electric"
+          },
+          {
+            "text": "155.52"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "13,497.19"
+          }
+        ],
+        [
+          {
+            "text": "06/20/2026"
+          },
+          {
+            "text": "Metro Transit pass"
+          },
+          {
+            "text": "145.85"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "13,351.34"
+          }
+        ],
+        [
+          {
+            "text": "06/20/2026"
+          },
+          {
+            "text": "Payroll deposit"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "1,554.00"
+          },
+          {
+            "text": "14,905.34"
+          }
+        ],
+        [
+          {
+            "text": "06/21/2026"
+          },
+          {
+            "text": "Payroll deposit"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "2,318.00"
+          },
+          {
+            "text": "17,223.34"
+          }
+        ],
+        [
+          {
+            "text": "06/21/2026"
+          },
+          {
+            "text": "Harbor Pharmacy"
+          },
+          {
+            "text": "184.11"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "17,039.23"
+          }
+        ],
+        [
+          {
+            "text": "06/22/2026"
+          },
+          {
+            "text": "Coastline Electric"
+          },
+          {
+            "text": "21.32"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "17,017.91"
+          }
+        ],
+        [
+          {
+            "text": "06/22/2026"
+          },
+          {
+            "text": "Transfer from savings"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "837.00"
+          },
+          {
+            "text": "17,854.91"
+          }
+        ],
+        [
+          {
+            "text": "06/23/2026"
+          },
+          {
+            "text": "Transfer from savings"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "2,207.00"
+          },
+          {
+            "text": "20,061.91"
+          }
+        ],
+        [
+          {
+            "text": "06/23/2026"
+          },
+          {
+            "text": "Pinecrest Insurance"
+          },
+          {
+            "text": "57.59"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "20,004.32"
+          }
+        ],
+        [
+          {
+            "text": "06/24/2026"
+          },
+          {
+            "text": "Payroll deposit"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "1,972.00"
+          },
+          {
+            "text": "21,976.32"
+          }
+        ],
+        [
+          {
+            "text": "06/24/2026"
+          },
+          {
+            "text": "Metro Transit pass"
+          },
+          {
+            "text": "39.82"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "21,936.50"
+          }
+        ],
+        [
+          {
+            "text": "06/25/2026"
+          },
+          {
+            "text": "Transfer from savings"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "2,555.00"
+          },
+          {
+            "text": "24,491.50"
+          }
+        ],
+        [
+          {
+            "text": "06/25/2026"
+          },
+          {
+            "text": "Pinecrest Insurance"
+          },
+          {
+            "text": "26.52"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "24,464.98"
+          }
+        ],
+        [
+          {
+            "text": "06/25/2026"
+          },
+          {
+            "text": "Oakridge Cafe"
+          },
+          {
+            "text": "176.20"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "24,288.78"
+          }
+        ],
+        [
+          {
+            "text": "06/26/2026"
+          },
+          {
+            "text": "Greenleaf Grocers"
+          },
+          {
+            "text": "110.06"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "24,178.72"
+          }
+        ],
+        [
+          {
+            "text": "06/26/2026"
+          },
+          {
+            "text": "Oakridge Cafe"
+          },
+          {
+            "text": "135.19"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "24,043.53"
+          }
+        ],
+        [
+          {
+            "text": "06/27/2026"
+          },
+          {
+            "text": "Lumen Internet"
+          },
+          {
+            "text": "82.53"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "23,961.00"
+          }
+        ],
+        [
+          {
+            "text": "06/27/2026"
+          },
+          {
+            "text": "Oakridge Cafe"
+          },
+          {
+            "text": "18.25"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "23,942.75"
+          }
+        ],
+        [
+          {
+            "text": "06/28/2026"
+          },
+          {
+            "text": "Lumen Internet"
+          },
+          {
+            "text": "86.16"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "23,856.59"
+          }
+        ],
+        [
+          {
+            "text": "06/28/2026"
+          },
+          {
+            "text": "Coastline Electric"
+          },
+          {
+            "text": "110.84"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "23,745.75"
+          }
+        ],
+        [
+          {
+            "text": "06/29/2026"
+          },
+          {
+            "text": "Harbor Pharmacy"
+          },
+          {
+            "text": "108.51"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "23,637.24"
+          }
+        ],
+        [
+          {
+            "text": "06/29/2026"
+          },
+          {
+            "text": "Oakridge Cafe"
+          },
+          {
+            "text": "60.61"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "23,576.63"
+          }
+        ]
+      ]
+    }
+  ]
+}
