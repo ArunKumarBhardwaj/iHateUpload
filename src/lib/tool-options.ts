@@ -36,6 +36,9 @@ export type RedactFinding = PageBox & {
   accepted: boolean;
 };
 
+export type EditFontFamily = "helvetica" | "times" | "courier";
+export type EditAlign = "left" | "center" | "right";
+
 export type EditMarkKind = "text" | "image" | "highlight" | "rect";
 
 type EditMarkBase = PageBox & {
@@ -49,8 +52,12 @@ export type EditMark =
       /** Fraction of page height. */
       fontSize: number;
       color: string;
-      /** White-out the original glyphs, then draw this text. */
+      /** Replace the original line: its glyphs are removed, then this text is drawn. */
       cover: boolean;
+      family?: EditFontFamily;
+      bold?: boolean;
+      italic?: boolean;
+      align?: EditAlign;
     })
   | (EditMarkBase & { kind: "image"; dataUrl: string })
   | (EditMarkBase & { kind: "highlight"; color: string })
