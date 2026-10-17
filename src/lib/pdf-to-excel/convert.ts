@@ -4,14 +4,24 @@ import { parseCell, typeColumn, type Typed } from "./cells";
 import { joinAcrossPages, readPages, textRows, type Grid, type PageParts, type TextRow } from "./grid";
 import type { CellStyle, Merge, Sheet, Workbook, XCell } from "./xlsx-writer";
 
-export type ExcelLayout = "tables" | "pages";
+export type ExcelLayout = "tables" | "pages" | "one";
 
 export type ExcelOptions = {
   /** One sheet per table (tables that run over pages are joined) or one per page. */
   layout: ExcelLayout;
   /** Put the text that is not in a table on a "Text" sheet. */
   includeText: boolean;
+  /** Numbers and dates become real cells. On unless set to false. */
+  typed?: boolean;
+  /** Fills, borders and bold from the PDF. On unless set to false. */
+  formatting?: boolean;
+  /** Freeze the header rows and add a filter to them. On unless set to false. */
+  freezeFilter?: boolean;
+  /** Join a table that runs over pages. On unless set to false. */
+  joinPages?: boolean;
 };
+
+type Flags = { typed: boolean; formatting: boolean; freezeFilter: boolean };
 
 export type BuildResult = { book: Workbook; tables: number; notes: string[] };
 
@@ -33,7 +43,7 @@ export function headerRowCount(grid: Grid): number {
   return n;
 }
 
-function sheetFromGrid(grid: Grid): { sheet: Omit<Sheet, "name">; headerRows: number } {
+function sheetFromGrid(grid: Grid, flags: Flags): { sheet: Omit<Sheet, "name">; headerRows: number } {
   const headers = headerRowCount(grid);
   const cols = grid.xs.length - 1;
   const R = grid.rows.length;
@@ -44,7 +54,10 @@ function sheetFromGrid(grid: Grid): { sheet: Omit<Sheet, "name">; headerRows: nu
     const idx: number[] = [];
     for (let r = headers; r < R; r++) if (!grid.rows[r][c].covered) idx.push(r);
     const headerText = headers ? grid.rows[headers - 1][c]?.text : undefined;
-    const result = typeColumn(idx.map((r) => grid.rows[r][c].text), headerText);
+    const texts = idx.map((r) => grid.rows[r][c].text);
+    const result: Typed[] = flags.typed
+      ? typeColumn(texts, headerText)
+      : texts.map((t) => (t.trim() ? { kind: "text", text: t } : { kind: "blank" }));
     idx.forEach((r, k) => (typed[r][c] = result[k]));
   }
   for (let r = 0; r < headers; r++) {
@@ -61,17 +74,17 @@ function sheetFromGrid(grid: Grid): { sheet: Omit<Sheet, "name">; headerRows: nu
     row.map((cell, c): XCell => {
       const head = r < headers;
       const style: CellStyle = {};
-      if (cell.bold || head) style.bold = true;
-      if (cell.fill) style.fill = cell.fill;
-      else if (head && !grid.rows.some((rr) => rr.some((cc) => cc.fill))) style.border = { bottom: true };
-      if (cell.borders.top || cell.borders.bottom || cell.borders.left || cell.borders.right) {
+      if ((flags.formatting && cell.bold) || head) style.bold = true;
+      if (flags.formatting && cell.fill) style.fill = cell.fill;
+      else if (head && !(flags.formatting && grid.rows.some((rr) => rr.some((cc) => cc.fill)))) style.border = { bottom: true };
+      if (flags.formatting && (cell.borders.top || cell.borders.bottom || cell.borders.left || cell.borders.right)) {
         style.border = { ...style.border, ...cell.borders };
         if (grid.borderColor) style.borderColor = grid.borderColor.toUpperCase();
       }
       if (head && numericCol[c] && cell.colSpan === 1) style.align = "right";
       if (head && cell.colSpan > 1) style.align = "center";
       const styled = Object.keys(style).length ? style : undefined;
-      if (cell.covered || !cell.text) return styled && (cell.covered || cell.fill || style.border) ? { v: "", style: styled } : null;
+      if (cell.covered || !cell.text) return styled && (cell.covered || style.fill || style.border) ? { v: "", style: styled } : null;
       if (cell.rowSpan > 1 || cell.colSpan > 1) {
         merges.push({ r0: r, c0: c, r1: r + cell.rowSpan - 1, c1: c + cell.colSpan - 1 });
       }
@@ -89,7 +102,8 @@ function sheetFromGrid(grid: Grid): { sheet: Omit<Sheet, "name">; headerRows: nu
       rows,
       merges,
       colWidths: widths.map((w) => Math.min(60, Math.max(7, Math.round(w * 10) / 10))),
-      freeze: headers ? { rows: headers } : undefined,
+      freeze: headers && flags.freezeFilter ? { rows: headers } : undefined,
+      autoFilter: headers && flags.freezeFilter ? { row: headers - 1, cols } : undefined,
     },
     headerRows: headers,
   };
@@ -104,58 +118,78 @@ function textSheet(rows: TextRow[]): Omit<Sheet, "name"> {
   };
 }
 
+type Stacked = { rows: XCell[][]; merges: Merge[]; colWidths: number[]; freeze?: Sheet["freeze"] };
+
+/** Tables and lines of text one under another, sharing columns. */
+function stack(items: ({ kind: "grid"; grid: Grid; title?: string } | { kind: "text"; text: string })[], flags: Flags): Stacked {
+  const out: Stacked = { rows: [], merges: [], colWidths: [] };
+  for (const item of items) {
+    if (item.kind === "text") {
+      out.rows.push([{ v: item.text }]);
+      continue;
+    }
+    if (out.rows.length) out.rows.push([]);
+    if (item.title) out.rows.push([{ v: item.title, style: { bold: true } }]);
+    const { sheet, headerRows } = sheetFromGrid(item.grid, flags);
+    if (!out.rows.length && headerRows && flags.freezeFilter) out.freeze = { rows: headerRows };
+    const at = out.rows.length;
+    for (const m of sheet.merges ?? []) out.merges.push({ r0: m.r0 + at, r1: m.r1 + at, c0: m.c0, c1: m.c1 });
+    out.rows.push(...sheet.rows);
+    (sheet.colWidths ?? []).forEach((w, c) => (out.colWidths[c] = Math.max(out.colWidths[c] ?? 0, w)));
+    out.rows.push([]);
+  }
+  out.colWidths = Array.from(out.colWidths, (w) => w || 8);
+  return out;
+}
+
 export function buildWorkbook(parts: PageParts[], options: ExcelOptions, title: string): BuildResult {
+  const flags: Flags = {
+    typed: options.typed !== false,
+    formatting: options.formatting !== false,
+    freezeFilter: options.freezeFilter !== false,
+  };
   const notes: string[] = [];
   const sheets: Sheet[] = [];
   const text: TextRow[] = [];
   let tables = 0;
 
-  if (options.layout === "tables") {
-    const { grids, pagesOf } = joinAcrossPages(parts);
+  if (options.layout !== "pages") {
+    const { grids, pagesOf } = joinAcrossPages(parts, options.joinPages !== false);
     const perPage = new Map<number, number>();
     for (const g of grids) perPage.set(g.page, (perPage.get(g.page) ?? 0) + 1);
     const seenOnPage = new Map<number, number>();
-    for (const g of grids) {
-      tables++;
+    const named = grids.map((g) => {
       const k = (seenOnPage.get(g.page) ?? 0) + 1;
       seenOnPage.set(g.page, k);
       const pages = pagesOf.get(g)!;
       const label = pages.length > 1 ? `Pages ${pages[0]}-${pages[pages.length - 1]}` : `Page ${g.page}`;
-      const name = g.heading ?? (perPage.get(g.page)! > 1 ? `${label} Table ${k}` : label);
-      sheets.push({ name, ...sheetFromGrid(g).sheet });
+      return { grid: g, name: g.heading ?? (perPage.get(g.page)! > 1 ? `${label} Table ${k}` : label) };
+    });
+    tables = grids.length;
+    if (options.layout === "one") {
+      if (named.length) {
+        const stacked = stack(named.map((n) => ({ kind: "grid" as const, grid: n.grid, title: n.name })), { ...flags, freezeFilter: false });
+        sheets.push({ name: "All tables", rows: stacked.rows, merges: stacked.merges, colWidths: stacked.colWidths });
+      }
+    } else {
+      for (const n of named) sheets.push({ name: n.name, ...sheetFromGrid(n.grid, flags).sheet });
     }
     for (const part of parts) text.push(...textRows(part.rest, part.page, part.furniture));
   } else {
     for (const part of parts) {
-      const items: ({ y: number; kind: "grid"; grid: Grid } | { y: number; kind: "text"; row: TextRow })[] = [
-        ...part.grids.map((grid) => ({ y: grid.y0, kind: "grid" as const, grid })),
-        ...textRows(part.rest, part.page, part.furniture).map((row) => ({ y: row.y - 8, kind: "text" as const, row })),
+      const items = [
+        ...part.grids.map((grid) => ({ y: grid.y0, item: { kind: "grid" as const, grid } })),
+        ...(options.includeText
+          ? textRows(part.rest, part.page, part.furniture).map((row) => ({ y: row.y - 8, item: { kind: "text" as const, text: row.text } }))
+          : []),
       ].sort((a, b) => a.y - b.y);
-      const rows: XCell[][] = [];
-      const merges: Merge[] = [];
-      let colWidths: number[] = [];
-      let freeze: Sheet["freeze"];
-      for (const item of items) {
-        if (item.kind === "text") {
-          rows.push([{ v: item.row.text }]);
-          continue;
-        }
-        tables++;
-        if (rows.length) rows.push([]);
-        const { sheet, headerRows } = sheetFromGrid(item.grid);
-        if (!rows.length && headerRows) freeze = { rows: headerRows };
-        const at = rows.length;
-        for (const m of sheet.merges ?? []) merges.push({ r0: m.r0 + at, r1: m.r1 + at, c0: m.c0, c1: m.c1 });
-        rows.push(...sheet.rows);
-        (sheet.colWidths ?? []).forEach((w, c) => (colWidths[c] = Math.max(colWidths[c] ?? 0, w)));
-        rows.push([]);
-      }
-      colWidths = colWidths.map((w) => w || 8);
-      if (rows.length) sheets.push({ name: `Page ${part.page}`, rows, merges, colWidths, freeze });
+      tables += part.grids.length;
+      const stacked = stack(items.map((i) => i.item), flags);
+      if (stacked.rows.length) sheets.push({ name: `Page ${part.page}`, ...stacked });
     }
   }
 
-  if (options.layout === "tables" && (options.includeText || sheets.length === 0) && text.length) {
+  if (options.layout !== "pages" && (options.includeText || sheets.length === 0) && text.length) {
     sheets.push({ name: "Text", ...textSheet(text) });
   }
   if (!sheets.length) {

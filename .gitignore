@@ -43,3 +43,4 @@ next-env.d.ts
 .scratch/
 bench/pdf-to-word/results/
 bench/pdf-to-word/fixtures/long.*
+bench/pdf-to-excel/results/

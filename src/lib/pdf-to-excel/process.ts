@@ -4,6 +4,7 @@ import type { ToolOptions } from "@/lib/tool-options";
 
 import { createPageReader, type PageReader } from "../pdf-to-word/ocr";
 import { renderPageCanvas } from "../pdf-to-word/raster";
+import { sheetToCsv } from "./csv";
 import { convertPdfToExcel, type ConvertDeps } from "./index";
 
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -58,19 +59,37 @@ export async function processPdfToExcel(
       const result = await convertPdfToExcel(
         pdf as never,
         name,
-        { layout: options.layout, includeText: options.includeText, language: options.language, range: options.range },
+        {
+          layout: options.layout,
+          includeText: options.includeText,
+          typed: options.typed,
+          formatting: options.formatting,
+          freezeFilter: options.freezeFilter,
+          joinPages: options.joinPages,
+          language: options.language,
+          range: options.range,
+        },
         deps,
         report,
       );
-      const blob = new Blob([result.bytes as BlobPart], { type: XLSX_TYPE });
-      results.push({
-        id: crypto.randomUUID(),
-        name: `${name}.xlsx`,
-        size: blob.size,
-        blob,
-        originalSize: item.size,
-        note: result.notes.length ? result.notes.join(" ") : undefined,
-      });
+      const note = result.notes.length ? result.notes.join(" ") : undefined;
+      if (options.format === "csv") {
+        const { sheets } = result.book;
+        sheets.forEach((sheet, k) => {
+          const blob = new Blob([sheetToCsv(sheet)], { type: "text/csv;charset=utf-8" });
+          results.push({
+            id: crypto.randomUUID(),
+            name: sheets.length === 1 ? `${name}.csv` : `${name} - ${sheet.name.replace(/[\\/:*?"<>|]/g, " ")}.csv`,
+            size: blob.size,
+            blob,
+            originalSize: item.size,
+            note: k === 0 ? note : undefined,
+          });
+        });
+      } else {
+        const blob = new Blob([result.bytes as BlobPart], { type: XLSX_TYPE });
+        results.push({ id: crypto.randomUUID(), name: `${name}.xlsx`, size: blob.size, blob, originalSize: item.size, note });
+      }
     } finally {
       const open = reader as PageReader | null;
       if (open) await open.close();

@@ -170,12 +170,12 @@ function joinNeighbours(grids: Grid[]): Grid[] {
 
 export function readPages(inputs: PageInput[], pageNumbers: number[]): PageParts[] {
   const lineSets = inputs.map((p) => buildLines(p.items));
-  const furniture = furnitureKeys(lineSets, inputs.map((p) => p.height));
+  const furnitureByPage = furnitureKeys(lineSets, inputs.map((p) => p.height));
   return inputs.map((input, index) => {
     const all = lineSets[index];
     const band = (l: Line) => l.baseline < input.height * 0.1 || l.baseline > input.height * 0.9;
     const lines = all;
-    const isFurniture = (l: Line) => band(l) && furniture[index].has(normalizeSpace(lineText(l)).replace(/\d+/g, "#").toLowerCase());
+    const isFurniture = (l: Line) => band(l) && furnitureByPage[index].has(normalizeSpace(lineText(l)).replace(/\d+/g, "#").toLowerCase());
     const dec = applyDecorations(lines, input.rules, input.fills);
     const ruled = detectRuledTables(lines, dec.rules);
     const gridRules = dec.rules.filter(
@@ -186,12 +186,15 @@ export function readPages(inputs: PageInput[], pageNumbers: number[]): PageParts
     const page = pageNumbers[index];
     const bodySize = median(lines.map((l) => l.size));
     const grids = joinNeighbours(tables.map((t) => gridOf(t, page, input.fills ?? [])));
+    const furniture = new Set(loose.rest.filter(isFurniture));
+    let rest = loose.rest;
     let floor = 0;
     for (const g of grids) {
-      g.heading = headingOf(loose.rest, g, bodySize, floor);
+      g.heading = headingOf(rest, g, bodySize, floor);
+      rest = extendDown(g, rest, furniture);
       floor = g.y1;
     }
-    return { page, height: input.height, grids, rest: loose.rest, furniture: new Set(loose.rest.filter(isFurniture)) };
+    return { page, height: input.height, grids, rest, furniture };
   });
 }
 
@@ -203,6 +206,25 @@ const sameColumns = (a: Grid, b: Grid) => {
 
 const rowKey = (row: GridCellData[]) => row.map((c) => c.text).join("\u0001");
 
+/** One table row from a row of loose lines, when each piece sits inside one column and there are two or more. */
+function rowFromLines(grid: Grid, parts: Line[]): GridCellData[] | null {
+  const cols = grid.xs.length - 1;
+  if (parts.length < 2) return null;
+  const cells = Array.from({ length: cols }, () => [] as Line[]);
+  for (const l of parts) {
+    const c = grid.xs.findIndex((x, i) => i < cols && l.x0 >= x - 3 && l.x1 <= grid.xs[i + 1] + 3);
+    if (c < 0) return null;
+    cells[c].push(l);
+  }
+  return cells.map((ls) => ({ text: joinLines(ls), bold: allBold(ls), borders: {}, rowSpan: 1, colSpan: 1 }));
+}
+
+const byRows = (lines: Line[]) => {
+  const rows = new Map<number, Line[]>();
+  for (const l of lines) (rows.get(l.row) ?? rows.set(l.row, []).get(l.row)!).push(l);
+  return [...rows.values()].sort((a, b) => a[0].baseline - b[0].baseline);
+};
+
 /**
  * Rows at the top of a page that the detector left as loose text, but that sit in the previous
  * table's columns, one piece per column. Returns the rows and the lines they used.
@@ -210,36 +232,33 @@ const rowKey = (row: GridCellData[]) => row.map((c) => c.text).join("\u0001");
 function orphanRows(grid: Grid, rest: Line[], height: number, furniture: Set<Line>): { rows: GridCellData[][]; used: Set<Line> } {
   const used = new Set<Line>();
   const rows: GridCellData[][] = [];
-  const byRow = new Map<number, Line[]>();
-  for (const l of rest) (byRow.get(l.row) ?? byRow.set(l.row, []).get(l.row)!).push(l);
-  const ordered = [...byRow.values()].sort((a, b) => a[0].baseline - b[0].baseline);
-  const cols = grid.xs.length - 1;
-  for (const parts of ordered) {
+  for (const parts of byRows(rest)) {
     if (parts.every((l) => furniture.has(l))) continue;
     if (parts[0].baseline > height * 0.3 && rows.length === 0) break;
-    const cells = Array.from({ length: cols }, () => [] as Line[]);
-    let ok = parts.length >= 2;
-    for (const l of parts) {
-      const c = grid.xs.findIndex((x, i) => i < cols && l.x0 >= x - 3 && l.x1 <= grid.xs[i + 1] + 3);
-      if (c < 0) {
-        ok = false;
-        break;
-      }
-      cells[c].push(l);
-    }
-    if (!ok) break;
-    rows.push(
-      cells.map((ls) => ({
-        text: joinLines(ls),
-        bold: allBold(ls),
-        borders: {},
-        rowSpan: 1,
-        colSpan: 1,
-      })),
-    );
+    const row = rowFromLines(grid, parts);
+    if (!row) break;
+    rows.push(row);
     for (const l of parts) used.add(l);
   }
   return { rows, used };
+}
+
+/** Rows right under a table that it left out (a totals line, say), as long as each fits the columns. */
+function extendDown(grid: Grid, rest: Line[], furniture: Set<Line>): Line[] {
+  const used = new Set<Line>();
+  let bottom = grid.y1;
+  for (const parts of byRows(rest.filter((l) => l.top >= grid.y1 - 2))) {
+    if (parts.every((l) => furniture.has(l))) continue;
+    const top = Math.min(...parts.map((l) => l.top));
+    if (top - bottom > grid.rowPitch * 1.2) break;
+    const row = rowFromLines(grid, parts);
+    if (!row) break;
+    grid.rows.push(row);
+    for (const l of parts) used.add(l);
+    bottom = Math.max(...parts.map((l) => l.bottom));
+  }
+  grid.y1 = bottom;
+  return rest.filter((l) => !used.has(l));
 }
 
 /** Loose text of a page, one entry per visual row. */
@@ -257,7 +276,7 @@ export function textRows(rest: Line[], page: number, furniture: Set<Line> = new 
 }
 
 /** Tables in reading order, with the ones that run over several pages made into one. */
-export function joinAcrossPages(parts: PageParts[]): { grids: Grid[]; pagesOf: Map<Grid, number[]> } {
+export function joinAcrossPages(parts: PageParts[], join = true): { grids: Grid[]; pagesOf: Map<Grid, number[]> } {
   const out: Grid[] = [];
   const pagesOf = new Map<Grid, number[]>();
   let open: Grid | null = null;
@@ -266,7 +285,7 @@ export function joinAcrossPages(parts: PageParts[]): { grids: Grid[]; pagesOf: M
   let openHeight = 1;
   for (const part of parts) {
     let absorbedTo: number | null = null;
-    if (open && part.page === openPage + 1 && openBottom >= openHeight * 0.65) {
+    if (join && open && part.page === openPage + 1 && openBottom >= openHeight * 0.65) {
       const lead = part.grids[0];
       if (lead && lead.y0 <= part.height * 0.3 && sameColumns(open, lead)) {
         const dropHeader =

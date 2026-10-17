@@ -27,6 +27,8 @@ export type Sheet = {
   /** Character widths, one per column. */
   colWidths?: number[];
   freeze?: { rows: number };
+  /** A filter on one header row: zero-based row and the number of columns it covers. */
+  autoFilter?: { row: number; cols: number };
 };
 
 export type Workbook = { title?: string; sheets: Sheet[] };
@@ -212,12 +214,15 @@ export async function writeXlsx(book: Workbook): Promise<Uint8Array> {
     const pane = sheet.freeze?.rows
       ? `<sheetViews><sheetView workbookViewId="0"><pane ySplit="${sheet.freeze.rows}" topLeftCell="A${sheet.freeze.rows + 1}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A${sheet.freeze.rows + 1}" sqref="A${sheet.freeze.rows + 1}"/></sheetView></sheetViews>`
       : `<sheetViews><sheetView workbookViewId="0"/></sheetViews>`;
+    const filter = sheet.autoFilter
+      ? `<autoFilter ref="A${sheet.autoFilter.row + 1}:${ref(Math.max(sheet.autoFilter.row, sheet.rows.length - 1), sheet.autoFilter.cols - 1)}"/>`
+      : "";
     const merges = sheet.merges?.length
       ? `<mergeCells count="${sheet.merges.length}">${sheet.merges.map((m) => `<mergeCell ref="${ref(m.r0, m.c0)}:${ref(m.r1, m.c1)}"/>`).join("")}</mergeCells>`
       : "";
     zip.file(
       `xl/worksheets/sheet${i + 1}.xml`,
-      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${ref(Math.max(0, sheet.rows.length - 1), width - 1)}"/>${pane}<sheetFormatPr defaultRowHeight="15"/>${cols}<sheetData>${rows}</sheetData>${merges}<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>`,
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${ref(Math.max(0, sheet.rows.length - 1), width - 1)}"/>${pane}<sheetFormatPr defaultRowHeight="15"/>${cols}<sheetData>${rows}</sheetData>${filter}${merges}<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>`,
     );
   });
 

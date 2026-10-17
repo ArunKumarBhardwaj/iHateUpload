@@ -4,8 +4,10 @@ import JSZip from "jszip";
 import { getDocument, OPS } from "pdfjs-dist/legacy/build/pdf.mjs";
 import * as XLSX from "xlsx";
 
+import { pagesToWorkbook } from "./convert";
 import { convertPdfToExcel, type ConvertDeps } from "./index";
 import { makeLedgerPdf } from "./testing";
+import { writeXlsx } from "./xlsx-writer";
 
 const CORPUS = `${process.cwd()}/bench/pdf-to-word/realistic/corpus`;
 const FONTS = `${process.cwd()}/node_modules/pdfjs-dist/standard_fonts/`;
@@ -116,6 +118,34 @@ test("the Text sheet can be left out unless nothing else is there", async () => 
   expect(prose.wb.SheetNames).toEqual(["Text"]);
 });
 
+test("every table can go on one sheet, each under its own title", async () => {
+  const { wb } = await convert(await makeLedgerPdf(), { layout: "one", includeText: false });
+  expect(wb.SheetNames).toEqual(["All tables"]);
+  expect(grid(wb, "All tables")[0]).toEqual(["Regional Sales"]);
+});
+
+test("switches: text only, no fills, no freeze or filter, tables kept apart per page", async () => {
+  const off = await convert(await makeLedgerPdf(), { typed: false, formatting: false, freezeFilter: false });
+  const ws = off.wb.Sheets["Regional Sales"];
+  expect(ws.C3.t).toBe("s");
+  expect(ws.C3.v).toBe("1,200");
+  expect(ws.F3.t).toBe("s");
+  const styles = await off.zip.file("xl/styles.xml")!.async("string");
+  expect(styles).not.toContain("D9E3F2");
+  expect(styles).not.toContain('<left style="thin">');
+  const xml = await off.zip.file("xl/worksheets/sheet1.xml")!.async("string");
+  expect(xml).not.toContain("<pane");
+  expect(xml).not.toContain("<autoFilter");
+
+  const on = await convert(await makeLedgerPdf());
+  const onXml = await on.zip.file("xl/worksheets/sheet1.xml")!.async("string");
+  expect(onXml).toContain('<autoFilter ref="A2:F5"/>');
+
+  const split = await convert(corpus("bank-statement"), { joinPages: false });
+  expect(split.result.tables).toBeGreaterThanOrEqual(2);
+  expect(split.wb.SheetNames.filter((n) => n !== "Text").length).toBeGreaterThanOrEqual(2);
+});
+
 test("page range limits what is read", async () => {
   const { wb, result } = await convert(corpus("bank-statement"), { range: "2" });
   expect(result.pages).toBe(1);
@@ -159,4 +189,24 @@ test("a page with no text layer goes through OCR before tables are found", async
   expect(seen).toEqual([1]);
   const rows = grid(wb, wb.SheetNames[0]);
   expect(rows[1]).toEqual(["Apples", 3, 4.5]);
+});
+
+test("a totals row the detector leaves out joins the table above it", async () => {
+  const item = (str: string, x: number, y: number) => ({
+    str, x, y, w: str.length * 6, size: 11, font: "Arial", bold: false, italic: false, generic: "sans" as const,
+  });
+  const rows = [
+    ["Item", "Qty", "Price"],
+    ["Apples", "3", "4.50"],
+    ["Pears", "7", "9.10"],
+    ["Plums", "2", "3.25"],
+  ];
+  const items = rows.flatMap((r, i) => r.map((t, c) => item(t, 60 + c * 150, 120 + i * 20)));
+  // Two pieces, far apart: a label in the first column and an amount in the last.
+  items.push(item("Total due", 60, 208), item("16.85", 360, 208));
+  const { book } = pagesToWorkbook([{ width: 612, height: 792, items, rules: [], images: [] }], [1], { layout: "tables", includeText: true }, "t");
+  const wb = XLSX.read(await writeXlsx(book));
+  const out = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+  expect(out.length).toBe(5);
+  expect(out[4]).toEqual(["Total due", undefined, 16.85]);
 });

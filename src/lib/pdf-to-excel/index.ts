@@ -3,12 +3,10 @@ import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { extractPage } from "../pdf-to-word/extract";
 import type { PageInput } from "../pdf-to-word/lines";
 import { resolvePageRange } from "../tool-options";
-import { pagesToWorkbook, type ExcelLayout } from "./convert";
-import { writeXlsx } from "./xlsx-writer";
+import { pagesToWorkbook, type ExcelOptions } from "./convert";
+import { writeXlsx, type Workbook } from "./xlsx-writer";
 
-export type ConvertOptions = {
-  layout: ExcelLayout;
-  includeText: boolean;
+export type ConvertOptions = ExcelOptions & {
   /** OCR language for pages with no text layer. */
   language: string;
   /** Empty or "all" is every page. */
@@ -22,7 +20,7 @@ export type ConvertDeps = {
   readScan?: (page: PDFPageProxy, pageNo: number, onPage: (ratio: number) => void) => Promise<PageInput["items"] | null>;
 };
 
-export type ConvertResult = { bytes: Uint8Array; notes: string[]; pages: number; tables: number };
+export type ConvertResult = { bytes: Uint8Array; book: Workbook; notes: string[]; pages: number; tables: number };
 
 const SCAN_CHARS = 20;
 
@@ -74,5 +72,5 @@ export async function convertPdfToExcel(
   if (unreadable.length) {
     notes.push(`${pagesPhrase(unreadable)} had no text and ${unreadable.length === 1 ? "was" : "were"} left empty.`);
   }
-  return { bytes: await writeXlsx(built.book), notes, pages: picked.length, tables: built.tables };
+  return { bytes: await writeXlsx(built.book), book: built.book, notes, pages: picked.length, tables: built.tables };
 }
