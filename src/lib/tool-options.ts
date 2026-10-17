@@ -1,5 +1,6 @@
 import { batesReady } from "@/lib/bates";
 import type { FlipMode } from "@/lib/page-ops";
+import { DEFAULT_NUP, type NupSettings } from "@/lib/page-tools/nup";
 import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
 import type { PiiCategory } from "@/lib/pii-detect";
 import type { ToolDefinition } from "@/lib/tools";
@@ -173,7 +174,7 @@ export type ToolOptions =
     }
   | { kind: "insert-blank"; afterPage: number }
   | { kind: "invert"; mode: "invert" | "grayscale" }
-  | { kind: "nup"; n: 2 | 4 | 9 }
+  | ({ kind: "nup" } & NupSettings)
   | { kind: "page-size"; size: "a4" | "letter"; fit: "fit" | "letterbox" }
   | {
       kind: "annotate";
@@ -646,7 +647,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "invert":
       return { kind: "invert", mode: "invert" };
     case "nup":
-      return { kind: "nup", n: 2 };
+      return { kind: "nup", ...DEFAULT_NUP };
     case "page-size":
       return { kind: "page-size", size: "a4", fit: "letterbox" };
     case "watermark":
@@ -759,13 +760,18 @@ export function optionsReady(
     case "ocr":
     case "compare":
     case "invert":
-    case "nup":
     case "page-size":
     case "scan":
     case "pdf-image":
     case "pdf-to-word":
     case "pdf-to-excel":
       return true;
+    case "nup":
+      return (
+        options.cols >= 1 &&
+        options.rows >= 1 &&
+        options.cols * options.rows >= 2
+      );
     case "rotate":
       return options.degrees !== 0 || options.flip !== "none";
     case "split":

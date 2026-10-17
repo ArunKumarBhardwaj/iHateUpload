@@ -10,6 +10,7 @@ import type { PDFPageProxy } from "pdfjs-dist";
 
 import type { FileItem, ResultItem } from "@/lib/job";
 import { stripInvisibleText } from "@/lib/page-ops";
+import { buildNup } from "@/lib/page-tools/nup";
 import { loadPdfJs } from "@/lib/pdfjs";
 import { extractPdfText } from "@/lib/pdf-text";
 import {
@@ -1826,48 +1827,16 @@ export async function processNup(
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to n-up.");
   const source = await loadPdf(item.file);
-  const count = source.getPageCount();
-  const cols = options.n === 9 ? 3 : 2;
-  const rows = options.n === 2 ? 1 : options.n === 4 ? 2 : 3;
-  ensurePageContents(source);
-  const first = source.getPage(0).getSize();
-  const sheet =
-    options.n === 2
-      ? { width: Math.max(first.width, first.height), height: Math.min(first.width, first.height) }
-      : { width: first.width, height: first.height };
-  const gutter = 10;
-  const cellW = (sheet.width - gutter * (cols + 1)) / cols;
-  const cellH = (sheet.height - gutter * (rows + 1)) / rows;
-  const out = await PDFDocument.create();
-  const sheets = Math.ceil(count / options.n);
-  for (let sheetIndex = 0; sheetIndex < sheets; sheetIndex++) {
-    const page = out.addPage([sheet.width, sheet.height]);
-    for (let slot = 0; slot < options.n; slot++) {
-      const srcIndex = sheetIndex * options.n + slot;
-      if (srcIndex >= count) break;
-      const embedded = await out.embedPage(source.getPage(srcIndex));
-      const col = slot % cols;
-      const row = Math.floor(slot / cols);
-      const scale = Math.min(cellW / embedded.width, cellH / embedded.height);
-      const w = embedded.width * scale;
-      const h = embedded.height * scale;
-      const x = gutter + col * (cellW + gutter) + (cellW - w) / 2;
-      const y =
-        sheet.height -
-        gutter -
-        (row + 1) * cellH -
-        row * gutter +
-        (cellH - h) / 2;
-      page.drawPage(embedded, { x, y, width: w, height: h });
-    }
-    onProgress((sheetIndex + 1) / sheets);
-  }
+  const out = await buildNup(source, options, onProgress);
   stripPdfMetadata(out);
   return [
     resultFrom(
       item,
       pdfBlob(await out.save({ useObjectStreams: true })),
-      replaceExt(item.name, "pdf").replace(/\.pdf$/i, `-${options.n}up.pdf`),
+      replaceExt(item.name, "pdf").replace(
+        /\.pdf$/i,
+        `-${options.cols * options.rows}up.pdf`,
+      ),
       item.size,
     ),
   ];
