@@ -1,7 +1,7 @@
 // Drives the real tool pages. Usage: node bench/wave2-a/prove.mjs <tool> [port]
 // Needs playwright-core (npx cache) and system Chrome.
 import { createRequire } from "node:module";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { readdirSync } from "node:fs";
 
@@ -65,14 +65,14 @@ if (tool === "unlock") {
   await page.getByText("1 file is ready", { exact: true }).waitFor();
   await download(/Download PDF/, "owner-unlocked.pdf");
   await open("unlock-pdf", "user-locked.pdf");
-  await page.getByLabel("Password").waitFor();
-  await page.getByLabel("Password").fill("wrong");
+  await page.locator("#pdf-password").waitFor();
+  await page.locator("#pdf-password").fill("wrong");
   await page.getByRole("button", { name: "Unlock PDF" }).click();
   await page.locator("div[role=alert].text-destructive").waitFor();
   console.log(await page.locator("div[role=alert].text-destructive").innerText());
-  await page.getByLabel("Password").fill("open-sesame");
+  await page.locator("#pdf-password").fill("open-sesame");
   await page.getByRole("button", { name: "Show password" }).click();
-  console.log("shown value type:", await page.getByLabel("Password").getAttribute("type"));
+  console.log("shown value type:", await page.locator("#pdf-password").getAttribute("type"));
   await page.getByRole("button", { name: "Unlock PDF" }).click();
   await page.getByText("1 file is ready", { exact: true }).waitFor();
   await download(/Download PDF/, "user-unlocked.pdf");
@@ -100,7 +100,7 @@ if (tool === "header-footer") {
   await page.getByLabel("Bold").check();
   await page.getByLabel("Skip first page").check();
   await page.getByLabel("Pages").fill("1-2");
-  await page.screenshot({ path: out + "hf-form.png" });
+  await page.screenshot({ path: out + "hf-form.png", fullPage: true });
   await page.getByRole("button", { name: "Add headers" }).click();
   await page.getByText("1 file is ready", { exact: true }).waitFor();
   await download(/Download PDF/, "headed.pdf");

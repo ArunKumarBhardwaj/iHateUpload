@@ -7,6 +7,7 @@ import { BatesControls } from "@/components/workbench/bates-controls";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
 import { SplitExtras } from "@/components/workbench/split-extras";
 import { ScanCapture } from "@/components/workbench/scan-capture";
+import { HeaderFooterPanel } from "@/components/workbench/header-footer-panel";
 import {
   ExtractImagesPanel,
   ExtractTextPanel,
@@ -1100,63 +1101,14 @@ export function OptionsPanel({
 
     case "header-footer":
       return (
-        <div className="space-y-3">
-          <Field label="Left" htmlFor="hf-left">
-            <Input
-              id="hf-left"
-              value={options.left}
-              disabled={disabled}
-              onChange={(e) =>
-                onOptions({ ...options, left: e.target.value })
-              }
-              placeholder="Name"
-            />
-          </Field>
-          <Field label="Center" htmlFor="hf-center">
-            <Input
-              id="hf-center"
-              value={options.center}
-              disabled={disabled}
-              onChange={(e) =>
-                onOptions({ ...options, center: e.target.value })
-              }
-              placeholder="{page} / {pages}"
-            />
-          </Field>
-          <Field label="Right" htmlFor="hf-right">
-            <Input
-              id="hf-right"
-              value={options.right}
-              disabled={disabled}
-              onChange={(e) =>
-                onOptions({ ...options, right: e.target.value })
-              }
-              placeholder="{date}"
-            />
-          </Field>
-          <p className="text-sm font-medium text-ink">Place on</p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["header", "Header"],
-                ["footer", "Footer"],
-                ["both", "Both"],
-              ] as const
-            ).map(([band, title]) => (
-              <Button
-                key={band}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.band === band ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() => onOptions({ ...options, band })}
-              >
-                {title}
-              </Button>
-            ))}
-          </div>
-        </div>
+        <HeaderFooterPanel
+          options={options}
+          onOptions={onOptions}
+          disabled={disabled}
+          firstPage={firstPage}
+          filename={(files?.[0]?.name ?? "document.pdf").replace(/\.pdf$/i, "")}
+          pageCount={filePages?.[0] ?? 0}
+        />
       );
 
     case "insert-blank":

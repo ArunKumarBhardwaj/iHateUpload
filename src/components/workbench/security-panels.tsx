@@ -68,7 +68,7 @@ function StrengthMeter({ password }: { password: string }) {
   const { score, label } = passwordStrength(password);
   if (!password) return null;
   const tone =
-    score <= 1 ? "bg-destructive" : score === 2 ? "bg-amber-500" : "bg-signal";
+    score <= 1 ? "bg-red-500" : score === 2 ? "bg-amber-500" : "bg-emerald-600";
   return (
     <div className="space-y-1" aria-live="polite">
       <div className="flex gap-1" aria-hidden>

@@ -19,6 +19,12 @@ import {
 } from "@/lib/pdf-meta";
 import { lineDiff } from "@/lib/text-diff";
 import {
+  expandStamp,
+  placeStamps,
+  stampedPages,
+  type StampContext,
+} from "@/lib/header-footer";
+import {
   processImageToPdf,
   pdfBlob,
   stripPdfMetadata,
@@ -1542,17 +1548,6 @@ export async function processAskPdf(
   ];
 }
 
-type StampContext = { pages: number; date: string; time: string; filename: string };
-
-function expandStamp(template: string, page: number, ctx: StampContext) {
-  return template
-    .replaceAll("{pages}", String(ctx.pages))
-    .replaceAll("{page}", String(page))
-    .replaceAll("{date}", ctx.date)
-    .replaceAll("{time}", ctx.time)
-    .replaceAll("{filename}", ctx.filename);
-}
-
 export async function processHeaderFooter(
   files: FileItem[],
   onProgress: ProgressFn,
@@ -1570,51 +1565,43 @@ export async function processHeaderFooter(
     hour: "2-digit",
     minute: "2-digit",
   });
+  const [red, green, blue] = parseHexColor(options.color);
+  const color = rgb(red, green, blue);
   const results: ResultItem[] = [];
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
     const doc = await loadPdf(item.file);
-    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const font = await doc.embedFont(
+      options.bold ? StandardFonts.HelveticaBold : StandardFonts.Helvetica,
+    );
     const pages = doc.getPages();
-    const size = 10;
+    const size = options.fontSize;
     const ctx: StampContext = {
       pages: pages.length,
       date,
       time,
       filename: pdfSafe(item.name.replace(/\.pdf$/i, "")),
     };
+    const stamped = stampedPages(options.range, options.skipFirst, pages.length);
     pages.forEach((page, index) => {
+      if (!stamped.has(index)) return;
       const { width, height } = page.getSize();
-      const left = expandStamp(options.left, index + 1, ctx);
-      const center = expandStamp(options.center, index + 1, ctx);
-      const right = expandStamp(options.right, index + 1, ctx);
-      const draw = (y: number) => {
-        if (left.trim()) {
-          page.drawText(left, { x: 28, y, size, font, color: rgb(0.2, 0.2, 0.22) });
-        }
-        if (center.trim()) {
-          const textWidth = font.widthOfTextAtSize(center, size);
-          page.drawText(center, {
-            x: (width - textWidth) / 2,
-            y,
-            size,
-            font,
-            color: rgb(0.2, 0.2, 0.22),
-          });
-        }
-        if (right.trim()) {
-          const textWidth = font.widthOfTextAtSize(right, size);
-          page.drawText(right, {
-            x: width - 28 - textWidth,
-            y,
-            size,
-            font,
-            color: rgb(0.2, 0.2, 0.22),
-          });
-        }
-      };
-      if (options.band !== "footer") draw(height - size - 18);
-      if (options.band !== "header") draw(18);
+      const placed = placeStamps(
+        {
+          left: pdfSafe(expandStamp(options.left, index + 1, ctx)),
+          center: pdfSafe(expandStamp(options.center, index + 1, ctx)),
+          right: pdfSafe(expandStamp(options.right, index + 1, ctx)),
+          band: options.band,
+          fontSize: size,
+          margin: options.margin,
+        },
+        width,
+        height,
+        (text) => font.widthOfTextAtSize(text, size),
+      );
+      for (const stamp of placed) {
+        page.drawText(stamp.text, { x: stamp.x, y: stamp.y, size, font, color });
+      }
     });
     stripPdfMetadata(doc);
     const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
