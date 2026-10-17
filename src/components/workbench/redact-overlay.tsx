@@ -5,7 +5,8 @@ import { X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { loadPdfJs } from "@/lib/pdfjs";
-import type { PageBox } from "@/lib/tool-options";
+import { PiiReview } from "@/components/workbench/pii-review";
+import type { PageBox, ToolOptions } from "@/lib/tool-options";
 import { cn } from "@/lib/utils";
 
 type DragState =
@@ -25,17 +26,19 @@ type DragState =
 
 export function RedactOverlay({
   file,
-  boxes,
-  onBoxes,
+  options,
+  onOptions,
   pageCount,
   disabled,
 }: {
   file: File;
-  boxes: PageBox[];
-  onBoxes: (boxes: PageBox[]) => void;
+  options: Extract<ToolOptions, { kind: "redact" }>;
+  onOptions: (next: Extract<ToolOptions, { kind: "redact" }>) => void;
   pageCount: number;
   disabled: boolean;
 }) {
+  const boxes = options.boxes;
+  const onBoxes = (next: PageBox[]) => onOptions({ ...options, boxes: next });
   const hostRef = useRef<HTMLDivElement>(null);
   const drag = useRef<DragState | null>(null);
   const [url, setUrl] = useState<string | null>(null);
@@ -99,6 +102,8 @@ export function RedactOverlay({
   const visible = boxes
     .map((box, index) => ({ box, index }))
     .filter(({ box }) => box.pageIndex === pageIndex);
+
+  const pageFindings = options.findings.filter((f) => f.pageIndex === pageIndex);
 
   const ratioOf = (event: React.PointerEvent<HTMLElement>) => {
     const host = hostRef.current;
@@ -200,8 +205,18 @@ export function RedactOverlay({
   };
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-ink">Draw boxes to destroy</p>
+    <div className="space-y-3">
+      <PiiReview
+        file={file}
+        options={options}
+        onOptions={onOptions}
+        onJump={(index) => {
+          setPageIndex(index);
+          setSelected(null);
+        }}
+        disabled={disabled}
+      />
+      <p className="text-sm font-medium text-ink">Or draw boxes to destroy</p>
       {pageCount > 1 ? (
         <label className="flex items-center gap-2 text-sm font-medium text-ink" htmlFor="redact-page">
           Page
@@ -286,6 +301,37 @@ export function RedactOverlay({
               </>
             ) : null}
           </div>
+        ))}
+        {pageFindings.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            aria-label={`${f.accepted ? "Keep" : "Redact"} ${f.text}`}
+            aria-pressed={f.accepted}
+            data-finding={f.category}
+            disabled={disabled}
+            className={cn(
+              "absolute border-2",
+              f.accepted
+                ? "border-signal bg-black/75"
+                : "border-dashed border-signal bg-signal/10",
+            )}
+            style={{
+              left: `${f.x * 100}%`,
+              top: `${f.y * 100}%`,
+              width: `${f.w * 100}%`,
+              height: `${f.h * 100}%`,
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() =>
+              onOptions({
+                ...options,
+                findings: options.findings.map((x) =>
+                  x.id === f.id ? { ...x, accepted: !x.accepted } : x,
+                ),
+              })
+            }
+          />
         ))}
         {draft && draft.w > 0 && draft.h > 0 ? (
           <div

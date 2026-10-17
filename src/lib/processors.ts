@@ -5,6 +5,7 @@ import type { PDFPageProxy } from "pdfjs-dist";
 import { compressInWorker } from "@/lib/compress-client";
 import { COMPRESS_PLANS } from "@/lib/compress-plans";
 import type { FileItem, ResultItem } from "@/lib/job";
+import { flipPage } from "@/lib/page-ops";
 import { stripPdfMetadata } from "@/lib/pdf-meta";
 import {
   canvasHoldsSize,
@@ -1191,6 +1192,7 @@ export async function processRotatePdf(
     for (const index of resolvePageRange(options.range, pages.length)) {
       const current = toDegrees(pages[index].getRotation());
       pages[index].setRotation(degrees((current + delta) % 360));
+      flipPage(doc, pages[index], options.flip ?? "none");
     }
     const pdfBytes = await doc.save({ useObjectStreams: true });
     const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {
@@ -1198,7 +1200,12 @@ export async function processRotatePdf(
     });
     results.push({
       id: item.id,
-      name: replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-rotated.pdf"),
+      name: replaceExt(item.name, "pdf").replace(
+        /\.pdf$/i,
+        options.degrees === 0 && options.flip !== "none"
+          ? "-flipped.pdf"
+          : "-rotated.pdf",
+      ),
       size: blob.size,
       blob,
       originalSize: item.size,

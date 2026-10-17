@@ -56,3 +56,20 @@ test("dpi maps onto pdf.js scale, 144 keeping the old 2x", () => {
     range: "",
   });
 });
+
+test("mirror alone keeps the turn and flips only the listed pages", async () => {
+  const [result] = await processRotatePdf(
+    [await pdfItem(3)],
+    () => {},
+    { ...initialOptions("rotate"), degrees: 0, flip: "h", range: "2" } as never,
+  );
+  expect(result.name).toBe("doc-flipped.pdf");
+  const doc = await PDFDocument.load(await result.blob.arrayBuffer());
+  expect(doc.getPages().map((p) => p.getRotation().angle)).toEqual([90, 90, 90]);
+  const { pageContentText } = await import("./page-ops");
+  expect(doc.getPages().map((p) => pageContentText(p).includes(" cm"))).toEqual([
+    false,
+    true,
+    false,
+  ]);
+});

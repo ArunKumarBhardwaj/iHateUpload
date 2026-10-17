@@ -9,6 +9,7 @@ import {
 import type { PDFPageProxy } from "pdfjs-dist";
 
 import type { FileItem, ResultItem } from "@/lib/job";
+import { stripInvisibleText } from "@/lib/page-ops";
 import { loadPdfJs } from "@/lib/pdfjs";
 import { extractPdfText } from "@/lib/pdf-text";
 import { lineDiff } from "@/lib/text-diff";
@@ -272,6 +273,18 @@ async function drawEditMark(
   }
 }
 
+/** Hand-drawn boxes plus every finding the reader kept. */
+export function redactionBoxes(
+  options: Extract<ToolOptions, { kind: "redact" }>,
+): PageBox[] {
+  return [
+    ...options.boxes,
+    ...options.findings.filter((f) => f.accepted),
+  ]
+    .filter((box) => box.w > 0.004 && box.h > 0.004)
+    .map(({ pageIndex, x, y, w, h }) => ({ pageIndex, x, y, w, h }));
+}
+
 export async function processRedactPdf(
   files: FileItem[],
   onProgress: ProgressFn,
@@ -280,8 +293,10 @@ export async function processRedactPdf(
   if (options.kind !== "redact") throw new Error("Redact PDF needs boxes.");
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to redact.");
-  const boxes = options.boxes.filter((box) => box.w > 0.04 && box.h > 0.04);
-  if (boxes.length === 0) throw new Error("Draw at least one redaction box.");
+  const boxes = redactionBoxes(options);
+  if (boxes.length === 0) {
+    throw new Error("Draw a box or accept a finding to redact.");
+  }
 
   const source = await loadPdf(item.file);
   const out = await PDFDocument.create();
@@ -302,6 +317,7 @@ export async function processRedactPdf(
       if (!marks || marks.length === 0) {
         const [copied] = await out.copyPages(source, [index]);
         out.addPage(copied);
+        if (options.removeHidden) stripInvisibleText(copied);
       } else {
         if (!src) throw new Error("Could not read the PDF page.");
         const page = await src.getPage(index + 1);
@@ -353,7 +369,13 @@ export async function processRedactPdf(
     if (src) await src.loadingTask.destroy();
   }
 
-  stripPdfMetadata(out);
+  if (options.stripMeta) {
+    stripPdfMetadata(out);
+  } else {
+    out.setTitle(source.getTitle() ?? "");
+    out.setAuthor(source.getAuthor() ?? "");
+    out.setSubject(source.getSubject() ?? "");
+  }
   const blob = pdfBlob(await out.save({ useObjectStreams: true }));
   onProgress(1);
   return [

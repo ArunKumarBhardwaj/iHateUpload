@@ -626,8 +626,8 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
               {overlayFile && options.kind === "redact" ? (
                 <RedactOverlay
                   file={overlayFile}
-                  boxes={options.boxes}
-                  onBoxes={(boxes) => setOptions({ ...options, boxes })}
+                  options={options}
+                  onOptions={setOptions}
                   pageCount={pageCount}
                   disabled={locked}
                 />

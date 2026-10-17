@@ -1,3 +1,5 @@
+import type { FlipMode } from "@/lib/page-ops";
+import type { PiiCategory } from "@/lib/pii-detect";
 import type { ToolDefinition } from "@/lib/tools";
 
 export type CompressLevel = "light" | "medium" | "heavy";
@@ -14,6 +16,14 @@ export type RatioBox = {
 /** Ratios of the page box. Origin is top-left in the UI; processors flip Y. */
 export type PageBox = RatioBox & {
   pageIndex: number;
+};
+
+export type RedactFinding = PageBox & {
+  id: string;
+  category: PiiCategory;
+  /** What was matched, shown in the review list only. */
+  text: string;
+  accepted: boolean;
 };
 
 export type EditMarkKind = "text" | "image" | "highlight" | "rect";
@@ -71,7 +81,10 @@ export type ToolOptions =
   | { kind: "password-confirm"; password: string }
   | {
       kind: "rotate";
-      degrees: 90 | 180 | 270;
+      /** 0 only flips. */
+      degrees: 0 | 90 | 180 | 270;
+      /** Mirrors the pages after the turn. Text stays vector. */
+      flip: FlipMode;
       /** Empty or "all" turns every page. */
       range: string;
     }
@@ -94,7 +107,19 @@ export type ToolOptions =
   | { kind: "sign"; mode: SignMode; text: string; dataUrl: string; box: PageBox }
   | { kind: "edit"; marks: EditMark[] }
   | { kind: "crop"; box: PageBox }
-  | { kind: "redact"; boxes: PageBox[] }
+  | {
+      kind: "redact";
+      /** Boxes drawn by hand. */
+      boxes: PageBox[];
+      /** What the scan found. Only the accepted ones are burned out. */
+      findings: RedactFinding[];
+      /** Words or /regex/ lines the scan also looks for. */
+      custom: string;
+      /** Clear title, author and the rest from the result. */
+      stripMeta: boolean;
+      /** Drop invisible text layers from pages left as they are. */
+      removeHidden: boolean;
+    }
   | { kind: "compare"; pageIndex: number }
   | {
       kind: "header-footer";
@@ -450,7 +475,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "password-confirm":
       return { kind: "password-confirm", password: "" };
     case "rotate":
-      return { kind: "rotate", degrees: 90, range: "" };
+      return { kind: "rotate", degrees: 90, flip: "none", range: "" };
     case "split":
       return { kind: "split", mode: "pages", ranges: "", maxMb: 5 };
     case "pdf-image":
@@ -492,7 +517,14 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "crop":
       return { kind: "crop", box: { ...DEFAULT_CROP_BOX } };
     case "redact":
-      return { kind: "redact", boxes: [] };
+      return {
+        kind: "redact",
+        boxes: [],
+        findings: [],
+        custom: "",
+        stripMeta: true,
+        removeHidden: true,
+      };
     case "compare":
       return { kind: "compare", pageIndex: 0 };
     case "header-footer":
@@ -588,10 +620,11 @@ export function optionsReady(
     case "nup":
     case "page-size":
     case "scan":
-    case "rotate":
     case "pdf-image":
     case "pdf-to-word":
       return true;
+    case "rotate":
+      return options.degrees !== 0 || options.flip !== "none";
     case "split":
       return options.mode === "ranges"
         ? options.ranges.trim().length > 0
@@ -643,7 +676,10 @@ export function optionsReady(
     case "edit":
       return options.marks.some(editMarkReady);
     case "redact":
-      return options.boxes.some((box) => box.w > 0.04 && box.h > 0.04);
+      return (
+        options.boxes.some((box) => box.w > 0.04 && box.h > 0.04) ||
+        options.findings.some((f) => f.accepted)
+      );
     case "annotate":
       return options.variant === "numbers"
         ? Number.isInteger(options.startAt) && options.startAt >= 0

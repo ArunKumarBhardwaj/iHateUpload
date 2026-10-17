@@ -86,7 +86,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "password-confirm":
       return "Choose a password. You will need it every time you open the PDF.";
     case "rotate":
-      return "Pick how far to turn the pages. Leave the pages box empty for all of them.";
+      return "Turn the pages, mirror them, or both. Leave the pages box empty for all of them.";
     case "split":
       return "Pick how to cut the PDF. Each piece is its own file.";
     case "pdf-image":
@@ -112,7 +112,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "crop":
       return "Drag the box to the area every page should keep.";
     case "redact":
-      return "Draw boxes over the text. Those pixels are burned out, not covered.";
+      return "Scan for personal info or draw boxes over the text. Those pixels are burned out, not covered.";
     case "compare":
       return "Add two PDFs. First is the left file. The text diff is the result.";
     case "header-footer":
@@ -239,7 +239,7 @@ export function OptionsPanel({
           <div className="space-y-2">
             <p className="text-sm font-medium text-ink">Rotate by</p>
             <div className="flex flex-wrap gap-2">
-              {([90, 180, 270] as const).map((degrees) => (
+              {([0, 90, 180, 270] as const).map((degrees) => (
                 <Button
                   key={degrees}
                   type="button"
@@ -249,10 +249,38 @@ export function OptionsPanel({
                   disabled={disabled}
                   onClick={() => onOptions({ ...options, degrees })}
                 >
-                  {degrees}°
+                  {degrees === 0 ? "No turn" : `${degrees}°`}
                 </Button>
               ))}
             </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Mirror</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["none", "Off"],
+                  ["h", "Left-right"],
+                  ["v", "Top-bottom"],
+                  ["hv", "Both"],
+                ] as const
+              ).map(([flip, label]) => (
+                <Button
+                  key={flip}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.flip === flip ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, flip })}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Mirrors the page after any turn. Text stays text, not a picture.
+            </p>
           </div>
           <Field label="Pages" htmlFor="rotate-range">
             <Input
@@ -787,14 +815,43 @@ export function OptionsPanel({
         </p>
       );
 
-    case "redact":
+    case "redact": {
+      const kept = options.findings.filter((f) => f.accepted).length;
+      const total = options.boxes.length + kept;
       return (
-        <p className="text-sm text-muted-foreground">
-          {options.boxes.length === 0
-            ? "Drag on the page to cover text. Those pixels are destroyed."
-            : `${options.boxes.length} box${options.boxes.length === 1 ? "" : "es"} will be burned out.`}
-        </p>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {total === 0
+              ? "Scan for personal info or drag on the page. Those pixels are destroyed."
+              : `${total} area${total === 1 ? "" : "s"} will be burned out (${kept} found, ${options.boxes.length} drawn).`}
+          </p>
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4"
+              checked={options.stripMeta}
+              disabled={disabled}
+              onChange={(e) =>
+                onOptions({ ...options, stripMeta: e.target.checked })
+              }
+            />
+            Clear title, author and other file info
+          </label>
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4"
+              checked={options.removeHidden}
+              disabled={disabled}
+              onChange={(e) =>
+                onOptions({ ...options, removeHidden: e.target.checked })
+              }
+            />
+            Remove invisible text on the other pages
+          </label>
+        </div>
       );
+    }
 
     case "compare":
       return (

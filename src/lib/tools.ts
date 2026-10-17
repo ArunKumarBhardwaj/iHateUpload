@@ -362,7 +362,7 @@ export const TOOLS: ToolDefinition[] = [
     title: "Rotate PDF",
     shortTitle: "Rotate PDF",
     description:
-      "Rotate every page by 90°, 180°, or 270°. Processing stays on this device.",
+      "Rotate or mirror pages by 90°, 180°, or 270°. Text stays text. Processing stays on this device.",
     accept: "application/pdf,.pdf",
     multiple: true,
     ordered: false,
@@ -477,17 +477,17 @@ export const TOOLS: ToolDefinition[] = [
     title: "Redact PDF",
     shortTitle: "Redact PDF",
     description:
-      "Black out text and images. The covered pixels are destroyed in this tab.",
+      "Find emails, phones, cards, Aadhaar, PAN and more, or draw boxes. The covered pixels are destroyed in this tab.",
     accept: "application/pdf,.pdf",
     multiple: false,
     ordered: false,
     actionLabel: "Redact PDF",
     seoTitle: "Redact PDF Online Free — No Upload",
     seoDescription:
-      "Redact a PDF online free. Draw boxes that destroy the pixels in your browser — no upload.",
+      "Redact a PDF online free. Auto-find emails, phones, cards, Aadhaar, PAN, IBAN and SSN, or draw boxes. Pixels are destroyed in your browser — no upload.",
     seoHowTo: [
       "Choose the PDF you need to redact.",
-      "Draw boxes over the text or images that must disappear.",
+      "Scan for personal info and untick anything to keep, or draw boxes over what must disappear.",
       "Download the redacted PDF. The covered content is gone.",
     ],
     showInNav: true,
