@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import { ArrowDown, ArrowUp, FileText, RotateCcw, X } from "lucide-react";
 
 import { BatesControls } from "@/components/workbench/bates-controls";
@@ -36,7 +35,6 @@ import {
   TARGET_KB_MAX,
   TARGET_KB_MIN,
   TARGET_KB_PRESETS,
-  type SignMode,
   WATERMARK_COLORS,
   WATERMARK_ROTATIONS,
   WATERMARK_SIZES,
@@ -979,14 +977,7 @@ export function OptionsPanel({
     }
 
     case "sign":
-      return (
-        <SignControls
-          options={options}
-          onOptions={onOptions}
-          pageCount={pageCount}
-          disabled={disabled}
-        />
-      );
+      return null;
 
     case "edit":
       return null;
@@ -1764,178 +1755,4 @@ export function OptionsPanel({
         </div>
       );
   }
-}
-
-function SignControls({
-  options,
-  onOptions,
-  pageCount,
-  disabled,
-}: {
-  options: Extract<ToolOptions, { kind: "sign" }>;
-  onOptions: (next: ToolOptions) => void;
-  pageCount: number;
-  disabled: boolean;
-}) {
-  const modes: { id: SignMode; title: string }[] = [
-    { id: "draw", title: "Draw" },
-    { id: "type", title: "Type" },
-    { id: "image", title: "Image" },
-  ];
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {modes.map((mode) => (
-          <Button
-            key={mode.id}
-            type="button"
-            size="sm"
-            className={OPTION_BUTTON}
-            variant={options.mode === mode.id ? "default" : "outline"}
-            disabled={disabled}
-            onClick={() => onOptions({ ...options, mode: mode.id })}
-          >
-            {mode.title}
-          </Button>
-        ))}
-      </div>
-      {options.mode === "type" ? (
-        <Field label="Name" htmlFor="sign-text">
-          <Input
-            id="sign-text"
-            value={options.text}
-            disabled={disabled}
-            onChange={(e) => onOptions({ ...options, text: e.target.value })}
-            placeholder="Your name"
-          />
-        </Field>
-      ) : null}
-      {options.mode === "image" ? (
-        <Field label="Signature image" htmlFor="sign-image">
-          <Input
-            id="sign-image"
-            type="file"
-            accept="image/png,image/jpeg,.png,.jpg,.jpeg"
-            disabled={disabled}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = () => {
-                if (typeof reader.result === "string") {
-                  onOptions({ ...options, dataUrl: reader.result });
-                }
-              };
-              reader.readAsDataURL(file);
-            }}
-          />
-        </Field>
-      ) : null}
-      {options.mode === "draw" ? (
-        <DrawPad
-          disabled={disabled}
-          onInk={(dataUrl) => onOptions({ ...options, dataUrl })}
-        />
-      ) : null}
-      {pageCount > 1 ? (
-        <Field label="Page" htmlFor="sign-page">
-          <Input
-            id="sign-page"
-            type="number"
-            min={1}
-            max={pageCount}
-            value={options.box.pageIndex + 1}
-            disabled={disabled}
-            onChange={(e) => {
-              const page = Number(e.target.value);
-              if (!Number.isInteger(page)) return;
-              onOptions({
-                ...options,
-                box: {
-                  ...options.box,
-                  pageIndex: Math.min(pageCount, Math.max(1, page)) - 1,
-                },
-              });
-            }}
-          />
-        </Field>
-      ) : null}
-    </div>
-  );
-}
-
-function DrawPad({
-  disabled,
-  onInk,
-}: {
-  disabled: boolean;
-  onInk: (dataUrl: string) => void;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef(false);
-
-  const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
-      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
-    };
-  };
-
-  return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-ink">Draw</p>
-      <canvas
-        ref={canvasRef}
-        width={480}
-        height={160}
-        className="h-28 w-full touch-none rounded-xl border border-ink/15 bg-background"
-        onPointerDown={(event) => {
-          if (disabled) return;
-          const canvas = canvasRef.current;
-          const ctx = canvas?.getContext("2d");
-          if (!ctx) return;
-          drawing.current = true;
-          event.currentTarget.setPointerCapture(event.pointerId);
-          const start = point(event);
-          ctx.strokeStyle = "#111827";
-          ctx.lineWidth = 4;
-          ctx.lineCap = "round";
-          ctx.beginPath();
-          ctx.moveTo(start.x, start.y);
-        }}
-        onPointerMove={(event) => {
-          if (!drawing.current) return;
-          const ctx = canvasRef.current?.getContext("2d");
-          if (!ctx) return;
-          const next = point(event);
-          ctx.lineTo(next.x, next.y);
-          ctx.stroke();
-        }}
-        onPointerUp={() => {
-          drawing.current = false;
-          const canvas = canvasRef.current;
-          if (canvas) onInk(canvas.toDataURL("image/png"));
-        }}
-      />
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className={OPTION_BUTTON}
-        disabled={disabled}
-        onClick={() => {
-          const canvas = canvasRef.current;
-          const ctx = canvas?.getContext("2d");
-          if (!canvas || !ctx) return;
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          onInk("");
-        }}
-      >
-        Clear
-      </Button>
-    </div>
-  );
 }

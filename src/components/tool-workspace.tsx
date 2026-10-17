@@ -13,6 +13,7 @@ import {
 } from "@/components/workbench/options-panel";
 import { ImageCropOverlay } from "@/components/workbench/image-crop-overlay";
 import { PageOverlay } from "@/components/workbench/page-overlay";
+import { SignCanvas } from "@/components/workbench/sign-canvas";
 import { PdfEditCanvas } from "@/components/workbench/pdf-edit-canvas";
 import { ComparePreview } from "@/components/workbench/compare-preview";
 import { RedactOverlay } from "@/components/workbench/redact-overlay";
@@ -352,11 +353,16 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       pageCount,
     });
   }
-  const editFileId = options.kind === "edit" ? (pagedFile?.id ?? "") : "";
+  const editFileId =
+    options.kind === "edit" || options.kind === "sign" ? (pagedFile?.id ?? "") : "";
   const [editKey, setEditKey] = useState(editFileId);
   if (options.kind === "edit" && editKey !== editFileId) {
     setEditKey(editFileId);
     setOptions({ kind: "edit", marks: [] });
+  }
+  if (options.kind === "sign" && editKey !== editFileId) {
+    setEditKey(editFileId);
+    setOptions({ kind: "sign", placements: [] });
   }
 
   const addFiles = useCallback(
@@ -613,12 +619,12 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                 />
               ) : null}
               {overlayFile && options.kind === "sign" ? (
-                <PageOverlay
+                <SignCanvas
                   file={overlayFile}
-                  box={options.box}
-                  onBox={(box) => setOptions({ ...options, box })}
+                  placements={options.placements}
+                  onPlacements={(placements) => setOptions({ kind: "sign", placements })}
+                  pageCount={pageCount}
                   disabled={locked}
-                  label="Place the signature"
                 />
               ) : null}
               {overlayFile && options.kind === "edit" ? (
@@ -657,7 +663,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   label="Keep this area"
                 />
               ) : null}
-              {optionsInCanvas && options.kind !== "edit" && optionsPanel}
+              {optionsInCanvas && options.kind !== "edit" && options.kind !== "sign" && optionsPanel}
             </div>
 
             <aside className="space-y-4 lg:border-l lg:border-ink/10 lg:pl-6">

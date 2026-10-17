@@ -6,7 +6,15 @@ import type { ToolDefinition } from "@/lib/tools";
 
 export type CompressLevel = "light" | "medium" | "heavy";
 
-export type SignMode = "draw" | "type" | "image";
+/** One signature, initials, or stamp on a page. Text stamps stay real PDF text. */
+export type SignPlacement = PageBox & {
+  id: string;
+  /** PNG of the signature. Empty for text stamps. */
+  dataUrl?: string;
+  /** Date or other typed stamp, drawn as vector text. */
+  text?: string;
+  color?: string;
+};
 
 export type RatioBox = {
   x: number;
@@ -147,7 +155,7 @@ export type ToolOptions =
   | { kind: "resize"; maxEdge: number }
   | { kind: "compress"; level: CompressLevel; targetKb: number | null }
   | { kind: "extract"; range: string; pageCount: number }
-  | { kind: "sign"; mode: SignMode; text: string; dataUrl: string; box: PageBox }
+  | { kind: "sign"; placements: SignPlacement[] }
   | { kind: "edit"; marks: EditMark[] }
   | { kind: "crop"; box: PageBox }
   | {
@@ -343,6 +351,11 @@ export function newHighlightMark(box: PageBox, color = EDIT_HIGHLIGHT[0]): EditM
 
 export function newRectMark(box: PageBox, color = EDIT_INK[0]): EditMark {
   return { id: newEditId(), kind: "rect", color, fill: false, ...box };
+}
+
+export function signPlacementReady(p: SignPlacement): boolean {
+  if (p.w <= 0.02 || p.h <= 0.01) return false;
+  return Boolean(p.text?.trim()) || Boolean(p.dataUrl?.startsWith("data:"));
 }
 
 export function editMarkReady(mark: EditMark): boolean {
@@ -611,13 +624,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "extract":
       return { kind: "extract", range: "", pageCount: 0 };
     case "sign":
-      return {
-        kind: "sign",
-        mode: "draw",
-        text: "",
-        dataUrl: "",
-        box: { ...DEFAULT_PAGE_BOX },
-      };
+      return { kind: "sign", placements: [] };
     case "edit":
       return { kind: "edit", marks: [] };
     case "crop":
@@ -821,13 +828,8 @@ export function optionsReady(
       );
     case "extract":
       return parsePageRange(options.range, options.pageCount).length >= 1;
-    case "sign": {
-      const ink =
-        options.mode === "type"
-          ? options.text.trim().length > 0
-          : options.dataUrl.startsWith("data:");
-      return ink && options.box.w > 0.04 && options.box.h > 0.04;
-    }
+    case "sign":
+      return options.placements.some(signPlacementReady);
     case "edit":
       return options.marks.some(editMarkReady);
     case "redact":

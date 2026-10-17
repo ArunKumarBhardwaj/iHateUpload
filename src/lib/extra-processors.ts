@@ -40,7 +40,9 @@ import {
   type PageBox,
   type ToolOptions,
   editMarkReady,
+  signPlacementReady,
 } from "@/lib/tool-options";
+import { boxToPlacement, pageFrame } from "@/lib/page-geometry";
 import { batesLabel, batesPlacement, batesReady } from "@/lib/bates";
 import { parseHexColor, watermarkStamps } from "@/lib/watermark";
 
@@ -71,40 +73,6 @@ async function loadPdf(file: File) {
   return PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true });
 }
 
-function typedSignature(text: string): Promise<Uint8Array> {
-  const canvas = document.createElement("canvas");
-  canvas.width = 720;
-  canvas.height = 220;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas is not available in this browser.");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#111827";
-  ctx.font = "italic 92px Georgia, serif";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, 24, canvas.height / 2);
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      canvas.width = 0;
-      canvas.height = 0;
-      if (!blob) {
-        reject(new Error("Could not draw the signature."));
-        return;
-      }
-      void blob.arrayBuffer().then((buffer) => resolve(new Uint8Array(buffer)));
-    }, "image/png");
-  });
-}
-
-async function signatureBytes(options: Extract<ToolOptions, { kind: "sign" }>) {
-  if (options.mode === "type") return typedSignature(options.text.trim());
-  const raw = options.dataUrl;
-  const comma = raw.indexOf(",");
-  const binary = atob(comma >= 0 ? raw.slice(comma + 1) : raw);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 export async function processPngToPdf(
   files: FileItem[],
   onProgress: ProgressFn,
@@ -120,16 +88,50 @@ export async function processSignPdf(
   if (options.kind !== "sign") throw new Error("Sign PDF needs a signature.");
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to sign.");
+  const placements = options.placements.filter(signPlacementReady);
+  if (placements.length === 0) throw new Error("Place a signature on the page first.");
   const doc = await loadPdf(item.file);
-  const page = doc.getPage(options.box.pageIndex);
-  if (!page) throw new Error("That page is not in this PDF.");
-  onProgress(0.3);
-  const ink = await signatureBytes(options);
-  const image = await doc.embedPng(ink);
-  const size = page.getSize();
-  const box = pageBoxToPdf(options.box, size.width, size.height);
-  page.drawImage(image, box);
-  onProgress(0.8);
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const embedded = new Map<string, Awaited<ReturnType<PDFDocument["embedPng"]>>>();
+  for (let index = 0; index < placements.length; index++) {
+    const placement = placements[index];
+    const page = doc.getPage(placement.pageIndex);
+    if (!page) throw new Error("That page is not in this PDF.");
+    const at = boxToPlacement(pageFrame(page), placement);
+    if (placement.text?.trim()) {
+      const text = keepHelveticaWinAnsi(placement.text).trim();
+      const size = Math.max(4, Math.min(at.height * 0.8, 72));
+      const fit = font.widthOfTextAtSize(text, size);
+      const scaled = fit > at.width ? (size * at.width) / fit : size;
+      const lift = (at.height - scaled * 0.7) / 2;
+      const a = (at.rotate * Math.PI) / 180;
+      page.drawText(text, {
+        x: at.x - Math.sin(a) * lift,
+        y: at.y + Math.cos(a) * lift,
+        size: scaled,
+        font,
+        color: hexRgb(placement.color ?? "#14161c"),
+        rotate: degrees(at.rotate),
+      });
+    } else if (placement.dataUrl) {
+      let image = embedded.get(placement.dataUrl);
+      if (!image) {
+        const bytes = dataUrlBytes(placement.dataUrl);
+        image = placement.dataUrl.includes("image/jpeg")
+          ? await doc.embedJpg(bytes)
+          : await doc.embedPng(bytes);
+        embedded.set(placement.dataUrl, image);
+      }
+      page.drawImage(image, {
+        x: at.x,
+        y: at.y,
+        width: at.width,
+        height: at.height,
+        rotate: degrees(at.rotate),
+      });
+    }
+    onProgress(0.1 + (0.8 * (index + 1)) / placements.length);
+  }
   stripPdfMetadata(doc);
   const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
   onProgress(1);
