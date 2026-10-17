@@ -44,7 +44,8 @@ export async function processPdfToExcel(
         onPage = progress;
         reader ??= await createPageReader(options.language, (r) => onPage(r));
         const base = page.getViewport({ scale: 1 });
-        const scale = Math.min(3, 3600 / Math.max(base.width, base.height));
+        // Tables are small type; a larger raster reads digits and letters like q and g more reliably.
+        const scale = Math.min(4, 4400 / Math.max(base.width, base.height));
         const canvas = await renderPageCanvas(page, scale);
         try {
           return await reader.read(canvas, scale, base.height);

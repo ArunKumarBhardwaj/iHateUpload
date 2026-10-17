@@ -69,6 +69,9 @@ Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, auto PII redaction, 
 | PDF to Word: CJK text | Unified ideographs, East Asian fonts and language tags | Keeps Kangxi radicals; font by regex | ✅ | cjk.pdf: 0 radicals in ours; teardown of theirs. 2026-10-17 |
 | PDF to Word: slide / cover backgrounds | Kept behind text | Lost in both modes | ✅ | slides.pdf visual 0.40 vs 0.26, 2026-10-17 |
 | PDF to Word: comments from annotations | No | Yes (7 annotation types, highlights as shading) | ❌ | Teardown, 2026-10-17 |
+| PDF to Excel: cell accuracy and typed numbers | Typed cells, merged headers, fills, tables joined over pages, OCR | Same feature set plus an editable preview before export | 🟰 | `bun bench/pdf-to-excel/scoreboard.ts`: 8 synthetic docs, cells 99% vs 100%, typed 100% vs 99%; ours wins the 3-page bank statement (100% vs 98%: their last two rows become a second table). Ours loses one OCR letter on the scanned invoice (97% vs 100%). 2026-10-17 |
+| PDF to Excel: no-table PDFs and sheet names | Text sheet always filled, sheets named from the heading above | Nothing exported when no table is found; sheets named "Table 1 (p1)" | ✅ | report-chart.pdf: ours Text sheet, theirs no output. 2026-10-17 |
+| PDF to Excel: preview and cell edits before export | No | Yes (click a cell to correct) | ❌ | Teardown, 2026-10-17 |
 | Merge PDF | Yes | Yes | 🟰 | Same pages, order and links; both drop bookmarks; ours 0.10 s vs 0.20 s. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Split PDF | Pages, ranges, in half, by size | Same plus by bookmarks and by text | ⚠️ | Their sitemap; our `SPLIT_MODES`. 2026-10-17 |
 | PDF to JPG / PNG | 72 / 150 / 300 / 600 DPI (true 600 on desktop: Letter = 5100×6600), JPG quality Smaller/Balanced/Best, JPG or PNG, page ranges, ZIP | Up to 600 DPI, quality slider, PNG toggle | 🟰 | Same options; ours 600 DPI page in ~0.6 s, 1.36 MB. `.scratch/head-to-head-2026-10-17.md` + lead check, 2026-10-17 |
@@ -118,7 +121,6 @@ Priority is our guess at value for a privacy-first PDF site; "skip" means off-br
 
 | Tool | Priority | Notes |
 |---|---|---|
-| PDF to Excel | High | Reuse our PDF to Word table detection |
 | PDF to PowerPoint | High | Reuse text boxes from Exact layout |
 | Repair PDF | High | Rebuild broken xref; qpdf-wasm is an option |
 | Fill PDF form | High | AcroForm fields with pdf-lib |

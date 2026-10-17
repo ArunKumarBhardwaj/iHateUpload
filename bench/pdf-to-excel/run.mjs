@@ -48,18 +48,15 @@ async function convertOnce(side, file) {
       await page.getByRole("button", { name: /Convert to Excel/ }).click();
       const dl = page.getByRole("button", { name: /^\s*Download/i }).or(page.getByRole("link", { name: /^\s*Download/i })).first();
       await dl.waitFor({ state: "visible", timeout: 120000 });
-      const ready = performance.now();
       await dl.click();
       const d = await download;
-      return { ms: ready - t0, bytes: readFileSync(await d.path()), errors };
+      return { ms: performance.now() - t0, bytes: readFileSync(await d.path()), errors };
     }
     const exportBtn = page.getByRole("button", { name: /^Export \d+ tables? as Excel/ });
     await exportBtn.waitFor({ state: "visible", timeout: 30000 });
-    const ready = performance.now();
-    await sleep(500);
     await exportBtn.click();
     const d = await download;
-    return { ms: ready - t0, bytes: readFileSync(await d.path()), errors };
+    return { ms: performance.now() - t0, bytes: readFileSync(await d.path()), errors };
   } catch (e) {
     mkdirSync(join(HERE, "results"), { recursive: true });
     await page.screenshot({ path: join(HERE, "results", `${side}-${file.split("/").pop()}-fail.png`) }).catch(() => {});

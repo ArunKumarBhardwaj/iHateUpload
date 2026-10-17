@@ -65,7 +65,7 @@ function sheetFromGrid(grid: Grid, flags: Flags): { sheet: Omit<Sheet, "name">; 
   }
   const numericCol = Array.from({ length: cols }, (_, c) => {
     const body = typed.slice(headers).map((row) => row[c]).filter((t) => t.kind !== "blank");
-    return body.length > 0 && body.filter((t) => t.kind === "number").length * 2 > body.length;
+    return body.length > 0 && body.filter((t) => t.kind === "number" || t.kind === "date").length * 2 > body.length;
   });
 
   const merges: Merge[] = [];
