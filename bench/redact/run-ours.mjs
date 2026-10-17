@@ -1,7 +1,7 @@
 // Drives our Redact PDF with the synthetic file: scan, screenshot the review UI,
 // redact, screenshot the output page, and prove the text is gone with pdf.js.
 // Usage: node bench/redact/run-ours.mjs <fixtureDir> <outDir> [baseUrl]
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
