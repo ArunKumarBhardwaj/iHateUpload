@@ -25,15 +25,15 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 
 | | Count |
 |---|---|
-| ✅ We are better (measured) | 11 rows |
+| ✅ We are better (measured) | 15 rows |
 | 🟰 Equal (measured) | 9 rows |
-| ⚠️ They are better | 6 rows |
-| ❔ Shared, not compared yet | 18 rows |
+| ⚠️ They are better | 3 rows |
+| ❔ Shared, not compared yet | 17 rows |
 | ➕ Only we have | 15 tools (section 3) |
-| ❌ Only they have | 24 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
+| ❌ Only they have | 19 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
-Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, auto PII redaction, Bates numbering, workflows.
+Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, workflows, scanned-page compression, Ask PDF privacy, SEO pages.
 
 ---
 
@@ -70,11 +70,11 @@ Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, auto PII redaction, 
 | PDF to Word: slide / cover backgrounds | Kept behind text | Lost in both modes | ✅ | slides.pdf visual 0.40 vs 0.26, 2026-10-17 |
 | PDF to Word: comments from annotations | No | Yes (7 annotation types, highlights as shading) | ❌ | Teardown, 2026-10-17 |
 | Merge PDF | Yes | Yes | 🟰 | Same pages, order and links; both drop bookmarks; ours 0.10 s vs 0.20 s. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
-| Split PDF | Pages, ranges, in half, by size | Same plus by bookmarks (depth, per-bookmark toggles) and by text (regex, case, whole word), both with a parts preview | ✅ | bench/pdf-tools/h2h.mjs, synthetic files, 2026-10-17 |
+| Split PDF | Pages, ranges, in half, by size, by bookmarks (depth, per-bookmark toggles, front matter) and by text (regex, match case, whole word, named by match); parts preview before running | By bookmarks (toggles, preview) and by text (case, whole word) | ✅ | Same parts on synthetic files; ours has more options; text split 255 ms vs 1184 ms on 300 pages (tiny files: ours ~150 ms vs ~60 ms). bench/pdf-tools/h2h.mjs, 2026-10-17 |
 | PDF to JPG / PNG | 72 / 150 / 300 / 600 DPI (true 600 on desktop: Letter = 5100×6600), JPG quality Smaller/Balanced/Best, JPG or PNG, page ranges, ZIP | Up to 600 DPI, quality slider, PNG toggle | 🟰 | Same options; ours 600 DPI page in ~0.6 s, 1.36 MB. `.scratch/head-to-head-2026-10-17.md` + lead check, 2026-10-17 |
 | Images to PDF (JPG, PNG, HEIC) | Image to PDF, PNG to PDF, HEIC to PDF | Images to PDF (no HEIC) | 🟰 | Same page sizing and size (841 vs 840 KB); neither has options. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Protect / Unlock PDF | Yes | Encrypt, Remove password | ❔ | |
-| Rotate PDF | Yes | Yes (+ Flip/mirror) | ❔ | |
+| Rotate / flip PDF | 90/180/270, mirror left-right, top-bottom or both, per page range, text stays vector | Rotate; Flip/mirror as a separate tool | ❔ | Flip added 2026-10-17; head-to-head pending |
 | Organize pages | Yes | Yes | ❔ | |
 | Sign PDF | Draw, type, stamp | Draw, type, photo | ❔ | |
 | Edit PDF text | Click a line to edit, OCR for scans | Click text to edit | ❔ | |
@@ -83,13 +83,13 @@ Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, auto PII redaction, 
 | Compare PDFs | Side by side + text diff | Yes | ❔ | |
 | Extract text / Extract images | Yes | Yes | ❔ | |
 | Headers and footers | Yes | Yes | ❔ | |
-| Page numbers | Formats + ranges | Yes, plus Bates numbering across files with production log CSV | ✅ | bench/pdf-tools/h2h.mjs, 2026-10-17 |
+| Page numbers / Bates | Formats, ranges, Bates (prefix, suffix, digits, positions, across files, skip first page, page range, live preview, production log CSV) | Page numbers; Bates without page range | ✅ | Same Bates output across 2 files; Bates 358 ms vs 402 ms on 300 pages. bench/pdf-tools/h2h.mjs, 2026-10-17 |
 | Watermark | Opacity, size, angle, colour, single or tiled, page range, live preview; text stays selectable | Opacity, size, angle, colour, tiling, live preview | 🟰 | Feature parity; page range is ours only. `.scratch/head-to-head-2026-10-17.md` + lead check, 2026-10-17 |
 | Pages per sheet (N-up) | Yes | Yes | ❔ | |
 | Invert / grayscale | Yes | Invert | ❔ | |
 | Flatten PDF | Yes | Yes | ❔ | |
 | OCR PDF | Tesseract 7, 11 languages, skips pages that already have text, .txt output | Tesseract 5, ~22 languages, auto-detect, page range | 🟰 | 42/42 words both, ~2.4 s vs 2.6 s. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
-| Metadata | Strip, or edit fields | Edit all Info fields, custom keys, XMP kept in step; strip wipes XMP too | ✅ | Their edit leaves stale XMP (h2h metadata-xmp), 2026-10-17 |
+| Metadata | Edit all Info fields, dates, custom keys and XMP (kept in step), Copy from another PDF, Revert; Strip wipes custom keys, dates and XMP | Edit Info fields and dates; custom keys hidden; leaves stale XMP | ✅ | bench/pdf-tools h2h metadata-xmp, 2026-10-17 |
 | Word to PDF | Follows the docx: theme fonts (Calibri→Carlito, Cambria→Caladea), heading colours, spacing, table width/grid/shading, image size; lists, links, page breaks; selectable text; ~0.07 s | Same fidelity on the test file, selectable text; ~0.8 s; smaller files | 🟰 | Same synthetic docx rendered side by side: same line breaks, colours, table and image. Ours faster, theirs smaller (108 KB vs 226 KB, we embed fonts whole). Lead check, 2026-10-17 |
 | Excel / PowerPoint to PDF | Yes | Yes | ❔ | |
 | Markdown / CSV / HTML to PDF | Yes | Yes | ❔ | |
@@ -122,14 +122,9 @@ Priority is our guess at value for a privacy-first PDF site; "skip" means off-br
 | PDF to PowerPoint | High | Reuse text boxes from Exact layout |
 | Repair PDF | High | Rebuild broken xref; qpdf-wasm is an option |
 | Fill PDF form | High | AcroForm fields with pdf-lib |
-| Edit PDF metadata | Medium | Small; extend Strip Metadata |
-| Auto-redact PII | Medium | Pairs with our Redact |
-| Bates numbering | Medium | Extend Page Numbers |
-| Split by bookmarks / by text | Medium | Extend Split modes |
 | PDF to HTML | Medium | |
 | Workflows (chain steps) + batch | Medium | Extend "Continue with" |
 | Recent files / starred | Low | Local-only storage |
-| Flip / mirror PDF | Low | Small |
 | PDF to EPUB, eBook to PDF | Low | |
 | PDF to ZIP | Low | |
 | Alternate & mix pages | Low | |

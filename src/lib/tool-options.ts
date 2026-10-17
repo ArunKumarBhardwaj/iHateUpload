@@ -1,7 +1,7 @@
-import type { FlipMode } from "@/lib/page-ops";
-import type { PiiCategory } from "@/lib/pii-detect";
-import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
 import { batesReady } from "@/lib/bates";
+import type { FlipMode } from "@/lib/page-ops";
+import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
+import type { PiiCategory } from "@/lib/pii-detect";
 import type { ToolDefinition } from "@/lib/tools";
 
 export type CompressLevel = "light" | "medium" | "heavy";
