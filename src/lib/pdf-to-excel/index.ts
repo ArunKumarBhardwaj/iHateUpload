@@ -3,8 +3,9 @@ import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { extractPage } from "../pdf-to-word/extract";
 import type { PageInput } from "../pdf-to-word/lines";
 import { resolvePageRange } from "../tool-options";
-import { pagesToWorkbook, type ExcelOptions } from "./convert";
-import { writeXlsx, type Workbook } from "./xlsx-writer";
+import { pagesToPrepared, type ExcelOptions } from "./convert";
+import { createEditor, type ExcelEditor } from "./edit";
+import type { Workbook } from "./xlsx-writer";
 
 export type ConvertOptions = ExcelOptions & {
   /** OCR language for pages with no text layer. */
@@ -20,7 +21,7 @@ export type ConvertDeps = {
   readScan?: (page: PDFPageProxy, pageNo: number, onPage: (ratio: number) => void) => Promise<PageInput["items"] | null>;
 };
 
-export type ConvertResult = { bytes: Uint8Array; book: Workbook; notes: string[]; pages: number; tables: number };
+export type ConvertResult = { bytes: Uint8Array; book: Workbook; editor: ExcelEditor; notes: string[]; pages: number; tables: number };
 
 const SCAN_CHARS = 20;
 
@@ -64,7 +65,8 @@ export async function convertPdfToExcel(
     onProgress(base + share * 0.95);
   }
 
-  const built = pagesToWorkbook(inputs, numbers, options, title);
+  const editor = createEditor(pagesToPrepared(inputs, numbers, options, title));
+  const built = await editor.build();
   const notes = [...built.notes];
   if (scanned.length && !unreadable.length) {
     notes.push(`${pagesPhrase(scanned)} had no text, so ${scanned.length === 1 ? "it was" : "they were"} read with OCR. Check the numbers.`);
@@ -72,5 +74,5 @@ export async function convertPdfToExcel(
   if (unreadable.length) {
     notes.push(`${pagesPhrase(unreadable)} had no text and ${unreadable.length === 1 ? "was" : "were"} left empty.`);
   }
-  return { bytes: await writeXlsx(built.book), book: built.book, notes, pages: picked.length, tables: built.tables };
+  return { bytes: built.bytes, book: built.book, editor, notes, pages: picked.length, tables: built.tables };
 }

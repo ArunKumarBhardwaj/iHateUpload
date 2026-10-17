@@ -2,6 +2,7 @@
  * Page layout to table grids. Reuses the table and line detection that PDF to Word uses, then
  * joins tables that run across pages and names each one from the heading above it.
  */
+import type { ColType } from "./cells";
 import { applyDecorations } from "../pdf-to-word/decorations";
 import { buildLines, lineText, type Fill, type Line, type PageInput } from "../pdf-to-word/lines";
 import { detectBorderlessTables, detectRuledTables, type GridCell, type TableEl } from "../pdf-to-word/tables";
@@ -32,6 +33,11 @@ export type Grid = {
   heading?: string;
   /** Typical height of one row, in points. */
   rowPitch: number;
+  /** What the person changed in the preview. */
+  name?: string;
+  headerRows?: number;
+  colTypes?: ColType[];
+  skip?: boolean;
 };
 
 export type TextRow = { page: number; y: number; text: string };

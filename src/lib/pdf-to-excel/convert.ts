@@ -1,6 +1,6 @@
 /** Table grids to a typed workbook. Pure: no DOM, no pdf.js. */
 import type { PageInput } from "../pdf-to-word/lines";
-import { parseCell, typeColumn, type Typed } from "./cells";
+import { parseCell, typeAs, type Typed } from "./cells";
 import { joinAcrossPages, readPages, textRows, type Grid, type PageParts, type TextRow } from "./grid";
 import type { CellStyle, Merge, Sheet, Workbook, XCell } from "./xlsx-writer";
 
@@ -43,26 +43,45 @@ export function headerRowCount(grid: Grid): number {
   return n;
 }
 
-function sheetFromGrid(grid: Grid, flags: Flags): { sheet: Omit<Sheet, "name">; headerRows: number } {
-  const headers = headerRowCount(grid);
+export type ColumnKind = "text" | "number" | "currency" | "percent" | "date";
+export type ColumnInfo = { kind: ColumnKind; /** True when the person did not pick it. */ inferred: boolean; /** Cells that do not fit the kind. */ warnings: number };
+
+const kindOf = (t: Typed): ColumnKind =>
+  t.kind === "date" ? "date" : t.kind === "number" ? (t.fmt.includes("%") ? "percent" : t.fmt.includes('"') ? "currency" : "number") : "text";
+
+/** Types every cell of a grid and says what each column came out as. */
+export function typeGrid(grid: Grid, typedOn = true): { headers: number; typed: Typed[][]; info: ColumnInfo[] } {
+  const headers = Math.min(grid.headerRows ?? headerRowCount(grid), grid.rows.length);
   const cols = grid.xs.length - 1;
   const R = grid.rows.length;
-
-  // Type each column from its body cells.
   const typed: Typed[][] = grid.rows.map((row) => row.map(() => ({ kind: "blank" }) as Typed));
+  const info: ColumnInfo[] = [];
   for (let c = 0; c < cols; c++) {
     const idx: number[] = [];
     for (let r = headers; r < R; r++) if (!grid.rows[r][c].covered) idx.push(r);
     const headerText = headers ? grid.rows[headers - 1][c]?.text : undefined;
     const texts = idx.map((r) => grid.rows[r][c].text);
-    const result: Typed[] = flags.typed
-      ? typeColumn(texts, headerText)
-      : texts.map((t) => (t.trim() ? { kind: "text", text: t } : { kind: "blank" }));
+    const forced = grid.colTypes?.[c] ?? "auto";
+    const result: Typed[] = typedOn || forced !== "auto" ? typeAs(texts, forced, headerText) : texts.map((t) => (t.trim() ? { kind: "text", text: t } : { kind: "blank" }));
     idx.forEach((r, k) => (typed[r][c] = result[k]));
+    const count = new Map<ColumnKind, number>();
+    for (const t of result) if (t.kind !== "blank") count.set(kindOf(t), (count.get(kindOf(t)) ?? 0) + 1);
+    let kind: ColumnKind = "text";
+    let top = 0;
+    const total = [...count.values()].reduce((a, n) => a + n, 0);
+    for (const [k, n] of count) if (k !== "text" && n > top && n * 2 >= total) { top = n; kind = k; }
+    if (forced !== "auto") kind = forced === "text" ? "text" : forced;
+    info.push({ kind, inferred: forced === "auto", warnings: kind === "text" ? 0 : result.filter((t) => t.kind === "text").length });
   }
   for (let r = 0; r < headers; r++) {
     for (let c = 0; c < cols; c++) typed[r][c] = grid.rows[r][c].text ? { kind: "text", text: grid.rows[r][c].text } : { kind: "blank" };
   }
+  return { headers, typed, info };
+}
+
+function sheetFromGrid(grid: Grid, flags: Flags): { sheet: Omit<Sheet, "name">; headerRows: number } {
+  const { headers, typed } = typeGrid(grid, flags.typed);
+  const cols = grid.xs.length - 1;
   const numericCol = Array.from({ length: cols }, (_, c) => {
     const body = typed.slice(headers).map((row) => row[c]).filter((t) => t.kind !== "blank");
     return body.length > 0 && body.filter((t) => t.kind === "number" || t.kind === "date").length * 2 > body.length;
@@ -142,7 +161,33 @@ function stack(items: ({ kind: "grid"; grid: Grid; title?: string } | { kind: "t
   return out;
 }
 
-export function buildWorkbook(parts: PageParts[], options: ExcelOptions, title: string): BuildResult {
+/** Tables found, named and joined, ready to preview, edit and write. */
+export type Prepared = { parts: PageParts[]; grids: Grid[]; pagesOf: Map<Grid, number[]>; options: ExcelOptions; title: string };
+
+export function prepare(parts: PageParts[], options: ExcelOptions, title: string): Prepared {
+  let grids: Grid[];
+  let pagesOf = new Map<Grid, number[]>();
+  if (options.layout === "pages") {
+    grids = parts.flatMap((p) => p.grids);
+    for (const p of parts) for (const g of p.grids) pagesOf.set(g, [p.page]);
+  } else {
+    ({ grids, pagesOf } = joinAcrossPages(parts, options.joinPages !== false));
+  }
+  const perPage = new Map<number, number>();
+  for (const g of grids) perPage.set(g.page, (perPage.get(g.page) ?? 0) + 1);
+  const seen = new Map<number, number>();
+  for (const g of grids) {
+    const k = (seen.get(g.page) ?? 0) + 1;
+    seen.set(g.page, k);
+    const pages = pagesOf.get(g)!;
+    const label = pages.length > 1 ? `Pages ${pages[0]}-${pages[pages.length - 1]}` : `Page ${g.page}`;
+    g.name ??= g.heading ?? (perPage.get(g.page)! > 1 ? `${label} Table ${k}` : label);
+  }
+  return { parts, grids, pagesOf, options, title };
+}
+
+export function render(prep: Prepared): BuildResult {
+  const { options, parts, title } = prep;
   const flags: Flags = {
     typed: options.typed !== false,
     formatting: options.formatting !== false,
@@ -151,39 +196,29 @@ export function buildWorkbook(parts: PageParts[], options: ExcelOptions, title: 
   const notes: string[] = [];
   const sheets: Sheet[] = [];
   const text: TextRow[] = [];
-  let tables = 0;
+  const live = prep.grids.filter((g) => !g.skip && g.rows.length && g.xs.length > 1);
+  let tables = live.length;
 
   if (options.layout !== "pages") {
-    const { grids, pagesOf } = joinAcrossPages(parts, options.joinPages !== false);
-    const perPage = new Map<number, number>();
-    for (const g of grids) perPage.set(g.page, (perPage.get(g.page) ?? 0) + 1);
-    const seenOnPage = new Map<number, number>();
-    const named = grids.map((g) => {
-      const k = (seenOnPage.get(g.page) ?? 0) + 1;
-      seenOnPage.set(g.page, k);
-      const pages = pagesOf.get(g)!;
-      const label = pages.length > 1 ? `Pages ${pages[0]}-${pages[pages.length - 1]}` : `Page ${g.page}`;
-      return { grid: g, name: g.heading ?? (perPage.get(g.page)! > 1 ? `${label} Table ${k}` : label) };
-    });
-    tables = grids.length;
     if (options.layout === "one") {
-      if (named.length) {
-        const stacked = stack(named.map((n) => ({ kind: "grid" as const, grid: n.grid, title: n.name })), { ...flags, freezeFilter: false });
+      if (live.length) {
+        const stacked = stack(live.map((g) => ({ kind: "grid" as const, grid: g, title: g.name })), { ...flags, freezeFilter: false });
         sheets.push({ name: "All tables", rows: stacked.rows, merges: stacked.merges, colWidths: stacked.colWidths });
       }
     } else {
-      for (const n of named) sheets.push({ name: n.name, ...sheetFromGrid(n.grid, flags).sheet });
+      for (const g of live) sheets.push({ name: g.name ?? "Sheet", ...sheetFromGrid(g, flags).sheet });
     }
     for (const part of parts) text.push(...textRows(part.rest, part.page, part.furniture));
   } else {
+    tables = 0;
     for (const part of parts) {
       const items = [
-        ...part.grids.map((grid) => ({ y: grid.y0, item: { kind: "grid" as const, grid } })),
+        ...part.grids.filter((g) => live.includes(g)).map((grid) => ({ y: grid.y0, item: { kind: "grid" as const, grid } })),
         ...(options.includeText
           ? textRows(part.rest, part.page, part.furniture).map((row) => ({ y: row.y - 8, item: { kind: "text" as const, text: row.text } }))
           : []),
       ].sort((a, b) => a.y - b.y);
-      tables += part.grids.length;
+      tables += part.grids.filter((g) => live.includes(g)).length;
       const stacked = stack(items.map((i) => i.item), flags);
       if (stacked.rows.length) sheets.push({ name: `Page ${part.page}`, ...stacked });
     }
@@ -199,6 +234,10 @@ export function buildWorkbook(parts: PageParts[], options: ExcelOptions, title: 
   return { book: { title, sheets }, tables, notes };
 }
 
+export function buildWorkbook(parts: PageParts[], options: ExcelOptions, title: string): BuildResult {
+  return render(prepare(parts, options, title));
+}
+
 /** Everything from page inputs to workbook; the browser and the tests both come through here. */
 export function pagesToWorkbook(
   inputs: PageInput[],
@@ -207,4 +246,8 @@ export function pagesToWorkbook(
   title: string,
 ): BuildResult {
   return buildWorkbook(readPages(inputs, pageNumbers), options, title);
+}
+
+export function pagesToPrepared(inputs: PageInput[], pageNumbers: number[], options: ExcelOptions, title: string): Prepared {
+  return prepare(readPages(inputs, pageNumbers), options, title);
 }

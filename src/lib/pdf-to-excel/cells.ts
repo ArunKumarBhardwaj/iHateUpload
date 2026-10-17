@@ -129,7 +129,7 @@ const TEXT_HEADER = /\b(zip|postal|post\s*code|id|ids|code|phone|tel|fax|account
  * Types one column. Slash dates need the other rows to tell day first from month first,
  * and columns named like identifiers keep their digits as text.
  */
-export function typeColumn(texts: string[], header?: string): Typed[] {
+export function typeColumn(texts: string[], header?: string, fallbackOrder?: "dmy" | "mdy"): Typed[] {
   const idLike = !!header && TEXT_HEADER.test(header);
   const typed = texts.map(parseCell);
   const slashes = typed.filter((t): t is Extract<Typed, { kind: "slash" }> => t.kind === "slash");
@@ -140,6 +140,7 @@ export function typeColumn(texts: string[], header?: string): Typed[] {
     if (dayFirst && !monthFirst) order = "dmy";
     else if (monthFirst && !dayFirst) order = "mdy";
   }
+  order ??= fallbackOrder ?? null;
   return typed.map((t, i): Typed => {
     if (t.kind === "slash") {
       if (!order) return { kind: "text", text: t.text };
@@ -150,5 +151,30 @@ export function typeColumn(texts: string[], header?: string): Typed[] {
     }
     if (idLike && t.kind === "number" && !/[.,%$€£¥₹()]/.test(texts[i])) return { kind: "text", text: texts[i].trim() };
     return t;
+  });
+}
+
+/** What a column holds, as the person can set it. "auto" lets the text decide. */
+export type ColType = "auto" | "text" | "number" | "date" | "currency" | "percent";
+
+const decimalsOf = (fmt: string) => /\.(0+)/.exec(fmt)?.[1].length ?? 0;
+const asText = (t: string): Typed => (t.trim() ? { kind: "text", text: t } : { kind: "blank" });
+
+/** Type a column the way the person asked. Cells that do not fit the type stay text. */
+export function typeAs(texts: string[], type: ColType, header?: string): Typed[] {
+  if (type === "auto") return typeColumn(texts, header);
+  if (type === "text") return texts.map(asText);
+  if (type === "date") {
+    return typeColumn(texts, undefined, "mdy").map((t, i) => (t.kind === "date" ? t : asText(texts[i])));
+  }
+  return texts.map((raw): Typed => {
+    // Asked for a number, a code like 00123 is the number 123.
+    const t = /^\s*\d+\s*$/.test(raw) ? { kind: "number" as const, value: Number(raw), fmt: "0" } : parseCell(raw);
+    if (t.kind !== "number") return asText(raw);
+    if (type === "number") return t;
+    if (type === "currency") return t.fmt.includes('"') ? t : { ...t, fmt: `"$"#,##0.${"0".repeat(Math.max(2, decimalsOf(t.fmt)))}` };
+    if (t.fmt.includes("%")) return t;
+    const d = decimalsOf(t.fmt);
+    return { kind: "number", value: Math.round((t.value / 100) * 1e10) / 1e10, fmt: `0${d ? "." + "0".repeat(d) : ""}%` };
   });
 }

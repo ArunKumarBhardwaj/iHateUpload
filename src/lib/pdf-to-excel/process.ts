@@ -89,7 +89,7 @@ export async function processPdfToExcel(
         });
       } else {
         const blob = new Blob([result.bytes as BlobPart], { type: XLSX_TYPE });
-        results.push({ id: crypto.randomUUID(), name: `${name}.xlsx`, size: blob.size, blob, originalSize: item.size, note });
+        results.push({ id: crypto.randomUUID(), name: `${name}.xlsx`, size: blob.size, blob, originalSize: item.size, note, editor: result.editor });
       }
     } finally {
       const open = reader as PageReader | null;

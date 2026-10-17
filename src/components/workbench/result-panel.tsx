@@ -3,6 +3,7 @@
 import { Check, Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ExcelPreview } from "@/components/workbench/excel-preview";
 import type { ResultItem } from "@/lib/job";
 import type { ToolDefinition } from "@/lib/tools";
 import { downloadBlob, formatBytes } from "@/lib/utils";
@@ -106,6 +107,10 @@ export function ResultPanel({
           </li>
         ))}
       </ul>
+
+      {results.filter((result) => result.editor).map((result) => (
+        <ExcelPreview key={result.id} result={result} />
+      ))}
 
       {continueTargets.length > 0 && (
         <div className="space-y-2 border-t border-ink/10 pt-4">
