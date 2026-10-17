@@ -65,7 +65,7 @@ export async function convertPdfToExcel(
     onProgress(base + share * 0.95);
   }
 
-  const editor = createEditor(pagesToPrepared(inputs, numbers, options, title));
+  const editor = createEditor(pagesToPrepared(inputs, numbers, options, title, scanned.filter((n) => !unreadable.includes(n))));
   const built = await editor.build();
   const notes = [...built.notes];
   if (scanned.length && !unreadable.length) {

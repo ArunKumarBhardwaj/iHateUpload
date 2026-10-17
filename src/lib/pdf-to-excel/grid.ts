@@ -3,6 +3,7 @@
  * joins tables that run across pages and names each one from the heading above it.
  */
 import type { ColType } from "./cells";
+import { fixOcrGrid } from "./ocr-fix";
 import { applyDecorations } from "../pdf-to-word/decorations";
 import { buildLines, lineText, type Fill, type Line, type PageInput } from "../pdf-to-word/lines";
 import { detectBorderlessTables, detectRuledTables, type GridCell, type TableEl } from "../pdf-to-word/tables";
@@ -174,7 +175,7 @@ function joinNeighbours(grids: Grid[]): Grid[] {
   return out;
 }
 
-export function readPages(inputs: PageInput[], pageNumbers: number[]): PageParts[] {
+export function readPages(inputs: PageInput[], pageNumbers: number[], scanned: number[] = []): PageParts[] {
   const lineSets = inputs.map((p) => buildLines(p.items));
   const furnitureByPage = furnitureKeys(lineSets, inputs.map((p) => p.height));
   return inputs.map((input, index) => {
@@ -198,6 +199,7 @@ export function readPages(inputs: PageInput[], pageNumbers: number[]): PageParts
     for (const g of grids) {
       g.heading = headingOf(rest, g, bodySize, floor);
       rest = extendDown(g, rest, furniture);
+      if (scanned.includes(page)) fixOcrGrid(g);
       floor = g.y1;
     }
     return { page, height: input.height, grids, rest, furniture };

@@ -6,7 +6,7 @@ for (const [name, psm] of [["AUTO", PSM.AUTO], ["SINGLE_BLOCK", PSM.SINGLE_BLOCK
   await worker.setParameters({ tessedit_pageseg_mode: psm });
   const t0 = performance.now();
   const { data } = await worker.recognize(process.argv[2]);
-  const text = data.text.split("\n").filter((l) => /bowl|qt|gt/i.test(l));
+  const text = data.text.split("\n").filter((l) => /oil|filter|clamp|fluid/i.test(l));
   console.log(name, Math.round(performance.now() - t0), "ms", JSON.stringify(text));
   await worker.terminate();
 }

@@ -87,19 +87,52 @@ writeFileSync(
     1,
   ),
 );
-// scan-invoice: the shared corpus invoice rasterised, so its table exists only as a picture (needs macOS swift)
-{
-  const corpus = join(dirname(fileURLToPath(import.meta.url)), "../pdf-to-word/realistic");
+// parts: small type and letters and digits that scanners confuse (q/g, 0/O, 1/l, 5/S, 8/B)
+const pd = await PDFDocument.create();
+const pr = await pd.embedFont(StandardFonts.Helvetica);
+const pb = await pd.embedFont(StandardFonts.HelveticaBold);
+const pp = pd.addPage([612, 792]);
+pp.drawText("Spare Parts", { x: 54, y: 730, size: 14, font: pb });
+const partsRows = [
+  ["Part", "Size", "Qty", "Price"],
+  ["Oil filter", "12 qt", "1,508", "$1,058.05"],
+  ["Hose clamp", "5 gal", "80", "$88.50"],
+  ["Gasket kit", "16 oz", "505", "$5.55"],
+  ["Brake fluid", "2 qt", "1,100", "$180.15"],
+  ["Coolant", "10 gal", "65", "$1,615.00"],
+  ["Grease tube", "8 oz", "3,005", "$2.95"],
+  ["Wiper blade", "20 in", "118", "$16.80"],
+  ["Spark plug", "1 lb", "950", "$8.05"],
+];
+const px = [54, 170, 290, 360];
+partsRows.forEach((row, r) =>
+  row.forEach((text, c) => {
+    const font = r === 0 ? pb : pr;
+    const w = font.widthOfTextAtSize(text, 8);
+    pp.drawText(text, { x: c >= 2 ? px[c] + 60 - w : px[c], y: 700 - r * 13, size: 8, font });
+  }),
+);
+writeFileSync(join(OUT, "parts.pdf"), await pd.save());
+writeFileSync(join(OUT, "parts.truth.json"), JSON.stringify({ name: "parts", tables: [{ rows: partsRows.map((row) => row.map((t) => cell(t))) }] }, null, 1));
+
+// Scanned versions: each page of a PDF rasterised at a modest resolution and put back as a picture (needs macOS swift).
+const realistic = join(dirname(fileURLToPath(import.meta.url)), "../pdf-to-word/realistic");
+async function scan(source: string, name: string, width: number, truth: string) {
   const tmp = join(OUT, ".scan");
-  const run = spawnSync("swift", [join(corpus, "pdf2png.swift"), join(corpus, "corpus/invoice.pdf"), tmp, "1700"]);
-  if (run.status === 0) {
-    const scan = await PDFDocument.create();
-    const img = await scan.embedPng(readFileSync(join(tmp, "p1.png")));
-    const page = scan.addPage([612, 792]);
-    page.drawImage(img, { x: 0, y: 0, width: 612, height: 792 });
-    writeFileSync(join(OUT, "scan-invoice.pdf"), await scan.save());
-    copyFileSync(join(corpus, "corpus/invoice.truth.json"), join(OUT, "scan-invoice.truth.json"));
-    rmSync(tmp, { recursive: true, force: true });
-  } else console.log("skipped scan-invoice (swift not available)");
+  rmSync(tmp, { recursive: true, force: true });
+  const run = spawnSync("swift", [join(realistic, "pdf2png.swift"), source, tmp, String(width)]);
+  if (run.status !== 0) return console.log(`skipped ${name} (swift not available)`);
+  const out = await PDFDocument.create();
+  const pages = Number(/pages=(\d+)/.exec(String(run.stdout))?.[1] ?? 1);
+  for (let i = 1; i <= pages; i++) {
+    const img = await out.embedPng(readFileSync(join(tmp, `p${i}.png`)));
+    out.addPage([612, 792]).drawImage(img, { x: 0, y: 0, width: 612, height: 792 });
+  }
+  writeFileSync(join(OUT, `${name}.pdf`), await out.save());
+  copyFileSync(truth, join(OUT, `${name}.truth.json`));
+  rmSync(tmp, { recursive: true, force: true });
 }
+await scan(join(realistic, "corpus/invoice.pdf"), "scan-invoice", 1700, join(realistic, "corpus/invoice.truth.json"));
+await scan(join(OUT, "parts.pdf"), "scan-parts", 1100, join(OUT, "parts.truth.json"));
+await scan(join(OUT, "orders.pdf"), "scan-orders", 1250, join(OUT, "orders.truth.json"));
 console.log("wrote", OUT);

@@ -307,6 +307,12 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     setJob(next.length === 0 ? idleJob() : { status: "ready", files: next });
   }, []);
 
+  /** PDF to Excel: fetch its code and start pdf.js while the person is still choosing options. */
+  useEffect(() => {
+    if (tool.id !== "pdf-to-excel") return;
+    void import("@/lib/pdf-to-excel/process").then((m) => m.warmUp());
+  }, [tool.id]);
+
   /**
    * The handoff is a one-shot module value the previous tool left behind. It
    * only exists on the client, so reading it in a state initialiser would

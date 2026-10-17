@@ -45,9 +45,11 @@ async function convertOnce(side, file) {
     await page.locator("input[type=file]").first().setInputFiles(file);
     const download = page.waitForEvent("download", { timeout: 120000 }); download.catch(() => {});
     if (side === "ours") {
+      const tClick = performance.now();
       await page.getByRole("button", { name: /Convert to Excel/ }).click();
       const dl = page.getByRole("button", { name: /^\s*Download/i }).or(page.getByRole("link", { name: /^\s*Download/i })).first();
       await dl.waitFor({ state: "visible", timeout: 120000 });
+      if (process.env.PHASES) console.log("  upload->click", Math.round(tClick - t0), "click->ready", Math.round(performance.now() - tClick));
       await dl.click();
       const d = await download;
       return { ms: performance.now() - t0, bytes: readFileSync(await d.path()), errors };

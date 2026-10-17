@@ -9,7 +9,7 @@ import { readSheets, scoreWorkbook, type TruthTable } from "./score";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DOCS: { name: string; dir: string }[] = [
   ...["invoice", "bank-statement", "spreadsheet", "receipt", "report-chart"].map((name) => ({ name, dir: join(HERE, "../pdf-to-word/realistic/corpus") })),
-  ...["ledger", "orders", "scan-invoice"].map((name) => ({ name, dir: join(HERE, "corpus") })),
+  ...["ledger", "orders", "parts", "scan-invoice", "scan-parts", "scan-orders"].map((name) => ({ name, dir: join(HERE, "corpus") })),
 ];
 const timings: Record<string, number | null> = existsSync(join(HERE, "results/timings.json"))
   ? JSON.parse(readFileSync(join(HERE, "results/timings.json"), "utf8"))

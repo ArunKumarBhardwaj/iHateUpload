@@ -2,10 +2,20 @@ import { loadPdfJs } from "@/lib/pdfjs";
 import type { FileItem, ResultItem } from "@/lib/job";
 import type { ToolOptions } from "@/lib/tool-options";
 
-import { createPageReader, type PageReader } from "../pdf-to-word/ocr";
+import type { PageReader } from "../pdf-to-word/ocr";
 import { renderPageCanvas } from "../pdf-to-word/raster";
+import { createTableReader } from "./ocr";
 import { sheetToCsv } from "./csv";
 import { convertPdfToExcel, type ConvertDeps } from "./index";
+
+type PdfWorker = InstanceType<Awaited<ReturnType<typeof loadPdfJs>>["PDFWorker"]>;
+let spare: Promise<PdfWorker> | null = null;
+
+/** Start pdf.js's worker before it is needed; the first file then skips the start-up wait. */
+export function warmUp(): void {
+  spare ??= loadPdfJs().then((pdfjs) => new pdfjs.PDFWorker());
+  spare.catch(() => (spare = null));
+}
 
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -28,7 +38,8 @@ export async function processPdfToExcel(
 
     let pdf;
     try {
-      pdf = await pdfjs.getDocument({ data, fontExtraProperties: true }).promise;
+      const worker = await spare?.catch(() => undefined);
+      pdf = await pdfjs.getDocument({ data, fontExtraProperties: true, worker: worker && !worker.destroyed ? worker : undefined }).promise;
     } catch (error) {
       if ((error as { name?: string }).name === "PasswordException") {
         throw new Error(`${item.name} is locked. Unlock it first, then convert.`);
@@ -41,17 +52,26 @@ export async function processPdfToExcel(
     const deps: ConvertDeps = {
       OPS: pdfjs.OPS as unknown as Record<string, number>,
       readScan: async (page, _pageNo, progress) => {
-        onPage = progress;
-        reader ??= await createPageReader(options.language, (r) => onPage(r));
+        reader ??= await createTableReader(options.language, (r) => onPage(r));
         const base = page.getViewport({ scale: 1 });
-        // Tables are small type; a larger raster reads digits and letters like q and g more reliably.
-        const scale = Math.min(4, 4400 / Math.max(base.width, base.height));
-        const canvas = await renderPageCanvas(page, scale);
-        try {
-          return await reader.read(canvas, scale, base.height);
-        } finally {
-          canvas.width = canvas.height = 0;
-        }
+        const longest = Math.max(base.width, base.height);
+        const read = async (scale: number, from: number, to: number) => {
+          onPage = (r) => progress(from + (to - from) * r);
+          const canvas = await renderPageCanvas(page, scale);
+          try {
+            return await reader!.read(canvas, scale, base.height);
+          } finally {
+            canvas.width = canvas.height = 0;
+          }
+        };
+        // A quick look at 2x tells how big the type is; small type is read again larger.
+        const first = Math.min(2, 2400 / longest);
+        const items = await read(first, 0, 0.3);
+        const sizes = items.map((i) => i.size).sort((a, b) => a - b);
+        const typical = sizes[Math.floor(sizes.length / 2)];
+        const want = typical ? Math.min(5, 5200 / longest, Math.max(2.5, 32 / (0.72 * typical))) : Math.min(3, 3600 / longest);
+        if (want <= first * 1.25) return items;
+        return read(want, 0.3, 1);
       },
     };
 

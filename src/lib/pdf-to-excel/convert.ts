@@ -248,6 +248,6 @@ export function pagesToWorkbook(
   return buildWorkbook(readPages(inputs, pageNumbers), options, title);
 }
 
-export function pagesToPrepared(inputs: PageInput[], pageNumbers: number[], options: ExcelOptions, title: string): Prepared {
-  return prepare(readPages(inputs, pageNumbers), options, title);
+export function pagesToPrepared(inputs: PageInput[], pageNumbers: number[], options: ExcelOptions, title: string, scanned: number[] = []): Prepared {
+  return prepare(readPages(inputs, pageNumbers, scanned), options, title);
 }
