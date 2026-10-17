@@ -60,7 +60,7 @@ export interface Para {
   title?: boolean;
   /** extra left indent in points (non-list paragraphs) */
   indent: number;
-  marker?: { label: string; level: number };
+  marker?: { label: string; level: number; base?: number; step?: number };
   spacing?: Spacing;
   base?: ParaBase;
   /** true when `base` and `spacing` came from the docx's own styles */

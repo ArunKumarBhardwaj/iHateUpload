@@ -338,7 +338,7 @@ function paraItems(p: Para, width: number, ctx: Ctx): Item[] {
     ];
   }
   const level = p.marker?.level ?? 0;
-  const textX = p.marker ? LIST_BASE + LIST_STEP * level : p.indent;
+  const textX = p.marker ? (p.marker.base ?? LIST_BASE) + (p.marker.step ?? LIST_STEP) * level : p.indent;
   const avail = Math.max(20, width - textX - (p.box ? BOX_PAD : 0));
   const atoms = atomise(p, ctx, avail);
   const lines = breakLines(atoms, avail, ctx);
@@ -414,7 +414,7 @@ function paraItems(p: Para, width: number, ctx: Ctx): Item[] {
 // ---- tables ---------------------------------------------------------------------------------
 
 function paraWidths(p: Para, ctx: Ctx, avail: number): { min: number; max: number } {
-  const textX = p.marker ? LIST_BASE + LIST_STEP * p.marker.level : p.indent;
+  const textX = p.marker ? (p.marker.base ?? LIST_BASE) + (p.marker.step ?? LIST_STEP) * p.marker.level : p.indent;
   const atoms = atomise(p, ctx, avail);
   let min = 0;
   let max = 0;
