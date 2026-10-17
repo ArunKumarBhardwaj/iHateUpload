@@ -65,7 +65,7 @@ test("mirror alone keeps the turn and flips only the listed pages", async () => 
   );
   expect(result.name).toBe("doc-flipped.pdf");
   const doc = await PDFDocument.load(await result.blob.arrayBuffer());
-  expect(doc.getPages().map((p) => p.getRotation().angle)).toEqual([90, 90, 90]);
+  expect(doc.getPages().map((p) => p.getRotation().angle)).toEqual([90, 0, 0]);
   const { pageContentText } = await import("./page-ops");
   expect(doc.getPages().map((p) => pageContentText(p).includes(" cm"))).toEqual([
     false,

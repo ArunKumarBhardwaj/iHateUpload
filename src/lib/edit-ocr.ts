@@ -1,4 +1,8 @@
-import { wordsFromOcrBlocks, type OcrWord } from "@/lib/ocr-words";
+import {
+  OCR_RECOGNIZE_OUTPUT,
+  wordsFromOcrBlocks,
+  type OcrWord,
+} from "@/lib/ocr-words";
 
 type TessWorker = Awaited<ReturnType<(typeof import("tesseract.js"))["createWorker"]>>;
 
@@ -11,7 +15,11 @@ export async function recognizePageWords(image: Blob): Promise<OcrWord[]> {
     );
   }
   const worker = await workerPromise;
-  const recognized = await worker.recognize(image);
+  const recognized = await worker.recognize(
+    image,
+    {},
+    { ...OCR_RECOGNIZE_OUTPUT, pdf: false },
+  );
   return wordsFromOcrBlocks(
     recognized.data.blocks as Parameters<typeof wordsFromOcrBlocks>[0],
   );

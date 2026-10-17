@@ -79,7 +79,7 @@ Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, auto PII redaction, 
 | Sign PDF | Draw, type, stamp | Draw, type, photo | ❔ | |
 | Edit PDF text | Click a line to edit, OCR for scans | Click text to edit | ❔ | |
 | Crop / page size | Crop PDF, Page Size | Crop & Resize | ❔ | |
-| Redact PDF | Manual boxes, pixels burned out | Manual + automatic PII finder (Aadhaar, PAN, cards, IFSC) | ⚠️ | Their auto-redact page, 2026-10-12 |
+| Redact PDF | Manual boxes + automatic PII finder (11 types, checksum-validated, OCR for scans, per-item review), pixels burned out | Automatic finder: Aadhaar (no checksum), PAN, IFSC, email, bank, DOB; no cards, phones, IBAN, SSN; no OCR | ✅ | bench/redact head-to-head, 2026-10-17 |
 | Compare PDFs | Side by side + text diff | Yes | ❔ | |
 | Extract text / Extract images | Yes | Yes | ❔ | |
 | Headers and footers | Yes | Yes | ❔ | |
