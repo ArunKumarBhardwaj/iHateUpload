@@ -64,6 +64,18 @@ test("bates stamps real selectable text, ABC000001 up", async () => {
   expect(result.note).toBe("ABC000001 to ABC000003");
 });
 
+test("a production log lists every file with its first and last number", async () => {
+  const results = await bates([await item(3, "one.pdf"), await item(2, "two.pdf")], {});
+  expect(results.length).toBe(3);
+  const log = results[2];
+  expect(log.name).toBe("bates-production-log.csv");
+  expect(await log.blob.text()).toBe(
+    '"Source file","Stamped file","First Bates","Last Bates","Pages"\r\n' +
+      '"one.pdf","one-bates.pdf","ABC000001","ABC000003","3"\r\n' +
+      '"two.pdf","two-bates.pdf","ABC000004","ABC000005","2"\r\n',
+  );
+});
+
 test("numbering runs on across files in the order given", async () => {
   const results = await bates([await item(3, "one.pdf"), await item(2, "two.pdf")], {
     batesPrefix: "CASE-",

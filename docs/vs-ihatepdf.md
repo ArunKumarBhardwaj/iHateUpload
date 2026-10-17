@@ -70,7 +70,7 @@ Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, auto PII redaction, 
 | PDF to Word: slide / cover backgrounds | Kept behind text | Lost in both modes | ✅ | slides.pdf visual 0.40 vs 0.26, 2026-10-17 |
 | PDF to Word: comments from annotations | No | Yes (7 annotation types, highlights as shading) | ❌ | Teardown, 2026-10-17 |
 | Merge PDF | Yes | Yes | 🟰 | Same pages, order and links; both drop bookmarks; ours 0.10 s vs 0.20 s. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
-| Split PDF | Pages, ranges, in half, by size | Same plus by bookmarks and by text | ⚠️ | Their sitemap; our `SPLIT_MODES`. 2026-10-17 |
+| Split PDF | Pages, ranges, in half, by size | Same plus by bookmarks (depth, per-bookmark toggles) and by text (regex, case, whole word), both with a parts preview | ✅ | bench/pdf-tools/h2h.mjs, synthetic files, 2026-10-17 |
 | PDF to JPG / PNG | 72 / 150 / 300 / 600 DPI (true 600 on desktop: Letter = 5100×6600), JPG quality Smaller/Balanced/Best, JPG or PNG, page ranges, ZIP | Up to 600 DPI, quality slider, PNG toggle | 🟰 | Same options; ours 600 DPI page in ~0.6 s, 1.36 MB. `.scratch/head-to-head-2026-10-17.md` + lead check, 2026-10-17 |
 | Images to PDF (JPG, PNG, HEIC) | Image to PDF, PNG to PDF, HEIC to PDF | Images to PDF (no HEIC) | 🟰 | Same page sizing and size (841 vs 840 KB); neither has options. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Protect / Unlock PDF | Yes | Encrypt, Remove password | ❔ | |
@@ -83,13 +83,13 @@ Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, auto PII redaction, 
 | Compare PDFs | Side by side + text diff | Yes | ❔ | |
 | Extract text / Extract images | Yes | Yes | ❔ | |
 | Headers and footers | Yes | Yes | ❔ | |
-| Page numbers | Formats + ranges | Yes (+ Bates numbering) | ❔ | |
+| Page numbers | Formats + ranges | Yes, plus Bates numbering across files with production log CSV | ✅ | bench/pdf-tools/h2h.mjs, 2026-10-17 |
 | Watermark | Opacity, size, angle, colour, single or tiled, page range, live preview; text stays selectable | Opacity, size, angle, colour, tiling, live preview | 🟰 | Feature parity; page range is ours only. `.scratch/head-to-head-2026-10-17.md` + lead check, 2026-10-17 |
 | Pages per sheet (N-up) | Yes | Yes | ❔ | |
 | Invert / grayscale | Yes | Invert | ❔ | |
 | Flatten PDF | Yes | Yes | ❔ | |
 | OCR PDF | Tesseract 7, 11 languages, skips pages that already have text, .txt output | Tesseract 5, ~22 languages, auto-detect, page range | 🟰 | 42/42 words both, ~2.4 s vs 2.6 s. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
-| Metadata | Strip only | Edit | ⚠️ | Their edit-pdf-metadata page, 2026-10-17 |
+| Metadata | Strip, or edit fields | Edit all Info fields, custom keys, XMP kept in step; strip wipes XMP too | ✅ | Their edit leaves stale XMP (h2h metadata-xmp), 2026-10-17 |
 | Word to PDF | Follows the docx: theme fonts (Calibri→Carlito, Cambria→Caladea), heading colours, spacing, table width/grid/shading, image size; lists, links, page breaks; selectable text; ~0.07 s | Same fidelity on the test file, selectable text; ~0.8 s; smaller files | 🟰 | Same synthetic docx rendered side by side: same line breaks, colours, table and image. Ours faster, theirs smaller (108 KB vs 226 KB, we embed fonts whole). Lead check, 2026-10-17 |
 | Excel / PowerPoint to PDF | Yes | Yes | ❔ | |
 | Markdown / CSV / HTML to PDF | Yes | Yes | ❔ | |

@@ -3,9 +3,8 @@ import { writeFileSync } from "node:fs";
 
 import { PDFDocument, PDFHexString, PDFName } from "@cantoo/pdf-lib";
 
-import { infoDict } from "../../src/lib/pdf-meta";
-
-import { textPdf } from "../../src/lib/pdf-fixtures";
+import { SAMPLE_XMP, textPdf } from "../../src/lib/pdf-fixtures";
+import { infoDict, setXmpPacket } from "../../src/lib/pdf-meta";
 
 const out = process.argv[2] ?? "bench/pdf-tools/fixtures";
 
@@ -64,3 +63,13 @@ meta.setCreationDate(new Date("2020-01-02T03:04:05Z"));
 meta.setModificationDate(new Date("2021-06-07T08:09:10Z"));
 infoDict(meta).set(PDFName.of("Department"), PDFHexString.fromText("Finance"));
 writeFileSync(`${out}/meta.pdf`, await meta.save());
+
+setXmpPacket(meta, SAMPLE_XMP);
+writeFileSync(`${out}/meta-xmp.pdf`, await meta.save());
+
+// 300 pages, 30 chapters of 10 pages: a long file for the speed comparison.
+const bigTexts = Array.from({ length: 300 }, (_, i) =>
+  i % 10 === 0 ? `Chapter ${i / 10 + 1} opens here\nbody ${i + 1}` : `Body page ${i + 1}\nlorem ipsum dolor ${i}`,
+);
+const bigOutline = Array.from({ length: 30 }, (_, c) => ({ title: `Chapter ${c + 1}`, page: c * 10 }));
+writeFileSync(`${out}/big.pdf`, await textPdf(bigTexts, bigOutline));

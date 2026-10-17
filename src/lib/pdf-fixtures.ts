@@ -73,3 +73,17 @@ export async function textPdf(texts: string[], outline?: OutlineSpec[]) {
   if (outline) addOutline(doc, outline);
   return doc.save();
 }
+
+/** An XMP packet that agrees with the metadata fixture, plus a foreign `acme:` property. */
+export const SAMPLE_XMP = `<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:pdf="http://ns.adobe.com/pdf/1.3/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:acme="http://example.com/acme/" acme:Secret="keep me">
+<dc:title><rdf:Alt><rdf:li xml:lang="x-default">Quarterly Plan</rdf:li></rdf:Alt></dc:title>
+<dc:creator><rdf:Seq><rdf:li>Test Author</rdf:li></rdf:Seq></dc:creator>
+<dc:description><rdf:Alt><rdf:li xml:lang="x-default">Synthetic &amp; fake</rdf:li></rdf:Alt></dc:description>
+<pdf:Keywords>alpha, beta</pdf:Keywords>
+<pdf:Producer>Fixture Producer</pdf:Producer>
+<xmp:CreatorTool>Fixture Maker</xmp:CreatorTool>
+<xmp:CreateDate>2020-01-02T03:04:05Z</xmp:CreateDate>
+<xmp:ModifyDate>2021-06-07T08:09:10Z</xmp:ModifyDate>
+</rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="w"?>`;

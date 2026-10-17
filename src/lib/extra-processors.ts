@@ -490,6 +490,7 @@ async function processBatesPdf(
   }
   const [red, green, blue] = parseHexColor(options.color);
   const results: ResultItem[] = [];
+  const log: string[][] = [];
   let counter = options.startAt;
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
@@ -544,9 +545,32 @@ async function processBatesPdf(
     );
     result.note = `${batesLabel(options, first)} to ${batesLabel(options, counter - 1)}`;
     results.push(result);
+    log.push([
+      item.name,
+      result.name,
+      batesLabel(options, first),
+      batesLabel(options, counter - 1),
+      String(stamped),
+    ]);
     onProgress((i + 1) / files.length);
   }
+  results.push(batesLog(log));
   return results;
+}
+
+/** The production log lawyers file with a Bates set: one CSV row per file. */
+function batesLog(rows: string[][]): ResultItem {
+  const quote = (text: string) => `"${text.replace(/"/g, '""')}"`;
+  const head = ["Source file", "Stamped file", "First Bates", "Last Bates", "Pages"];
+  const csv = [head, ...rows].map((row) => row.map(quote).join(",")).join("\r\n");
+  const blob = new Blob([`${csv}\r\n`], { type: "text/csv" });
+  return {
+    id: crypto.randomUUID(),
+    name: "bates-production-log.csv",
+    size: blob.size,
+    blob,
+    originalSize: blob.size,
+  };
 }
 
 export async function processAnnotatePdf(
