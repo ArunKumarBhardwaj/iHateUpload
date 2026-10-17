@@ -9,7 +9,15 @@ import {
   PDFRef,
 } from "@cantoo/pdf-lib";
 
+import {
+  binarize,
+  isColorful,
+  lumaOf,
+  shrinkLuma,
+  unpackGray1,
+} from "@/lib/bilevel";
 import { TARGET_LADDER, type CompressPlan } from "@/lib/compress-plans";
+import { encodeJbig2Best } from "@/lib/jbig2";
 import { stripPdfMetadata } from "@/lib/pdf-meta";
 import { scanImagePlacements, type Placement } from "@/lib/pdf-placements";
 
@@ -31,6 +39,8 @@ const RESAMPLE_BELOW = 0.85;
 /** A rewrite has to save at least 5% to be worth swapping in. */
 const KEEP_IF_UNDER = 0.95;
 const PHOTO_COLOR_FLOOR = 256;
+/** Grey images top out at 256 tones, so photos show up with fewer. */
+const PHOTO_GRAY_FLOOR = 96;
 
 export type CompressStats = {
   images: number;
@@ -151,7 +161,7 @@ function fromRgba(pixels: Pixels, ch: 1 | 3): Uint8Array {
  * Flat graphics, charts, and screenshots have few distinct colors; JPEG
  * blurs their edges, so they stay lossless.
  */
-export function looksPhotographic(pixels: Pixels): boolean {
+export function looksPhotographic(pixels: Pixels, colorFloor = PHOTO_COLOR_FLOOR): boolean {
   const count = pixels.width * pixels.height;
   const step = Math.max(1, Math.floor(count / 8192));
   const seen = new Set<number>();
@@ -160,7 +170,7 @@ export function looksPhotographic(pixels: Pixels): boolean {
     seen.add(
       (pixels.data[o] << 16) | (pixels.data[o + 1] << 8) | pixels.data[o + 2],
     );
-    if (seen.size >= PHOTO_COLOR_FLOOR) return true;
+    if (seen.size >= colorFloor) return true;
   }
   return false;
 }
@@ -252,6 +262,25 @@ function setImage(
   dict.set(PDFName.of("Length"), doc.context.obj(bytes.length));
 }
 
+/** Swaps in a 1-bit JBIG2 stream; ink is sample 0, as DeviceGray reads it. */
+function setBilevelImage(
+  doc: PDFDocument,
+  stream: PDFRawStream,
+  bytes: Uint8Array,
+  width: number,
+  height: number,
+) {
+  stream.contents = bytes;
+  const { dict } = stream;
+  dict.set(PDFName.of("Width"), doc.context.obj(width));
+  dict.set(PDFName.of("Height"), doc.context.obj(height));
+  dict.set(PDFName.of("ColorSpace"), PDFName.of("DeviceGray"));
+  dict.set(PDFName.of("BitsPerComponent"), doc.context.obj(1));
+  dict.set(PDFName.of("Filter"), PDFName.of("JBIG2Decode"));
+  dict.delete(PDFName.of("DecodeParms"));
+  dict.set(PDFName.of("Length"), doc.context.obj(bytes.length));
+}
+
 /** Shrinks a gray soft mask to match its parent's new pixel size. */
 async function resizeSoftMask(
   doc: PDFDocument,
@@ -288,6 +317,74 @@ async function resizeSoftMask(
   }
 }
 
+/**
+ * Scanned text as 1-bit JBIG2. Returns null when the image is a photo,
+ * carries colour, or the result would not be smaller, so the caller can
+ * fall back to the JPEG/Flate route.
+ */
+function tryBilevel(
+  doc: PDFDocument,
+  stream: PDFRawStream,
+  pixels: Pixels,
+  placement: Placement,
+  plan: CompressPlan,
+): "rewritten" | "resampled" | null {
+  if (isColorful(pixels)) return null;
+  const size = targetSize(pixels.width, pixels.height, placement, plan.bilevelDpi);
+  const luma = shrinkLuma(lumaOf(pixels), pixels.width, pixels.height, size.width, size.height);
+  const result = binarize(luma, size.width, size.height);
+  if (!result.bilevel) return null;
+  const bytes = encodeJbig2Best(result.ink, size.width, size.height, plan.matchLetters);
+  if (bytes.length >= stream.contents.length * KEEP_IF_UNDER) return null;
+  setBilevelImage(doc, stream, bytes, size.width, size.height);
+  return size.width !== pixels.width || size.height !== pixels.height ? "resampled" : "rewritten";
+}
+
+/**
+ * Images already 1-bit. They keep every pixel unless the plan lets scans
+ * drop to a lower resolution and the page really is text, not halftone.
+ */
+function recodeOneBit(
+  doc: PDFDocument,
+  stream: PDFRawStream,
+  width: number,
+  height: number,
+  chain: string[],
+  placement: Placement,
+  plan: CompressPlan,
+): "skipped" | "kept" | "rewritten" | "resampled" {
+  if (!chain.every((f) => TRANSPORT_FILTERS.has(f))) return "skipped";
+  let raw: Uint8Array;
+  try {
+    raw = undoFilters(stream, chain);
+  } catch {
+    return "skipped";
+  }
+  if (raw.length < ((width + 7) >> 3) * height) return "skipped";
+  let ink = unpackGray1(raw, width, height);
+  let outW = width;
+  let outH = height;
+  let outcome: "rewritten" | "resampled" = "rewritten";
+  if (plan.bilevelDpi > 0) {
+    const size = targetSize(width, height, placement, plan.bilevelDpi);
+    if (size.width !== width || size.height !== height) {
+      const grey = new Uint8Array(ink.length);
+      for (let i = 0; i < ink.length; i++) grey[i] = ink[i] ? 0 : 255;
+      const small = binarize(shrinkLuma(grey, width, height, size.width, size.height), size.width, size.height);
+      if (small.bilevel) {
+        ink = small.ink;
+        outW = size.width;
+        outH = size.height;
+        outcome = "resampled";
+      }
+    }
+  }
+  const bytes = encodeJbig2Best(ink, outW, outH, plan.matchLetters);
+  if (bytes.length >= stream.contents.length * KEEP_IF_UNDER) return "kept";
+  setBilevelImage(doc, stream, bytes, outW, outH);
+  return outcome;
+}
+
 async function compressImage(
   doc: PDFDocument,
   stream: PDFRawStream,
@@ -301,13 +398,17 @@ async function compressImage(
   const ch = channels(doc, dict);
   const chain = filterChain(dict);
   if (!width || !height || !ch || !chain) return "skipped";
-  if (num(dict, "BitsPerComponent") !== 8) return "skipped";
+  const bits = num(dict, "BitsPerComponent");
+  if (bits !== 8 && !(bits === 1 && ch === 1)) return "skipped";
   if (dict.has(PDFName.of("ImageMask")) || dict.has(PDFName.of("Decode"))) {
     return "skipped";
   }
   // Color-key masks match exact sample values, which lossy output breaks.
   if (dict.lookup(PDFName.of("Mask")) instanceof PDFArray) return "skipped";
   if (dict.has(PDFName.of("DecodeParms"))) return "skipped";
+  if (bits === 1) {
+    return recodeOneBit(doc, stream, width, height, chain, placement, plan);
+  }
   const jpeg = chain.at(-1) === "DCTDecode";
   const transport = jpeg ? chain.slice(0, -1) : chain;
   if (!transport.every((f) => TRANSPORT_FILTERS.has(f))) return "skipped";
@@ -336,6 +437,11 @@ async function compressImage(
     return "skipped";
   }
 
+  if (plan.bilevelDpi > 0 && !dict.has(PDFName.of("SMask"))) {
+    const outcome = tryBilevel(doc, stream, pixels, placement, plan);
+    if (outcome) return outcome;
+  }
+
   const size = targetSize(width, height, placement, plan.dpi);
   const resampled = size.width !== width || size.height !== height;
   const out = resampled
@@ -344,7 +450,7 @@ async function compressImage(
 
   type Candidate = { bytes: Uint8Array; filter: "DCTDecode" | "FlateDecode" };
   const candidates: Candidate[] = [];
-  const jpegAllowed = jpeg || (plan.lossyFlate && looksPhotographic(out));
+  const jpegAllowed = jpeg || ((plan.lossyFlate || ch === 1) && looksPhotographic(out, ch === 1 ? PHOTO_GRAY_FLOOR : PHOTO_COLOR_FLOOR));
   if (jpegAllowed) {
     candidates.push({
       bytes: await encodeAdaptive(out, plan, ch === 1, codec),
