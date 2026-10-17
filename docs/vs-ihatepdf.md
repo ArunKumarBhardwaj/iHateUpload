@@ -25,15 +25,15 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 
 | | Count |
 |---|---|
-| ✅ We are better (measured) | 15 rows |
+| ✅ We are better (measured) | 16 rows |
 | 🟰 Equal (measured) | 9 rows |
-| ⚠️ They are better | 3 rows |
+| ⚠️ They are better | 2 rows |
 | ❔ Shared, not compared yet | 17 rows |
 | ➕ Only we have | 15 tools (section 3) |
 | ❌ Only they have | 19 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
-Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, workflows, scanned-page compression, Ask PDF privacy, SEO pages.
+Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, workflows, Ask PDF privacy, SEO pages.
 
 ---
 
@@ -63,7 +63,7 @@ Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, workflows, scanned-p
 | Tool | Ours | Theirs | Verdict | Evidence |
 |---|---|---|---|---|
 | Compress PDF | Resamples images to drawn size (MozJPEG + Rust Lanczos3) in a worker, PSNR-guided quality, keeps text; target size 200 KB–5 MB | Multi-codec per image, font subsetting, JBIG2 for scans; levels + target size | ✅ | 10.5 MB photo PDF, medium: ours 94.3 KB, theirs 95 KB, both keep text; our Light 283 KB. 2026-10-12 |
-| Compress scanned (black-and-white) pages | JPEG/Flate only | JBIG2 encoder | ⚠️ | Their `pdf-jbig2.js`, 2026-10-12. Fix idea: CCITT G4 (Rust `fax` crate) |
+| Compress scanned pages | Two-tone scans → 1-bit JBIG2 (block-adaptive threshold; letter dictionary at Medium/Smallest, exact generic region at Light), photos and colour kept on JPEG | JBIG2 only for already-1-bit pages, JPEG otherwise | ✅ | 12.6 MB synthetic 5-page scan: Light 391 KB vs 793 KB, Medium 101 KB vs 295 KB, Smallest 48 KB @98.1% OCR vs Heavy 75 KB @34.5% OCR; 2.4–2.9 s vs 19–30 s. bench/compress-bilevel, 2026-10-17 |
 | PDF to Word (editable) | Tables, lists, shapes, images, links, embedded TrueType fonts, CJK fonts | Editable + Exact modes | ✅ | Realistic corpus: struct 0.90 vs 0.80, visual 0.52 vs 0.34; simple corpus 0.96 vs 0.94; 120 pages 0.42 s vs 0.78 s. 2026-10-17 |
 | PDF to Word (exact look, still editable) | Text box per block, shapes behind, pictures placed; text editable in boxes | Text box per block | ✅ | Realistic corpus Exact vs Exact: visual 0.80 vs 0.66, struct 0.67 vs 0.60 (invoice 0.97 vs 0.59, spreadsheet 0.94 vs 0.44, slides 0.94 vs 0.55). Known weak: cjk, gov-form-acro, scanned letter. 2026-10-17 |
 | PDF to Word: CJK text | Unified ideographs, East Asian fonts and language tags | Keeps Kangxi radicals; font by regex | ✅ | cjk.pdf: 0 radicals in ours; teardown of theirs. 2026-10-17 |
