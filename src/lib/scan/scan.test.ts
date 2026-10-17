@@ -22,12 +22,6 @@ const mean = (img: RGBAImage, x0: number, y0: number, x1: number, y1: number) =>
   return s / n;
 };
 
-const QUAD: Quad = [
-  { x: 210, y: 150 },
-  { x: 880, y: 210 },
-  { x: 840, y: 1010 },
-  { x: 150, y: 930 },
-];
 
 test("the document filter evens out a shaded, tinted sheet", () => {
   const sheet = makeSheet(400, 500);

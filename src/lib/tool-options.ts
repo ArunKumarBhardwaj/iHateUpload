@@ -1,4 +1,5 @@
 import { batesReady } from "@/lib/bates";
+import type { ScanFilter, ScanPageEdit, ScanPageSize } from "@/lib/scan/types";
 import type { FlipMode } from "@/lib/page-ops";
 import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
 import type { PiiCategory } from "@/lib/pii-detect";
@@ -223,7 +224,17 @@ export type ToolOptions =
     }
   | { kind: "ocr"; language: string; output: OcrOutput; skipTextPages: boolean }
   | { kind: "ask"; question: string }
-  | { kind: "scan" }
+  | {
+      kind: "scan";
+      filter: ScanFilter;
+      brightness: number;
+      contrast: number;
+      pageSize: ScanPageSize;
+      searchable: boolean;
+      language: string;
+      /** Per photo, by file id. */
+      pages: Record<string, ScanPageEdit>;
+    }
   | { kind: "image-crop"; box: RatioBox }
   | {
       kind: "image-turn";
@@ -729,7 +740,16 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "ask":
       return { kind: "ask", question: "" };
     case "scan":
-      return { kind: "scan" };
+      return {
+        kind: "scan",
+        filter: "document",
+        brightness: 0,
+        contrast: 0,
+        pageSize: "a4",
+        searchable: false,
+        language: "eng",
+        pages: {},
+      };
     case "image-crop":
       return { kind: "image-crop", box: { ...DEFAULT_RATIO_BOX } };
     case "image-turn":

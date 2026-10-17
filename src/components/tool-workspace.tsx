@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Download, FileImage, FileText, Loader2, Lock, Upload } from "lucide-react";
 import JSZip from "jszip";
 
+import { ScanStudio } from "@/components/workbench/scan-studio";
 import { FileList } from "@/components/workbench/file-list";
 import {
   OptionsPanel,
@@ -205,7 +206,7 @@ async function runTool(
     case "html-to-pdf":
       return processHtmlToPdf(files, onProgress);
     case "scan-to-pdf":
-      return processScanToPdf(files, onProgress);
+      return processScanToPdf(files, onProgress, options);
     case "strip-metadata":
       return processStripMetadata(files, onProgress);
     case "edit-metadata":
@@ -563,7 +564,16 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
         {(settled || busy) && (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="min-w-0 space-y-5">
-              {optionsInCanvas ? (
+              {options.kind === "scan" ? (
+                <ScanStudio
+                  files={files}
+                  options={options}
+                  onOptions={setOptions}
+                  onFiles={setFiles}
+                  onAddMore={() => inputRef.current?.click()}
+                  disabled={locked}
+                />
+              ) : optionsInCanvas ? (
                 <div className="flex items-center gap-3 rounded-xl border border-ink/10 bg-secondary px-3 py-2.5">
                   <SourceIcon className="size-4 shrink-0 text-signal" />
                   <span

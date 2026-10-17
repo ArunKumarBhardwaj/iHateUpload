@@ -8,6 +8,7 @@ import {
 
 import type { PDFPageProxy } from "pdfjs-dist";
 
+import type { ScanPdfPage } from "@/lib/scan/build-pdf";
 import type { FileItem, ResultItem } from "@/lib/job";
 import { stripInvisibleText } from "@/lib/page-ops";
 import { loadPdfJs } from "@/lib/pdfjs";
@@ -1314,8 +1315,70 @@ export async function processPptxToPdf(
 export async function processScanToPdf(
   files: FileItem[],
   onProgress: ProgressFn,
+  options: ToolOptions,
 ): Promise<ResultItem[]> {
-  return processImageToPdf(files, onProgress);
+  if (options.kind !== "scan") return processImageToPdf(files, onProgress);
+  const { createScanClient } = await import("@/lib/scan/client");
+  const { buildScanPdf } = await import("@/lib/scan/build-pdf");
+  const client = createScanClient();
+  type Worker = Awaited<ReturnType<(typeof import("tesseract.js"))["createWorker"]>>;
+  let ocr: Worker | null = null;
+  let current = 0;
+  try {
+    if (options.searchable) {
+      const { createWorker, PSM } = await import("tesseract.js");
+      ocr = await createWorker(options.language, 1, {
+        logger: (message) => {
+          if (message.status !== "recognizing text") return;
+          onProgress(Math.min(0.97, (current + 0.5 + message.progress / 2) / files.length));
+        },
+      });
+      await ocr.setParameters({
+        user_defined_dpi: "72",
+        tessedit_pageseg_mode: PSM.AUTO,
+      });
+    }
+    const pages: ScanPdfPage[] = [];
+    let unread = 0;
+    for (let i = 0; i < files.length; i++) {
+      current = i;
+      const item = files[i];
+      const edit = options.pages[item.id];
+      const settings = {
+        corners: edit?.corners ?? null,
+        rotate: edit?.rotate ?? 0,
+        filter: options.filter,
+        brightness: options.brightness,
+        contrast: options.contrast,
+      };
+      const page = await client.final(item.id, item.file, settings, ocr !== null);
+      onProgress((i + 0.5) / files.length);
+      let textPdf: Uint8Array | null = null;
+      if (ocr && page.ocr) {
+        try {
+          const blob = new Blob([page.ocr.bytes.slice().buffer as ArrayBuffer], { type: page.ocr.type });
+          const read = await ocr.recognize(blob, { pdfTitle: "Scan" }, OCR_RECOGNIZE_OUTPUT);
+          textPdf = tessPdfBytes(read.data.pdf);
+        } catch {
+          textPdf = null;
+        }
+        if (!textPdf) unread++;
+      }
+      pages.push({ width: page.width, height: page.height, kind: page.kind, bytes: page.bytes, textPdf });
+      onProgress((i + 1) / files.length);
+    }
+    if (unread > 0 && unread === pages.length) {
+      throw new Error("The text could not be read. Turn off Searchable PDF, or try another language.");
+    }
+    const bytes = await buildScanPdf(pages, options.pageSize);
+    const total = files.reduce((n, f) => n + f.size, 0);
+    return [
+      resultFrom(files[0], pdfBlob(bytes), "scan.pdf", total),
+    ];
+  } finally {
+    client.dispose();
+    await ocr?.terminate();
+  }
 }
 
 async function pdfTextOrEmpty(file: File) {

@@ -7,6 +7,7 @@ import { BatesControls } from "@/components/workbench/bates-controls";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
 import { SplitExtras } from "@/components/workbench/split-extras";
 import { ScanCapture } from "@/components/workbench/scan-capture";
+import { ScanSettings } from "@/components/workbench/scan-settings";
 import { Thumbnail } from "@/components/workbench/thumbnail";
 import { WatermarkPreview } from "@/components/workbench/watermark-preview";
 import { Button } from "@/components/ui/button";
@@ -197,7 +198,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "ask":
       return "The PDF stays here. Only extracted text is sent with your question.";
     case "scan":
-      return "Use the camera or drop a photo. Each capture becomes a page.";
+      return "Use the camera or drop photos. Drag the corners to the page edges, pick a filter, then make the PDF. Nothing leaves this tab.";
     case "image-crop":
       return "Drag the box on the photo. Only that area is kept.";
     case "image-turn":
@@ -1664,10 +1665,15 @@ export function OptionsPanel({
     }
     case "scan":
       return (
-        <ScanCapture
-          disabled={disabled}
-          onCapture={(file) => onAddFiles?.([file])}
-        />
+        <div className="space-y-5">
+          {files && files.length > 0 ? (
+            <ScanSettings options={options} onOptions={onOptions} disabled={disabled} />
+          ) : null}
+          <ScanCapture
+            disabled={disabled}
+            onCapture={(file) => onAddFiles?.([file])}
+          />
+        </div>
       );
 
     case "image-crop":
