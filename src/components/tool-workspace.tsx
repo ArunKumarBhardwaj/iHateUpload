@@ -11,6 +11,7 @@ import {
   optionsHint,
   optionsNeedCanvas,
 } from "@/components/workbench/options-panel";
+import { ExtractImagesGrid } from "@/components/workbench/extract-images-grid";
 import { ImageCropOverlay } from "@/components/workbench/image-crop-overlay";
 import { PageOverlay } from "@/components/workbench/page-overlay";
 import { PdfEditCanvas } from "@/components/workbench/pdf-edit-canvas";
@@ -155,9 +156,9 @@ async function runTool(
     case "compare-pdfs":
       return processComparePdfs(files, onProgress, options);
     case "extract-text":
-      return processExtractText(files, onProgress);
+      return processExtractText(files, onProgress, options);
     case "extract-images":
-      return processExtractImages(files, onProgress);
+      return processExtractImages(files, onProgress, options);
     case "header-footer":
       return processHeaderFooter(files, onProgress, options);
     case "reverse-pages":
@@ -657,6 +658,15 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   label="Keep this area"
                 />
               ) : null}
+              {options.kind === "extract-images" && files[0] ? (
+                <ExtractImagesGrid
+                  file={files[0].file}
+                  baseName={files[0].name.replace(/\.[^.]+$/, "")}
+                  options={options}
+                  onOptions={setOptions}
+                  disabled={locked}
+                />
+              ) : null}
               {optionsInCanvas && options.kind !== "edit" && optionsPanel}
             </div>
 
@@ -766,7 +776,9 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   disabled={!canProcess}
                   onClick={process}
                 >
-                  {tool.actionLabel}
+                  {options.kind === "unlock" && options.lock === "restricted"
+                    ? "Remove restrictions"
+                    : tool.actionLabel}
                 </Button>
               )}
             </div>

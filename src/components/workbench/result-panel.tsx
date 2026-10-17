@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, Download } from "lucide-react";
+import { useState } from "react";
+import { Check, Copy, Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ExcelPreview } from "@/components/workbench/excel-preview";
@@ -19,6 +20,26 @@ function sizeDelta(results: ResultItem[]) {
   const after = results.reduce((sum, result) => sum + result.size, 0);
   if (before === 0 || after >= before) return null;
   return { before, after, percent: Math.round((1 - after / before) * 100) };
+}
+
+function CopyText({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      onClick={() => {
+        void navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1800);
+        });
+      }}
+    >
+      {copied ? <Check /> : <Copy />}
+      {copied ? "Copied" : "Copy text"}
+    </Button>
+  );
 }
 
 export function ResultPanel({
@@ -68,10 +89,13 @@ export function ResultPanel({
 
       {answer ? (
         <div className="rounded-2xl border border-ink/8 bg-background px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal-ink">
-            Text
-          </p>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal-ink">
+              Text
+            </p>
+            <CopyText text={answer} />
+          </div>
+          <p className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-ink">
             {answer}
           </p>
         </div>

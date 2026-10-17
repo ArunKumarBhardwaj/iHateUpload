@@ -19,6 +19,12 @@ import {
 } from "@/lib/pdf-meta";
 import { lineDiff } from "@/lib/text-diff";
 import {
+  expandStamp,
+  placeStamps,
+  stampedPages,
+  type StampContext,
+} from "@/lib/header-footer";
+import {
   processImageToPdf,
   pdfBlob,
   stripPdfMetadata,
@@ -1359,17 +1365,50 @@ export async function processComparePdfs(
 export async function processExtractText(
   files: FileItem[],
   onProgress: ProgressFn,
+  options?: ToolOptions,
 ): Promise<ResultItem[]> {
+  const ocr = options?.kind === "extract-text" ? options.ocr : false;
+  const language = options?.kind === "extract-text" ? options.language : "eng";
+  const engine = await import("@/lib/text-extract");
   const results: ResultItem[] = [];
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
-    const text = await extractPdfText(item.file);
+    const step = (ratio: number) => onProgress((i + ratio) / files.length);
+    let text: string;
+    let note: string | undefined;
+    if (item.file.type.startsWith("image/")) {
+      if (!ocr) {
+        throw new Error("Pictures need OCR. Turn on OCR scanned pages.");
+      }
+      text = await engine.extractImageText(item.file, {
+        ocr,
+        language,
+        onProgress: step,
+      });
+    } else {
+      const { pages, ocrPages } = await engine.extractPdfPages(item.file, {
+        ocr,
+        language,
+        onProgress: step,
+      });
+      text = engine.joinPages(pages);
+      if (ocrPages.length > 0) {
+        note = `Read with OCR: page${ocrPages.length === 1 ? "" : "s"} ${ocrPages.join(", ")}.`;
+      }
+    }
+    if (!text.trim()) {
+      throw new Error(
+        ocr
+          ? `No text found in "${item.name}".`
+          : `"${item.name}" has no selectable text. Turn on OCR scanned pages to read it.`,
+      );
+    }
     const blob = new Blob([text], { type: "text/plain" });
-    results.push(
-      resultFrom(item, blob, replaceExt(item.name, "txt"), item.size, {
-        previewText: text,
-      }),
-    );
+    const result = resultFrom(item, blob, replaceExt(item.name, "txt"), item.size, {
+      previewText: text,
+    });
+    if (note) result.note = note;
+    results.push(result);
     onProgress((i + 1) / files.length);
   }
   return results;
@@ -1378,63 +1417,13 @@ export async function processExtractText(
 export async function processExtractImages(
   files: FileItem[],
   onProgress: ProgressFn,
+  options: ToolOptions,
 ): Promise<ResultItem[]> {
-  const item = files[0];
-  if (!item) throw new Error("Choose a PDF to pull images from.");
-  const pdfjs = await loadPdfJs();
-  const data = new Uint8Array(await item.file.arrayBuffer());
-  const src = await pdfjs.getDocument({ data }).promise;
-  const images: { name: string; blob: Blob }[] = [];
-  try {
-    for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
-      const page = await src.getPage(pageNum);
-      const ops = await page.getOperatorList();
-      const seen = new Set<string>();
-      for (let i = 0; i < ops.fnArray.length; i++) {
-        const fn = ops.fnArray[i];
-        if (
-          fn !== pdfjs.OPS.paintImageXObject &&
-          fn !== pdfjs.OPS.paintImageXObjectRepeat &&
-          fn !== pdfjs.OPS.paintInlineImageXObject
-        ) {
-          continue;
-        }
-        const arg0 = ops.argsArray[i]?.[0];
-        const img =
-          fn === pdfjs.OPS.paintInlineImageXObject && arg0 && typeof arg0 === "object"
-            ? (arg0 as PdfImage)
-            : typeof arg0 === "string"
-              ? await imageObject(page, arg0)
-              : null;
-        if (!img) continue;
-        const key =
-          typeof arg0 === "string"
-            ? arg0
-            : `${img.width}x${img.height}:${img.data?.length ?? "bitmap"}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const blob = await rasterToPng(img);
-        images.push({
-          name: `${item.name.replace(/\.[^.]+$/, "")}-p${pageNum}-${images.length + 1}.png`,
-          blob,
-        });
-      }
-      page.cleanup();
-      onProgress(pageNum / (src.numPages + 1));
-    }
-  } finally {
-    await src.loadingTask.destroy();
-  }
-  if (images.length === 0) {
-    throw new Error("This PDF has no embedded images to extract.");
-  }
-  onProgress(1);
-  return images.map((image) =>
-    resultFrom(item, image.blob, image.name, item.size),
-  );
+  const engine = await import("@/lib/extract-images");
+  return engine.processExtractImages(files, onProgress, options);
 }
 
-type PdfImage = {
+export type PdfImage = {
   width: number;
   height: number;
   data?: Uint8Array | Uint8ClampedArray | null;
@@ -1442,7 +1431,7 @@ type PdfImage = {
   bitmap?: CanvasImageSource | ImageData | null;
 };
 
-async function imageObject(
+export async function imageObject(
   page: {
     objs: { get: (name: string, cb?: (v: unknown) => void) => unknown };
     commonObjs: { get: (name: string, cb?: (v: unknown) => void) => unknown };
@@ -1473,7 +1462,7 @@ function resolveObj(
   });
 }
 
-function rasterToPng(img: PdfImage): Promise<Blob> {
+export function rasterToPng(img: PdfImage): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = img.width;
   canvas.height = img.height;
@@ -1559,17 +1548,6 @@ export async function processAskPdf(
   ];
 }
 
-type StampContext = { pages: number; date: string; time: string; filename: string };
-
-function expandStamp(template: string, page: number, ctx: StampContext) {
-  return template
-    .replaceAll("{pages}", String(ctx.pages))
-    .replaceAll("{page}", String(page))
-    .replaceAll("{date}", ctx.date)
-    .replaceAll("{time}", ctx.time)
-    .replaceAll("{filename}", ctx.filename);
-}
-
 export async function processHeaderFooter(
   files: FileItem[],
   onProgress: ProgressFn,
@@ -1587,51 +1565,43 @@ export async function processHeaderFooter(
     hour: "2-digit",
     minute: "2-digit",
   });
+  const [red, green, blue] = parseHexColor(options.color);
+  const color = rgb(red, green, blue);
   const results: ResultItem[] = [];
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
     const doc = await loadPdf(item.file);
-    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const font = await doc.embedFont(
+      options.bold ? StandardFonts.HelveticaBold : StandardFonts.Helvetica,
+    );
     const pages = doc.getPages();
-    const size = 10;
+    const size = options.fontSize;
     const ctx: StampContext = {
       pages: pages.length,
       date,
       time,
       filename: pdfSafe(item.name.replace(/\.pdf$/i, "")),
     };
+    const stamped = stampedPages(options.range, options.skipFirst, pages.length);
     pages.forEach((page, index) => {
+      if (!stamped.has(index)) return;
       const { width, height } = page.getSize();
-      const left = expandStamp(options.left, index + 1, ctx);
-      const center = expandStamp(options.center, index + 1, ctx);
-      const right = expandStamp(options.right, index + 1, ctx);
-      const draw = (y: number) => {
-        if (left.trim()) {
-          page.drawText(left, { x: 28, y, size, font, color: rgb(0.2, 0.2, 0.22) });
-        }
-        if (center.trim()) {
-          const textWidth = font.widthOfTextAtSize(center, size);
-          page.drawText(center, {
-            x: (width - textWidth) / 2,
-            y,
-            size,
-            font,
-            color: rgb(0.2, 0.2, 0.22),
-          });
-        }
-        if (right.trim()) {
-          const textWidth = font.widthOfTextAtSize(right, size);
-          page.drawText(right, {
-            x: width - 28 - textWidth,
-            y,
-            size,
-            font,
-            color: rgb(0.2, 0.2, 0.22),
-          });
-        }
-      };
-      if (options.band !== "footer") draw(height - size - 18);
-      if (options.band !== "header") draw(18);
+      const placed = placeStamps(
+        {
+          left: pdfSafe(expandStamp(options.left, index + 1, ctx)),
+          center: pdfSafe(expandStamp(options.center, index + 1, ctx)),
+          right: pdfSafe(expandStamp(options.right, index + 1, ctx)),
+          band: options.band,
+          fontSize: size,
+          margin: options.margin,
+        },
+        width,
+        height,
+        (text) => font.widthOfTextAtSize(text, size),
+      );
+      for (const stamp of placed) {
+        page.drawText(stamp.text, { x: stamp.x, y: stamp.y, size, font, color });
+      }
     });
     stripPdfMetadata(doc);
     const blob = pdfBlob(await doc.save({ useObjectStreams: true }));

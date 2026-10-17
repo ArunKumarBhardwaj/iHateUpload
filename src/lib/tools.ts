@@ -92,6 +92,10 @@ export type ToolDefinition = {
     | "redact"
     | "compare"
     | "header-footer"
+    | "protect"
+    | "unlock"
+    | "extract-images"
+    | "extract-text"
     | "insert-blank"
     | "invert"
     | "nup"
@@ -360,7 +364,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "password-confirm",
+    ui: "protect",
   },
   {
     id: "unlock-pdf",
@@ -383,7 +387,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: false,
     kind: "pdf",
-    ui: "password",
+    ui: "unlock",
   },
   {
     id: "rotate-pdf",
@@ -552,8 +556,8 @@ export const TOOLS: ToolDefinition[] = [
     title: "Extract Text",
     shortTitle: "Extract text",
     description:
-      "Copy the selectable text out of a PDF into a .txt file. Stays in this tab.",
-    accept: "application/pdf,.pdf",
+      "Copy the text out of a PDF into a .txt file. Scans and photos can be read with OCR. Stays in this tab.",
+    accept: "application/pdf,.pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp",
     multiple: true,
     ordered: false,
     actionLabel: "Extract text",
@@ -567,7 +571,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "extract-text",
   },
   {
     id: "extract-images",
@@ -590,7 +594,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "extract-images",
   },
   {
     id: "header-footer",
