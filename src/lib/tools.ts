@@ -920,17 +920,17 @@ export const TOOLS: ToolDefinition[] = [
     title: "Ask PDF",
     shortTitle: "Ask PDF",
     description:
-      "Ask a question about a PDF. The file stays here. Only extracted text is sent.",
+      "Ask a question about a PDF. The file stays here; its extracted text and your question are sent to Google Gemini.",
     accept: "application/pdf,.pdf",
     multiple: false,
     ordered: false,
     actionLabel: "Ask",
     seoTitle: "Ask a PDF a Question Free — File Never Uploads",
     seoDescription:
-      "Ask questions about a PDF without uploading the file. Text is extracted locally. The PDF never leaves this tab.",
+      "Ask questions about a PDF without uploading the file. Text is extracted locally; only that text and your question go to the AI.",
     seoHowTo: [
       "Choose a PDF with selectable text.",
-      "Type a question. Only the extracted words are sent.",
+      "Type a question. Only the extracted words and the question are sent to Google Gemini.",
       "Read the answer. The PDF itself was never uploaded.",
     ],
     showInNav: false,

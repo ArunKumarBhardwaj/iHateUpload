@@ -1008,32 +1008,38 @@ export async function processExcelToPdf(
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
     const workbook = XLSX.read(await item.file.arrayBuffer(), { type: "array" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = (sheet
-      ? (XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][])
-      : []) as (string | number | boolean | null)[][];
     const doc = await PDFDocument.create();
     const font = await doc.embedFont(StandardFonts.Helvetica);
+    const bold = await doc.embedFont(StandardFonts.HelveticaBold);
     const pageSize: [number, number] = [841.89, 595.28];
-    let page = doc.addPage(pageSize);
-    let y = pageSize[1] - 40;
     const colWidth = 110;
-    for (const row of rows.slice(0, 80)) {
-      if (y < 36) {
-        page = doc.addPage(pageSize);
-        y = pageSize[1] - 40;
-      }
-      (row ?? []).slice(0, 7).forEach((cell, col) => {
-        const text = cell == null ? "" : String(cell).slice(0, 22);
-        page.drawText(text, {
-          x: 28 + col * colWidth,
-          y,
-          size: 9,
-          font,
-          color: rgb(0.12, 0.12, 0.14),
+    // Every sheet, each starting on its own page under its name.
+    for (const name of workbook.SheetNames) {
+      const sheet = workbook.Sheets[name];
+      const rows = (sheet
+        ? (XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][])
+        : []) as (string | number | boolean | null)[][];
+      let page = doc.addPage(pageSize);
+      let y = pageSize[1] - 40;
+      page.drawText(pdfSafe(name), { x: 28, y, size: 12, font: bold });
+      y -= 22;
+      for (const row of rows) {
+        if (y < 36) {
+          page = doc.addPage(pageSize);
+          y = pageSize[1] - 40;
+        }
+        (row ?? []).slice(0, 7).forEach((cell, col) => {
+          const text = cell == null ? "" : pdfSafe(String(cell).slice(0, 22));
+          page.drawText(text, {
+            x: 28 + col * colWidth,
+            y,
+            size: 9,
+            font,
+            color: rgb(0.12, 0.12, 0.14),
+          });
         });
-      });
-      y -= 14;
+        y -= 14;
+      }
     }
     const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
     results.push(resultFrom(item, blob, replaceExt(item.name, "pdf"), item.size));
@@ -1553,11 +1559,15 @@ export async function processAskPdf(
   ];
 }
 
-function expandStamp(template: string, page: number, pages: number, date: string) {
+type StampContext = { pages: number; date: string; time: string; filename: string };
+
+function expandStamp(template: string, page: number, ctx: StampContext) {
   return template
+    .replaceAll("{pages}", String(ctx.pages))
     .replaceAll("{page}", String(page))
-    .replaceAll("{pages}", String(pages))
-    .replaceAll("{date}", date);
+    .replaceAll("{date}", ctx.date)
+    .replaceAll("{time}", ctx.time)
+    .replaceAll("{filename}", ctx.filename);
 }
 
 export async function processHeaderFooter(
@@ -1573,6 +1583,10 @@ export async function processHeaderFooter(
     month: "short",
     day: "numeric",
   });
+  const time = new Date().toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const results: ResultItem[] = [];
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
@@ -1580,11 +1594,17 @@ export async function processHeaderFooter(
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const pages = doc.getPages();
     const size = 10;
+    const ctx: StampContext = {
+      pages: pages.length,
+      date,
+      time,
+      filename: pdfSafe(item.name.replace(/\.pdf$/i, "")),
+    };
     pages.forEach((page, index) => {
       const { width, height } = page.getSize();
-      const left = expandStamp(options.left, index + 1, pages.length, date);
-      const center = expandStamp(options.center, index + 1, pages.length, date);
-      const right = expandStamp(options.right, index + 1, pages.length, date);
+      const left = expandStamp(options.left, index + 1, ctx);
+      const center = expandStamp(options.center, index + 1, ctx);
+      const right = expandStamp(options.right, index + 1, ctx);
       const draw = (y: number) => {
         if (left.trim()) {
           page.drawText(left, { x: 28, y, size, font, color: rgb(0.2, 0.2, 0.22) });

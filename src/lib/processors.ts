@@ -1159,6 +1159,17 @@ export async function processProtectPdf(
     doc.encrypt({
       userPassword: password,
       ownerPassword: password,
+      // The password guards opening; once open, the reader may print, copy
+      // and edit (P -4), like every mainstream protect tool.
+      permissions: {
+        printing: "highResolution",
+        modifying: true,
+        copying: true,
+        annotating: true,
+        fillingForms: true,
+        contentAccessibility: true,
+        documentAssembly: true,
+      },
     });
     const pdfBytes = await doc.save();
     const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {

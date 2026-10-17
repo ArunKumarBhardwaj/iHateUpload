@@ -730,7 +730,9 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
             )}
             <p className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <Lock className="size-3" />
-              Runs in this tab. Nothing is uploaded.
+              {tool.ui === "ask"
+                ? "The PDF stays in this tab. Its text and your question go to Google Gemini."
+                : "Runs in this tab. Nothing is uploaded."}
             </p>
             <div className="flex items-center gap-2">
               <Button
