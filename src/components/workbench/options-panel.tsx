@@ -146,6 +146,12 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Every property the PDF carries, ready to edit or clear. Nothing leaves this tab.";
     case "pdf-image":
       return "Higher DPI is sharper and bigger. Leave the pages box empty for every page.";
+    case "pdf-to-excel":
+      return options.layout === "tables"
+        ? "Each table becomes a sheet, named from the heading above it. Numbers, dates and percentages become real cells. Pages with no text are read with OCR."
+        : options.layout === "pages"
+          ? "Each page becomes a sheet, with its text and tables in the order they appear. Pages with no text are read with OCR."
+          : "Every table goes on one sheet, one under another, each under its title. Pages with no text are read with OCR.";
     case "pdf-to-word":
       return options.mode === "editable"
         ? "Paragraphs, headings, lists, tables and pictures become real Word content. Pages with no text are read with OCR."
@@ -576,6 +582,112 @@ export function OptionsPanel({
               </span>
             </label>
           ) : null}
+        </div>
+      );
+
+    case "pdf-to-excel":
+      return (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Format</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["xlsx", "Excel (.xlsx)"],
+                  ["csv", "CSV, one file per sheet"],
+                ] as const
+              ).map(([format, title]) => (
+                <Button
+                  key={format}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.format === format ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, format })}
+                >
+                  {title}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Sheets</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["tables", "One per table"],
+                  ["pages", "One per page"],
+                  ["one", "All on one sheet"],
+                ] as const
+              ).map(([layout, title]) => (
+                <Button
+                  key={layout}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.layout === layout ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, layout })}
+                >
+                  {title}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <Field label="Pages" htmlFor="pdf-excel-range">
+            <Input
+              id="pdf-excel-range"
+              value={options.range}
+              disabled={disabled}
+              onChange={(e) => onOptions({ ...options, range: e.target.value })}
+              placeholder="All pages, or e.g. 1-3, 7"
+              inputMode="text"
+              autoComplete="off"
+            />
+          </Field>
+          <div className="space-y-2">
+            {(
+              [
+                ["includeText", "Keep the text outside the tables", options.layout !== "pages" ? "A Text sheet." : "In order, between the tables."],
+                ["typed", "Numbers and dates as values", "Money, percents and dates become real cells. IDs with leading zeros stay text."],
+                ["formatting", "Formatting", "Fills, borders and bold from the PDF."],
+                ["freezeFilter", "Freeze header and filter", "Keeps the header in view and adds a filter."],
+                ["joinPages", "Join tables across pages", "A table that carries on over the page break becomes one."],
+              ] as const
+            ).map(([key, title, hint]) => (
+              <label key={key} className="flex items-start gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-4"
+                  checked={options[key]}
+                  disabled={disabled}
+                  onChange={(event) => onOptions({ ...options, [key]: event.target.checked })}
+                />
+                <span>
+                  {title}. <span className="text-muted-foreground">{hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Language of scanned pages</p>
+            <div className="flex flex-wrap gap-2">
+              {OCR_LANGUAGES.map((language) => (
+                <Button
+                  key={language.id}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.language === language.id ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, language: language.id })}
+                >
+                  {language.title}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
       );
 

@@ -178,6 +178,10 @@ async function runTool(
       return import("@/lib/pdf-to-word/process").then((engine) =>
         engine.processPdfToWord(files, onProgress, options),
       );
+    case "pdf-to-excel":
+      return import("@/lib/pdf-to-excel/process").then((engine) =>
+        engine.processPdfToExcel(files, onProgress, options),
+      );
     case "watermark-pdf":
     case "page-numbers":
     case "bates-numbering":
@@ -306,6 +310,12 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const setFiles = useCallback((next: FileItem[]) => {
     setJob(next.length === 0 ? idleJob() : { status: "ready", files: next });
   }, []);
+
+  /** PDF to Excel: fetch its code and start pdf.js while the person is still choosing options. */
+  useEffect(() => {
+    if (tool.id !== "pdf-to-excel") return;
+    void import("@/lib/pdf-to-excel/process").then((m) => m.warmUp());
+  }, [tool.id]);
 
   /**
    * The handoff is a one-shot module value the previous tool left behind. It
