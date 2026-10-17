@@ -65,6 +65,16 @@ export interface Para {
   base?: ParaBase;
   /** true when `base` and `spacing` came from the docx's own styles */
   docxStyled?: boolean;
+  /** preformatted text: spaces are kept and lines are never re-wrapped at spaces */
+  pre?: boolean;
+  /** a horizontal rule instead of text */
+  rule?: boolean;
+  /** vertical bar colour drawn left of the paragraph (block quotes) */
+  bar?: string;
+  /** shaded and/or outlined box behind the paragraph (code blocks, styled HTML) */
+  box?: { bg?: string; border?: { color: string; width: number }; bottomOnly?: boolean };
+  /** heading id, so a table of contents can look up its page */
+  anchor?: number;
 }
 
 export interface Cell {

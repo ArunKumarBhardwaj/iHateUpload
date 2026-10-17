@@ -29,7 +29,11 @@ export type Cmd =
       strike: boolean;
     }
   | { t: "line"; x1: number; y1: number; x2: number; y2: number; width: number; color: string }
-  | { t: "rect"; x: number; y: number; w: number; h: number; fill: string }
+  | { t: "rect"; x: number; y: number; w: number; h: number; fill?: string; stroke?: string; strokeWidth?: number }
+  /** an SVG path in page coordinates (top-down), used by the slide renderer */
+  | { t: "shape"; x: number; y: number; path: string; fill?: string; stroke?: string; strokeWidth?: number }
+  /** invisible marker for a heading, so a table of contents can find its page */
+  | { t: "anchor"; x: number; y: number; id: number }
   | { t: "image"; x: number; y: number; w: number; h: number; data: Uint8Array; mime: string }
   | { t: "link"; x: number; y: number; w: number; h: number; href: string };
 
@@ -47,6 +51,7 @@ const CELL_PAD_X = 5;
 const CELL_PAD_Y = 3;
 const LIST_BASE = 24;
 const LIST_STEP = 24;
+const BOX_PAD = 6;
 
 interface Item {
   h: number;
@@ -128,6 +133,12 @@ function atomise(p: Para, ctx: Ctx, avail: number): Atom[] {
       atoms.push({ k: "i", w, h, data: inl.data, mime: inl.mime });
     } else {
       const r = resolve(inl.style, p, ctx);
+      if (p.pre) {
+        // code: keep every space, one unbreakable word per line (long lines split by character)
+        const text = inl.text.replace(/\t/g, "    ").replace(/\r/g, "");
+        if (text) atoms.push({ k: "w", text, w: ctx.measure(text, r.key, r.size), r });
+        continue;
+      }
       for (const tok of inl.text.split(/([ \t\r\n]+)/)) {
         if (!tok) continue;
         if (/^[ \t\r\n]+$/.test(tok)) {
@@ -316,9 +327,19 @@ function lineItem(
 }
 
 function paraItems(p: Para, width: number, ctx: Ctx): Item[] {
+  if (p.rule) {
+    return [
+      {
+        h: 1,
+        before: ctx.compact ? 2 : 8,
+        after: ctx.compact ? 2 : 8,
+        cmds: [{ t: "line", x1: 0, y1: 0.5, x2: width, y2: 0.5, width: 1, color: "BFBFBF" }],
+      },
+    ];
+  }
   const level = p.marker?.level ?? 0;
   const textX = p.marker ? LIST_BASE + LIST_STEP * level : p.indent;
-  const avail = Math.max(20, width - textX);
+  const avail = Math.max(20, width - textX - (p.box ? BOX_PAD : 0));
   const atoms = atomise(p, ctx, avail);
   const lines = breakLines(atoms, avail, ctx);
   const size = baseSizeOf(p);
@@ -352,6 +373,38 @@ function paraItems(p: Para, width: number, ctx: Ctx): Item[] {
     const lastItem = items[items.length - 1];
     lastItem.after = p.spacing?.after ?? (p.title ? 10 : h > 0 ? 6 : p.marker ? 3 : 7);
     if (h > 0 || p.title) lastItem.keepNext = true;
+    if (p.bar) {
+      const x = Math.max(0, textX - 9);
+      items.forEach((it, i) => {
+        const top = i === 0 ? -it.before : 0;
+        const bottom = it.h + (i === items.length - 1 ? it.after : 0);
+        it.cmds.unshift({ t: "line", x1: x, y1: top, x2: x, y2: bottom, width: 2.5, color: p.bar as string });
+      });
+    }
+    if (p.box) {
+      const bx = Math.max(0, textX - BOX_PAD);
+      const bw = width - bx;
+      const { bg, border } = p.box;
+      items.forEach((it, i) => {
+        const first = i === 0;
+        const last = i === items.length - 1;
+        const top = first ? -2 : 0;
+        const bottom = it.h + (last ? 2 : 0);
+        const pre: Cmd[] = [];
+        if (bg) pre.push({ t: "rect", x: bx, y: top, w: bw, h: bottom - top, fill: bg });
+        if (border) {
+          const b = { width: border.width, color: border.color };
+          if (!p.box?.bottomOnly) {
+            pre.push({ t: "line", x1: bx, y1: top, x2: bx, y2: bottom, ...b });
+            pre.push({ t: "line", x1: bx + bw, y1: top, x2: bx + bw, y2: bottom, ...b });
+            if (first) pre.push({ t: "line", x1: bx, y1: top, x2: bx + bw, y2: top, ...b });
+          }
+          if (last) pre.push({ t: "line", x1: bx, y1: bottom, x2: bx + bw, y2: bottom, ...b });
+        }
+        it.cmds.unshift(...pre);
+      });
+    }
+    if (p.anchor !== undefined) items[0].cmds.push({ t: "anchor", x: 0, y: 0, id: p.anchor });
   } else if (ctx.compact && items.length) {
     items[items.length - 1].after = p.marker ? 1 : 0;
   }

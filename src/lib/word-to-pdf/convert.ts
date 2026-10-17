@@ -4,21 +4,15 @@
  * not expose: colour, size, font, alignment, indents), model.ts turns that into blocks, layout.ts
  * flows them onto pages, and this file draws the result with real, selectable PDF text.
  */
-import { PDFDocument, PDFString, rgb, type PDFImage } from "@cantoo/pdf-lib";
+import { PDFDocument } from "@cantoo/pdf-lib";
 import JSZip from "jszip";
 
 import { applyDocxInfo } from "./apply-docx";
 import { parseDocxInfo, type DocxInfo } from "./docx-info";
 import { familyForFont } from "./font-map";
-import { FontSet } from "./fonts";
-import { layoutDocument, type Cmd, type FontKey } from "./layout";
-import {
-  htmlToBlocks,
-  MARK_CLOSE,
-  MARK_OPEN,
-  type Block,
-  type Inline,
-} from "./model";
+import { embedBlockImages, renderPages, toArrayBuffer, walkInlines } from "../doc-render/engine";
+import { layoutDocument } from "./layout";
+import { htmlToBlocks, MARK_CLOSE, MARK_OPEN } from "./model";
 import { pageSpecFromDocxXml } from "./page";
 
 export interface ConvertOptions {
@@ -136,46 +130,6 @@ async function prepareDocx(
   }
 }
 
-function toArrayBuffer(u: Uint8Array): ArrayBuffer {
-  return u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer;
-}
-
-function* walkInlines(blocks: Block[]): Generator<{ inl: Inline; list: Inline[]; bold: boolean }> {
-  for (const b of blocks) {
-    if (b.kind === "para") {
-      for (const inl of [...b.inlines]) yield { inl, list: b.inlines, bold: b.heading > 0 };
-    } else if (b.kind === "table") {
-      for (const row of b.rows) for (const cell of row.cells) yield* walkInlines(cell.blocks);
-    }
-  }
-}
-
-function defaultLoadFont(file: string): Promise<Uint8Array> {
-  return fetch(`/fonts/${file}`).then(async (r) => {
-    if (!r.ok) throw new Error(`font ${file}: ${r.status}`);
-    return new Uint8Array(await r.arrayBuffer());
-  });
-}
-
-/** Browser-only: decode gif/bmp/webp/... to PNG through a canvas. */
-async function browserRasterise(data: Uint8Array, mime: string): Promise<Uint8Array | null> {
-  if (typeof createImageBitmap !== "function" || typeof OffscreenCanvas === "undefined") return null;
-  try {
-    const bmp = await createImageBitmap(new Blob([toArrayBuffer(data)], { type: mime }));
-    const canvas = new OffscreenCanvas(bmp.width, bmp.height);
-    canvas.getContext("2d")?.drawImage(bmp, 0, 0);
-    const blob = await canvas.convertToBlob({ type: "image/png" });
-    return new Uint8Array(await blob.arrayBuffer());
-  } catch {
-    return null;
-  }
-}
-
-function hex(c: string | undefined) {
-  if (!c || !/^[0-9a-f]{6}$/i.test(c)) return rgb(0, 0, 0);
-  return rgb(parseInt(c.slice(0, 2), 16) / 255, parseInt(c.slice(2, 4), 16) / 255, parseInt(c.slice(4, 6), 16) / 255);
-}
-
 export async function convertDocxToPdf(
   input: ArrayBuffer | Uint8Array,
   opts: ConvertOptions = {},
@@ -212,145 +166,23 @@ export async function convertDocxToPdf(
   doc.setCreator("iHateUpload");
 
   // images: embed first so layout knows their natural size
-  const images = new Map<Uint8Array, PDFImage>();
-  const rasterise = opts.rasterise ?? browserRasterise;
-  let dropped = 0;
-  const pending: Promise<void>[] = [];
   const pictures = [...walkInlines(blocks)].filter((w) => w.inl.kind === "image");
-  // the docx's own drawing sizes, when every picture lines up with one
   const extents = info && info.images.length === pictures.length ? info.images : undefined;
-  let picIndex = 0;
-  for (const { inl, list } of pictures) {
-    if (inl.kind !== "image") continue;
-    const extent = extents?.[picIndex++];
-    pending.push(
-      (async () => {
-        let bytes = inl.data;
-        let mime = inl.mime;
-        let img: PDFImage | undefined;
-        try {
-          if (mime === "image/png") img = await doc.embedPng(bytes);
-          else if (mime === "image/jpeg" || mime === "image/jpg") img = await doc.embedJpg(bytes);
-          else {
-            const png = await rasterise(bytes, mime);
-            if (png) {
-              bytes = png;
-              mime = "image/png";
-              img = await doc.embedPng(png);
-            }
-          }
-        } catch {
-          img = undefined;
-        }
-        if (img) {
-          images.set(bytes, img);
-          inl.data = bytes;
-          inl.mime = mime;
-          inl.width = extent && extent.w > 0 && extent.h > 0 ? extent.w : img.width * 0.75;
-          inl.height = extent && extent.w > 0 && extent.h > 0 ? extent.h : img.height * 0.75;
-        } else {
-          dropped++;
-          list.splice(list.indexOf(inl), 1);
-        }
-      })(),
-    );
-  }
-  await Promise.all(pending);
-  if (dropped) warnings.push(`${dropped} image${dropped === 1 ? "" : "s"} in a format PDF cannot embed were skipped.`);
+  const images = await embedBlockImages(doc, blocks, opts, warnings, extents);
 
   // fonts: a recording layout pass finds every word and face, then the real pass measures exactly
-  const fonts = new FontSet(doc);
-  const recorded = new Map<string, { text: string; key: FontKey }>();
-  layoutDocument(blocks, spec, (text, key, size) => {
-    recorded.set(`${key.family}|${key.bold}|${key.italic}|${text}`, { text, key });
-    return text.length * size * 0.5;
-  });
-  await fonts.prepare(recorded.values(), opts.loadFont ?? defaultLoadFont);
-
-  const pages = layoutDocument(blocks, spec, (text, key, size) => fonts.width(text, key, size), {
-    lineFactor: (key) => fonts.lineFactor(key),
-  });
-  await fonts.ensure(
-    pages.flatMap((p) =>
-      p.cmds.flatMap((c) =>
-        c.t === "text" ? [{ text: c.text, key: { family: c.family, bold: c.bold, italic: c.italic } }] : [],
-      ),
-    ),
+  const out = await renderPages(
+    doc,
+    (measure, lineFactor) =>
+      layoutDocument(blocks, spec, measure, { lineFactor }).map((p) => ({
+        width: spec.width,
+        height: spec.height,
+        cmds: p.cmds,
+      })),
+    images,
+    opts,
+    warnings,
+    [spec.width, spec.height],
   );
-
-  // draw
-  for (const laid of pages) {
-    const page = doc.addPage([spec.width, spec.height]);
-    const H = spec.height;
-    for (const c of laid.cmds) drawCmd(page, c, H, doc, fonts, images);
-  }
-  if (!pages.length) doc.addPage([spec.width, spec.height]);
-
-  warnings.push(...fonts.summary());
-  const bytes = await doc.save({ useObjectStreams: true });
-  return { bytes, pageCount: doc.getPageCount(), warnings };
-}
-
-function drawCmd(
-  page: ReturnType<PDFDocument["addPage"]>,
-  c: Cmd,
-  H: number,
-  doc: PDFDocument,
-  fonts: FontSet,
-  images: Map<Uint8Array, PDFImage>,
-) {
-  switch (c.t) {
-    case "text": {
-      const key = { family: c.family, bold: c.bold, italic: c.italic };
-      const color = hex(c.color);
-      let x = c.x;
-      for (const seg of fonts.segments(c.text, key)) {
-        if (!seg.text) continue;
-        page.drawText(seg.text, { x, y: H - c.y, size: c.size, font: seg.face.pdfFont(), color });
-        x += seg.face.advance(seg.text, c.size);
-      }
-      const w = x - c.x;
-      if (w > 0 && (c.underline || c.strike)) {
-        const thickness = Math.max(0.5, c.size * 0.06);
-        if (c.underline) {
-          const y = H - c.y - c.size * 0.14;
-          page.drawLine({ start: { x: c.x, y }, end: { x: c.x + w, y }, thickness, color });
-        }
-        if (c.strike) {
-          const y = H - c.y + c.size * 0.28;
-          page.drawLine({ start: { x: c.x, y }, end: { x: c.x + w, y }, thickness, color });
-        }
-      }
-      return;
-    }
-    case "line":
-      page.drawLine({
-        start: { x: c.x1, y: H - c.y1 },
-        end: { x: c.x2, y: H - c.y2 },
-        thickness: c.width,
-        color: hex(c.color),
-      });
-      return;
-    case "rect":
-      page.drawRectangle({ x: c.x, y: H - c.y - c.h, width: c.w, height: c.h, color: hex(c.fill) });
-      return;
-    case "image": {
-      const img = images.get(c.data);
-      if (img) page.drawImage(img, { x: c.x, y: H - c.y - c.h, width: c.w, height: c.h });
-      return;
-    }
-    case "link": {
-      const ref = doc.context.register(
-        doc.context.obj({
-          Type: "Annot",
-          Subtype: "Link",
-          Rect: [c.x, H - c.y - c.h, c.x + c.w, H - c.y],
-          Border: [0, 0, 0],
-          A: { Type: "Action", S: "URI", URI: PDFString.of(encodeURI(c.href)) },
-        }),
-      );
-      page.node.addAnnot(ref);
-      return;
-    }
-  }
+  return { bytes: out.bytes, pageCount: out.pageCount, warnings };
 }

@@ -2,6 +2,8 @@ import { batesReady } from "@/lib/bates";
 import type { FlipMode } from "@/lib/page-ops";
 import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
 import type { PiiCategory } from "@/lib/pii-detect";
+import type { DocConvertOptions } from "@/lib/doc-render/options";
+import { defaultDocOptions } from "@/lib/doc-render/options";
 import type { ToolDefinition } from "@/lib/tools";
 
 export type CompressLevel = "light" | "medium" | "heavy";
@@ -87,6 +89,7 @@ export type WatermarkLayout = "single" | "tiled";
 
 export type ToolOptions =
   | { kind: "none" }
+  | ({ kind: "convert-doc" } & DocConvertOptions)
   | { kind: "password"; password: string }
   | { kind: "password-confirm"; password: string }
   | {
@@ -584,6 +587,14 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
   switch (ui) {
     case "none":
       return { kind: "none" };
+    case "md-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("markdown") };
+    case "excel-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("excel") };
+    case "csv-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("csv") };
+    case "html-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("html") };
     case "password":
       return { kind: "password", password: "" };
     case "password-confirm":
@@ -809,6 +820,7 @@ export function optionsReady(
           options.targetKb <= PDF_TARGET_KB_MAX)
       );
     case "none":
+    case "convert-doc":
     case "crop":
     case "ocr":
     case "compare":

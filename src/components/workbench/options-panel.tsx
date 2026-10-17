@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { ArrowDown, ArrowUp, FileText, RotateCcw, X } from "lucide-react";
 
+import { ConvertOptions, convertDocHint } from "@/components/workbench/convert-options";
 import { BatesControls } from "@/components/workbench/bates-controls";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
 import { SplitExtras } from "@/components/workbench/split-extras";
@@ -135,6 +136,8 @@ export function optionsNeedCanvas(options: ToolOptions): boolean {
 /** One sentence telling the reader what the panel next to it is asking for. */
 export function optionsHint(options: ToolOptions, actionLabel: string): string {
   switch (options.kind) {
+    case "convert-doc":
+      return convertDocHint(options);
     case "none":
       return `Nothing to set up. Press ${actionLabel} and the work runs right here in this tab.`;
     case "password":
@@ -259,6 +262,9 @@ export function OptionsPanel({
   switch (options.kind) {
     case "none":
       return null;
+
+    case "convert-doc":
+      return <ConvertOptions options={options} onOptions={onOptions} disabled={disabled} files={files} />;
 
     case "password":
       return (
