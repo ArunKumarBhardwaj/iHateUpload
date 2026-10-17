@@ -1,4 +1,27 @@
+/** What the original line looks like, so a replacement can match it. */
+export type RunFont = {
+  family: "helvetica" | "times" | "courier";
+  bold: boolean;
+  italic: boolean;
+};
+
+/** Reads a PDF font name such as "ABCDEF+Arial-BoldMT" into a standard family. */
+export function fontFromName(name: string | undefined, css?: string): RunFont {
+  const n = `${name ?? ""} ${css ?? ""}`.replace(/[A-Z]{6}\+/, "").toLowerCase();
+  const family: RunFont["family"] = /courier|mono|consolas/.test(n)
+    ? "courier"
+    : /times|serif|georgia|garamond|palatino|minion|cambria/.test(n) && !/sans/.test(n)
+      ? "times"
+      : "helvetica";
+  return {
+    family,
+    bold: /bold|black|heavy|demi/.test(n),
+    italic: /italic|oblique/.test(n),
+  };
+}
+
 export type PageTextRun = {
+  font?: RunFont;
   text: string;
   x: number;
   y: number;
@@ -7,6 +30,7 @@ export type PageTextRun = {
 };
 
 export type PdfJsLikeItem = {
+  fontName?: string;
   str?: string;
   transform?: number[];
   width?: number;
@@ -18,6 +42,7 @@ export function pdfJsItemsToRuns(
   pageWidth: number,
   pageHeight: number,
   toViewport: (x: number, y: number) => { x: number; y: number },
+  fontOf?: (fontName: string | undefined) => RunFont | undefined,
 ): PageTextRun[] {
   const width = Math.max(1, pageWidth);
   const height = Math.max(1, pageHeight);
@@ -45,6 +70,7 @@ export function pdfJsItemsToRuns(
       y: top / height,
       w,
       h,
+      font: fontOf?.(item.fontName),
     });
   }
   return runs;

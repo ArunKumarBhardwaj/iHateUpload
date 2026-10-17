@@ -460,18 +460,18 @@ export const TOOLS: ToolDefinition[] = [
     title: "Edit PDF",
     shortTitle: "Edit PDF",
     description:
-      "Click words on a page to change them. Scans are read with OCR in this tab. Old letters are covered, not rewritten.",
+      "Click words on a page to change them. Find and replace across pages. The old letters are removed from the file; scans are read with OCR in this tab.",
     accept: "application/pdf,.pdf",
     multiple: false,
     ordered: false,
     actionLabel: "Save PDF",
     seoTitle: "Edit PDF Online Free — Add Text, No Upload",
     seoDescription:
-      "Edit a PDF online free. Click a line to change it in your browser. Old letters are covered, not rewritten. No upload.",
+      "Edit a PDF online free. Click a line to change it in your browser. The old letters are deleted from the file, not hidden. No upload.",
     seoHowTo: [
       "Choose the PDF you want to mark up.",
       "Click a line to change it. Scans are read first. Or add text, an image, or a highlight.",
-      "Download the PDF. Original letters under an edit are covered.",
+      "Download the PDF. The original letters under an edit are gone from the file, not just covered.",
     ],
     showInNav: true,
     kind: "pdf",
