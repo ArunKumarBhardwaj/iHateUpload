@@ -57,6 +57,8 @@ export type JpegQuality = "small" | "balanced" | "best";
 /** Editable text flows like Word; exact pins every block in a text box (still editable); picture keeps each page as an image. */
 export type PdfToWordMode = "editable" | "exact" | "picture";
 
+export type PdfToExcelLayout = "tables" | "pages";
+
 export type NumberFormat = "n" | "page" | "n-of" | "page-of" | "roman";
 
 export type NumberSize = "small" | "medium" | "large";
@@ -87,6 +89,15 @@ export type ToolOptions =
       range: string;
     }
   | { kind: "pdf-to-word"; mode: PdfToWordMode; language: string; embedFonts: boolean }
+  | {
+      kind: "pdf-to-excel";
+      layout: PdfToExcelLayout;
+      /** Put the text outside the tables on a "Text" sheet. */
+      includeText: boolean;
+      language: string;
+      /** Empty or "all" reads every page. */
+      range: string;
+    }
   | { kind: "organize"; pageOrder: number[] }
   | { kind: "resize"; maxEdge: number }
   | { kind: "compress"; level: CompressLevel; targetKb: number | null }
@@ -471,6 +482,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       };
     case "pdf-to-word":
       return { kind: "pdf-to-word", mode: "editable", language: "eng", embedFonts: true };
+    case "pdf-to-excel":
+      return { kind: "pdf-to-excel", layout: "tables", includeText: true, language: "eng", range: "" };
     case "organize":
       return { kind: "organize", pageOrder: [] };
     case "resize":
@@ -591,6 +604,7 @@ export function optionsReady(
     case "rotate":
     case "pdf-image":
     case "pdf-to-word":
+    case "pdf-to-excel":
       return true;
     case "split":
       return options.mode === "ranges"

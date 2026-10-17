@@ -25,6 +25,7 @@ export type ToolId =
   | "page-size"
   | "pdf-to-png"
   | "pdf-to-word"
+  | "pdf-to-excel"
   | "watermark-pdf"
   | "page-numbers"
   | "flatten-pdf"
@@ -78,6 +79,7 @@ export type ToolDefinition = {
     | "pdf-image"
     | "pdf-png"
     | "pdf-to-word"
+    | "pdf-to-excel"
     | "organize"
     | "resize"
     | "compress"
@@ -217,6 +219,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "pdf-to-word",
+  },
+  {
+    id: "pdf-to-excel",
+    slug: "pdf-to-excel",
+    title: "PDF to Excel",
+    shortTitle: "PDF → Excel",
+    description:
+      "Turn the tables in a PDF into an Excel workbook. Numbers, dates and percentages arrive as real cells, not text.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Convert to Excel",
+    seoTitle: "PDF to Excel Converter Free — No Upload",
+    seoDescription:
+      "Convert PDF tables to Excel (.xlsx) online free. Numbers, dates and percentages become real cells, tables that run over pages join into one sheet, scanned pages are read with OCR, and nothing is uploaded.",
+    seoHowTo: [
+      "Drop one or more PDF files into the workspace.",
+      "Choose one sheet per table or per page, and which pages to read, then click Convert to Excel.",
+      "Download the .xlsx. Nothing was uploaded.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "pdf-to-excel",
   },
   {
     id: "pdf-to-png",

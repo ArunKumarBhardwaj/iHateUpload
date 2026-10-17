@@ -177,6 +177,10 @@ async function runTool(
       return import("@/lib/pdf-to-word/process").then((engine) =>
         engine.processPdfToWord(files, onProgress, options),
       );
+    case "pdf-to-excel":
+      return import("@/lib/pdf-to-excel/process").then((engine) =>
+        engine.processPdfToExcel(files, onProgress, options),
+      );
     case "watermark-pdf":
     case "page-numbers":
       return processAnnotatePdf(files, onProgress, options);

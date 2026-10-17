@@ -91,6 +91,10 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Pick how to cut the PDF. Each piece is its own file.";
     case "pdf-image":
       return "Higher DPI is sharper and bigger. Leave the pages box empty for every page.";
+    case "pdf-to-excel":
+      return options.layout === "tables"
+        ? "Each table becomes a sheet, and a table that runs over several pages is joined into one. Numbers, dates and percentages become real cells. Pages with no text are read with OCR."
+        : "Each page becomes a sheet, with its text and tables in the order they appear. Pages with no text are read with OCR.";
     case "pdf-to-word":
       return options.mode === "editable"
         ? "Paragraphs, headings, lists, tables and pictures become real Word content. Pages with no text are read with OCR."
@@ -477,6 +481,76 @@ export function OptionsPanel({
               </span>
             </label>
           ) : null}
+        </div>
+      );
+
+    case "pdf-to-excel":
+      return (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Sheets</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["tables", "One sheet per table"],
+                  ["pages", "One sheet per page"],
+                ] as const
+              ).map(([layout, title]) => (
+                <Button
+                  key={layout}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.layout === layout ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, layout })}
+                >
+                  {title}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <Field label="Pages" htmlFor="pdf-excel-range">
+            <Input
+              id="pdf-excel-range"
+              value={options.range}
+              disabled={disabled}
+              onChange={(e) => onOptions({ ...options, range: e.target.value })}
+              placeholder="All pages, or e.g. 1-3, 7"
+              inputMode="text"
+              autoComplete="off"
+            />
+          </Field>
+          {options.layout === "tables" ? (
+            <label className="flex items-start gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4"
+                checked={options.includeText}
+                disabled={disabled}
+                onChange={(event) => onOptions({ ...options, includeText: event.target.checked })}
+              />
+              <span>Put the text outside the tables on a Text sheet.</span>
+            </label>
+          ) : null}
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Language of scanned pages</p>
+            <div className="flex flex-wrap gap-2">
+              {OCR_LANGUAGES.map((language) => (
+                <Button
+                  key={language.id}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.language === language.id ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, language: language.id })}
+                >
+                  {language.title}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
       );
 
