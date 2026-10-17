@@ -129,12 +129,26 @@ test("a grey scan becomes 1-bit JBIG2 at medium, with the same ink", async () =>
   expect(Buffer.compare(back.pixels, expected)).toBe(0);
 });
 
-test("light leaves a grey scan lossless, only the 1-bit kind is recoded", async () => {
-  const input = await pdfWithImage(scanGray(), 8);
+test("light thresholds a grey scan too, as an exact generic region", async () => {
+  const gray = scanGray();
+  const input = await pdfWithImage(gray, 8);
   const { bytes } = await compressPdfBytes(input, COMPRESS_PLANS.light, codec);
+  expect(bytes.length).toBeLessThan(input.length * 0.1);
   const image = firstImage(await PDFDocument.load(bytes));
-  expect(field(image, "Filter")).not.toBe("/JBIG2Decode");
-  expect(field(image, "BitsPerComponent")).toBe("8");
+  expect(field(image, "Filter")).toBe("/JBIG2Decode");
+  expect(field(image, "Width")).toBe(String(W));
+  const stream = image.contents;
+  // One page-info and one generic region segment: no dictionary, no letter matching.
+  expect(stream[4] & 63).toBe(48);
+  const back = decodeJbig2Generic(stream);
+  expect(Buffer.compare(back.pixels, binarize(gray, W, H).ink)).toBe(0);
+});
+
+test("light keeps a photo page and coloured scans out of JBIG2", async () => {
+  const photo = await compressPdfBytes(await pdfWithImage(scanGray({ photo: true }), 8), COMPRESS_PLANS.light, codec);
+  const image = firstImage(await PDFDocument.load(photo.bytes));
+  expect(field(image, "Filter")).toBe("/DCTDecode"); // a grey photo page is JPEG even at Light
+  expect(photo.bytes.length).toBeLessThan(700_000);
 });
 
 test("a 1-bit image is re-coded: exactly at light, near-exactly with letter matching above", async () => {

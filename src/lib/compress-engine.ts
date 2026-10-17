@@ -334,7 +334,7 @@ function tryBilevel(
   const luma = shrinkLuma(lumaOf(pixels), pixels.width, pixels.height, size.width, size.height);
   const result = binarize(luma, size.width, size.height);
   if (!result.bilevel) return null;
-  const bytes = encodeJbig2Best(result.ink, size.width, size.height, true);
+  const bytes = encodeJbig2Best(result.ink, size.width, size.height, plan.matchLetters);
   if (bytes.length >= stream.contents.length * KEEP_IF_UNDER) return null;
   setBilevelImage(doc, stream, bytes, size.width, size.height);
   return size.width !== pixels.width || size.height !== pixels.height ? "resampled" : "rewritten";
@@ -379,7 +379,7 @@ function recodeOneBit(
       }
     }
   }
-  const bytes = encodeJbig2Best(ink, outW, outH, plan.bilevelDpi > 0);
+  const bytes = encodeJbig2Best(ink, outW, outH, plan.matchLetters);
   if (bytes.length >= stream.contents.length * KEEP_IF_UNDER) return "kept";
   setBilevelImage(doc, stream, bytes, outW, outH);
   return outcome;
@@ -450,7 +450,7 @@ async function compressImage(
 
   type Candidate = { bytes: Uint8Array; filter: "DCTDecode" | "FlateDecode" };
   const candidates: Candidate[] = [];
-  const jpegAllowed = jpeg || (plan.lossyFlate && looksPhotographic(out, ch === 1 ? PHOTO_GRAY_FLOOR : PHOTO_COLOR_FLOOR));
+  const jpegAllowed = jpeg || ((plan.lossyFlate || ch === 1) && looksPhotographic(out, ch === 1 ? PHOTO_GRAY_FLOOR : PHOTO_COLOR_FLOOR));
   if (jpegAllowed) {
     candidates.push({
       bytes: await encodeAdaptive(out, plan, ch === 1, codec),
