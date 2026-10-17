@@ -394,9 +394,11 @@ function paraItems(p: Para, width: number, ctx: Ctx): Item[] {
         if (bg) pre.push({ t: "rect", x: bx, y: top, w: bw, h: bottom - top, fill: bg });
         if (border) {
           const b = { width: border.width, color: border.color };
-          pre.push({ t: "line", x1: bx, y1: top, x2: bx, y2: bottom, ...b });
-          pre.push({ t: "line", x1: bx + bw, y1: top, x2: bx + bw, y2: bottom, ...b });
-          if (first) pre.push({ t: "line", x1: bx, y1: top, x2: bx + bw, y2: top, ...b });
+          if (!p.box?.bottomOnly) {
+            pre.push({ t: "line", x1: bx, y1: top, x2: bx, y2: bottom, ...b });
+            pre.push({ t: "line", x1: bx + bw, y1: top, x2: bx + bw, y2: bottom, ...b });
+            if (first) pre.push({ t: "line", x1: bx, y1: top, x2: bx + bw, y2: top, ...b });
+          }
           if (last) pre.push({ t: "line", x1: bx, y1: bottom, x2: bx + bw, y2: bottom, ...b });
         }
         it.cmds.unshift(...pre);

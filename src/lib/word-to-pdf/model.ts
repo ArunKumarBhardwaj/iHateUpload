@@ -72,7 +72,7 @@ export interface Para {
   /** vertical bar colour drawn left of the paragraph (block quotes) */
   bar?: string;
   /** shaded and/or outlined box behind the paragraph (code blocks, styled HTML) */
-  box?: { bg?: string; border?: { color: string; width: number } };
+  box?: { bg?: string; border?: { color: string; width: number }; bottomOnly?: boolean };
   /** heading id, so a table of contents can look up its page */
   anchor?: number;
 }
