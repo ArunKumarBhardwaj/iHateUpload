@@ -26,7 +26,14 @@ page.on("console", (m) => m.type() === "error" && console.log("CONSOLE", m.text(
 await page.goto(`http://localhost:43152/tools/${slug}`);
 await page.setInputFiles('input[type=file]', resolve(input));
 await page.waitForTimeout(1500);
-if (script) await (await import(resolve(script))).default(page);
+try {
+  if (script) await (await import(resolve(script))).default(page);
+} catch (e) {
+  console.log("STEP FAILED", e.message.split("\n")[0]);
+  if (shot) await page.screenshot({ path: shot, fullPage: true });
+  await browser.close();
+  process.exit(1);
+}
 if (shot) await page.screenshot({ path: shot, fullPage: true });
 const btn = page.locator("button.h-12.flex-1");
 const t0 = Date.now();

@@ -4,6 +4,8 @@ import { useRef } from "react";
 import { ArrowDown, ArrowUp, FileText, RotateCcw, X } from "lucide-react";
 
 import { BatesControls } from "@/components/workbench/bates-controls";
+import { CropPanel } from "@/components/workbench/page-tools/crop-panel";
+import { PageSizePanel } from "@/components/workbench/page-tools/page-size-panel";
 import { NupPanel } from "@/components/workbench/page-tools/nup-panel";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
 import { SplitExtras } from "@/components/workbench/split-extras";
@@ -121,6 +123,7 @@ export function optionsNeedCanvas(options: ToolOptions): boolean {
     options.kind === "sign" ||
     options.kind === "edit" ||
     options.kind === "crop" ||
+    options.kind === "page-size" ||
     options.kind === "image-crop" ||
     options.kind === "redact"
   );
@@ -172,7 +175,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "edit":
       return "Click a line to change it. Scans are read with OCR. Old letters are covered, not rewritten.";
     case "crop":
-      return "Drag the box to the area every page should keep.";
+      return "Drag the box, or type margins. Keep one crop for every page or give each page its own.";
     case "redact":
       return "Scan for personal info or draw boxes over the text. Those pixels are burned out, not covered.";
     case "compare":
@@ -186,7 +189,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "nup":
       return "Pick a grid, a paper size and how pages flow. Pages stay vector, so text stays selectable.";
     case "page-size":
-      return "Fit fills the sheet and may clip. Letterbox keeps the whole page.";
+      return "Pick a sheet or type your own size. Pages stay vector, so text stays selectable.";
     case "annotate":
       return options.variant === "numbers"
         ? options.bates
@@ -1166,50 +1169,22 @@ export function OptionsPanel({
 
     case "page-size":
       return (
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-ink">Sheet</p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["a4", "A4"],
-                ["letter", "Letter"],
-              ] as const
-            ).map(([size, title]) => (
-              <Button
-                key={size}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.size === size ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() => onOptions({ ...options, size })}
-              >
-                {title}
-              </Button>
-            ))}
-          </div>
-          <p className="text-sm font-medium text-ink">How to fit</p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["letterbox", "Letterbox"],
-                ["fit", "Fit"],
-              ] as const
-            ).map(([fit, title]) => (
-              <Button
-                key={fit}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.fit === fit ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() => onOptions({ ...options, fit })}
-              >
-                {title}
-              </Button>
-            ))}
-          </div>
-        </div>
+        <PageSizePanel
+          options={options}
+          onOptions={onOptions}
+          file={files?.[0]?.file}
+          disabled={disabled}
+        />
+      );
+
+    case "crop":
+      return (
+        <CropPanel
+          options={options}
+          onOptions={onOptions}
+          file={files?.[0]?.file}
+          disabled={disabled}
+        />
       );
 
     case "annotate":

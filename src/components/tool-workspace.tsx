@@ -454,7 +454,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const overlayFile =
     (options.kind === "sign" ||
       options.kind === "edit" ||
-      options.kind === "crop" ||
       options.kind === "redact") &&
     pagedFile
       ? pagedFile.file
@@ -628,15 +627,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   onMarks={(marks) => setOptions({ kind: "edit", marks })}
                   pageCount={pageCount}
                   disabled={locked}
-                />
-              ) : null}
-              {overlayFile && options.kind === "crop" ? (
-                <PageOverlay
-                  file={overlayFile}
-                  box={options.box}
-                  onBox={(box) => setOptions({ ...options, box })}
-                  disabled={locked}
-                  label="Keep this area"
                 />
               ) : null}
               {overlayFile && options.kind === "redact" ? (

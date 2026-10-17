@@ -1,5 +1,6 @@
 import { batesReady } from "@/lib/bates";
 import type { FlipMode } from "@/lib/page-ops";
+import { DEFAULT_RESIZE, type ResizeSettings } from "@/lib/page-tools/resize";
 import { DEFAULT_NUP, type NupSettings } from "@/lib/page-tools/nup";
 import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
 import type { PiiCategory } from "@/lib/pii-detect";
@@ -150,7 +151,14 @@ export type ToolOptions =
   | { kind: "extract"; range: string; pageCount: number }
   | { kind: "sign"; mode: SignMode; text: string; dataUrl: string; box: PageBox }
   | { kind: "edit"; marks: EditMark[] }
-  | { kind: "crop"; box: PageBox }
+  | {
+      kind: "crop";
+      /** Shared box, ratios of the page as shown. */
+      box: PageBox;
+      /** Own box per page, used when `applyAll` is off. */
+      perPage: Record<number, RatioBox>;
+      applyAll: boolean;
+    }
   | {
       kind: "redact";
       /** Boxes drawn by hand. */
@@ -175,7 +183,7 @@ export type ToolOptions =
   | { kind: "insert-blank"; afterPage: number }
   | { kind: "invert"; mode: "invert" | "grayscale" }
   | ({ kind: "nup" } & NupSettings)
-  | { kind: "page-size"; size: "a4" | "letter"; fit: "fit" | "letterbox" }
+  | ({ kind: "page-size" } & ResizeSettings)
   | {
       kind: "annotate";
       variant: "watermark" | "numbers";
@@ -622,7 +630,12 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "edit":
       return { kind: "edit", marks: [] };
     case "crop":
-      return { kind: "crop", box: { ...DEFAULT_CROP_BOX } };
+      return {
+        kind: "crop",
+        box: { ...DEFAULT_CROP_BOX },
+        perPage: {},
+        applyAll: true,
+      };
     case "redact":
       return {
         kind: "redact",
@@ -649,7 +662,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "nup":
       return { kind: "nup", ...DEFAULT_NUP };
     case "page-size":
-      return { kind: "page-size", size: "a4", fit: "letterbox" };
+      return { kind: "page-size", ...DEFAULT_RESIZE };
     case "watermark":
       return {
         kind: "annotate",

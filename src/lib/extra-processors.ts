@@ -1,6 +1,5 @@
 import {
   PDFDocument,
-  PageSizes,
   StandardFonts,
   degrees,
   rgb,
@@ -10,6 +9,8 @@ import type { PDFPageProxy } from "pdfjs-dist";
 
 import type { FileItem, ResultItem } from "@/lib/job";
 import { stripInvisibleText } from "@/lib/page-ops";
+import { cropPages } from "@/lib/page-tools/crop";
+import { resizePages } from "@/lib/page-tools/resize";
 import { buildNup } from "@/lib/page-tools/nup";
 import { loadPdfJs } from "@/lib/pdfjs";
 import { extractPdfText } from "@/lib/pdf-text";
@@ -404,14 +405,10 @@ export async function processCropPdf(
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to crop.");
   const doc = await loadPdf(item.file);
-  const pages = doc.getPages();
-  pages.forEach((page, index) => {
-    const size = page.getSize();
-    const box = pageBoxToPdf(options.box, size.width, size.height);
-    page.setCropBox(box.x, box.y, box.width, box.height);
-    page.setMediaBox(box.x, box.y, box.width, box.height);
-    onProgress((index + 1) / (pages.length + 1));
-  });
+  cropPages(doc, (index) =>
+    options.applyAll ? options.box : (options.perPage[index] ?? options.box),
+  );
+  onProgress(0.7);
   stripPdfMetadata(doc);
   const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
   onProgress(1);
@@ -1851,29 +1848,9 @@ export async function processPageSize(
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to resize.");
   const source = await loadPdf(item.file);
-  ensurePageContents(source);
-  const target = options.size === "a4" ? PageSizes.A4 : PageSizes.Letter;
-  const out = await PDFDocument.create();
-  const count = source.getPageCount();
-  for (let index = 0; index < count; index++) {
-    const embedded = await out.embedPage(source.getPage(index));
-    const page = out.addPage(target);
-    const scale =
-      options.fit === "fit"
-        ? Math.max(target[0] / embedded.width, target[1] / embedded.height)
-        : Math.min(target[0] / embedded.width, target[1] / embedded.height);
-    const width = embedded.width * scale;
-    const height = embedded.height * scale;
-    page.drawPage(embedded, {
-      x: (target[0] - width) / 2,
-      y: (target[1] - height) / 2,
-      width,
-      height,
-    });
-    onProgress((index + 1) / count);
-  }
+  const out = await resizePages(source, options, onProgress);
   stripPdfMetadata(out);
-  const tag = options.size === "a4" ? "a4" : "letter";
+  const tag = options.size === "custom" ? "resized" : options.size;
   return [
     resultFrom(
       item,
@@ -1882,19 +1859,6 @@ export async function processPageSize(
       item.size,
     ),
   ];
-}
-
-function ensurePageContents(doc: PDFDocument) {
-  for (const page of doc.getPages()) {
-    page.drawRectangle({
-      x: 0,
-      y: 0,
-      width: 0.01,
-      height: 0.01,
-      opacity: 0,
-      borderOpacity: 0,
-    });
-  }
 }
 
 async function renderPageCanvas(page: PDFPageProxy, scale: number) {
