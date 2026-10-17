@@ -110,14 +110,21 @@ if (tool === "extract-text") {
   await open("extract-text", "scan.pdf");
   await page.screenshot({ path: out + "et-form.png" });
   await page.getByRole("button", { name: "Extract text" }).click();
-  await page.getByText("Text is ready").waitFor({ timeout: 120000 });
+  await page.getByText("Text is ready", { exact: true }).first().waitFor({ timeout: 120000 });
   console.log((await page.locator("p.whitespace-pre-wrap").innerText()).slice(0, 300));
   await page.screenshot({ path: out + "et-done.png" });
   await page.getByRole("button", { name: /Copy/ }).click();
   console.log("copied:", await page.evaluate(() => navigator.clipboard.readText().catch((e) => "ERR " + e)));
   await open("extract-text", "plain.pdf");
   await page.getByRole("button", { name: "Extract text" }).click();
-  await page.getByText("Text is ready").waitFor();
+  await page.getByText("Text is ready", { exact: true }).waitFor();
+  console.log((await page.locator("p.whitespace-pre-wrap").innerText()).slice(0, 200));
+}
+
+if (tool === "extract-text-image") {
+  await open("extract-text", "scan.png");
+  await page.getByRole("button", { name: "Extract text" }).click();
+  await page.getByText("Text is ready", { exact: true }).waitFor({ timeout: 120000 });
   console.log((await page.locator("p.whitespace-pre-wrap").innerText()).slice(0, 200));
 }
 

@@ -556,8 +556,8 @@ export const TOOLS: ToolDefinition[] = [
     title: "Extract Text",
     shortTitle: "Extract text",
     description:
-      "Copy the selectable text out of a PDF into a .txt file. Stays in this tab.",
-    accept: "application/pdf,.pdf",
+      "Copy the text out of a PDF into a .txt file. Scans and photos can be read with OCR. Stays in this tab.",
+    accept: "application/pdf,.pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp",
     multiple: true,
     ordered: false,
     actionLabel: "Extract text",
