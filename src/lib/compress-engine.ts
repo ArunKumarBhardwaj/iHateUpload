@@ -17,7 +17,7 @@ import {
   unpackGray1,
 } from "@/lib/bilevel";
 import { TARGET_LADDER, type CompressPlan } from "@/lib/compress-plans";
-import { encodeJbig2 } from "@/lib/jbig2-encode";
+import { encodeJbig2Best } from "@/lib/jbig2";
 import { stripPdfMetadata } from "@/lib/pdf-meta";
 import { scanImagePlacements, type Placement } from "@/lib/pdf-placements";
 
@@ -334,7 +334,7 @@ function tryBilevel(
   const luma = shrinkLuma(lumaOf(pixels), pixels.width, pixels.height, size.width, size.height);
   const result = binarize(luma, size.width, size.height);
   if (!result.bilevel) return null;
-  const bytes = encodeJbig2(result.ink, size.width, size.height);
+  const bytes = encodeJbig2Best(result.ink, size.width, size.height, true);
   if (bytes.length >= stream.contents.length * KEEP_IF_UNDER) return null;
   setBilevelImage(doc, stream, bytes, size.width, size.height);
   return size.width !== pixels.width || size.height !== pixels.height ? "resampled" : "rewritten";
@@ -379,7 +379,7 @@ function recodeOneBit(
       }
     }
   }
-  const bytes = encodeJbig2(ink, outW, outH);
+  const bytes = encodeJbig2Best(ink, outW, outH, plan.bilevelDpi > 0);
   if (bytes.length >= stream.contents.length * KEEP_IF_UNDER) return "kept";
   setBilevelImage(doc, stream, bytes, outW, outH);
   return outcome;

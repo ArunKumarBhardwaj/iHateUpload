@@ -137,7 +137,7 @@ test("light leaves a grey scan lossless, only the 1-bit kind is recoded", async 
   expect(field(image, "BitsPerComponent")).toBe("8");
 });
 
-test("a 1-bit image is re-coded losslessly at every level", async () => {
+test("a 1-bit image is re-coded: exactly at light, near-exactly with letter matching above", async () => {
   const ink = glyphPage();
   const input = await pdfWithImage(packGray1(ink, W, H), 1);
   for (const plan of [COMPRESS_PLANS.light, COMPRESS_PLANS.medium, COMPRESS_PLANS.heavy]) {
@@ -145,7 +145,13 @@ test("a 1-bit image is re-coded losslessly at every level", async () => {
     const image = firstImage(await PDFDocument.load(bytes));
     expect(field(image, "Filter")).toBe("/JBIG2Decode");
     const back = decodeJbig2Generic(image.contents);
-    expect(Buffer.compare(back.pixels, ink)).toBe(0);
+    if (plan === COMPRESS_PLANS.light) {
+      expect(Buffer.compare(back.pixels, ink)).toBe(0);
+    } else {
+      let off = 0;
+      for (let i = 0; i < ink.length; i++) if (back.pixels[i] !== ink[i]) off++;
+      expect(off / ink.reduce((n, v) => n + v, 0)).toBeLessThan(0.1);
+    }
     expect(bytes.length).toBeLessThan(input.length * 0.8);
   }
   const check = unpackGray1(packGray1(ink, W, H), W, H);

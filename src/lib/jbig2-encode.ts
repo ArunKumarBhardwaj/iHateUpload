@@ -127,10 +127,16 @@ export class MqEncoder {
   }
 }
 
-const be32 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+export const be32 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
 
-function segment(number: number, type: number, data: Uint8Array): Uint8Array {
-  const head = [...be32(number), type, 0, 1, ...be32(data.length)];
+/** One segment: number, type, the segments it refers to, then its data. */
+export function segment(
+  number: number,
+  type: number,
+  data: Uint8Array,
+  refers: number[] = [],
+): Uint8Array {
+  const head = [...be32(number), type, refers.length << 5, ...refers, 1, ...be32(data.length)];
   const out = new Uint8Array(head.length + data.length);
   out.set(head);
   out.set(data, head.length);
@@ -140,17 +146,23 @@ function segment(number: number, type: number, data: Uint8Array): Uint8Array {
 /** Context for template 0 with the default adaptive pixels; 0x9b25 codes the typical-row flag. */
 const SLTP_CONTEXT = 0x9b25;
 
+/** Adaptive pixels A1..A4 for template 0, as the stream spells them. */
+export const DEFAULT_AT = new Uint8Array([3, 0xff, 0xfd, 0xff, 2, 0xfe, 0xfe, 0xfe]);
+
 /**
- * Codes one generic region (template 0, TPGDON) into MQ bytes.
+ * Codes one bitmap (template 0, default adaptive pixels) with the given
+ * arithmetic coder. Generic contexts live at 0..65535. With typical
+ * prediction, rows equal to the one above cost one flag.
  * pixels holds width * height samples, 1 for ink and 0 for paper.
  */
-export function encodeGenericRegion(
+export function codeBitmap(
+  mq: MqEncoder,
   pixels: Uint8Array,
   width: number,
   height: number,
-): Uint8Array {
-  const mq = new MqEncoder(1 << 16);
-  // Padded copy: 3 columns each side and 2 rows above keep the loop branch-free.
+  typicalPrediction: boolean,
+) {
+  // Padded copy: 4 columns each side and 2 rows above keep the loop branch-free.
   const stride = width + 8;
   const pad = new Uint8Array(stride * (height + 2));
   for (let y = 0; y < height; y++) {
@@ -159,68 +171,99 @@ export function encodeGenericRegion(
   let previousTypical = 0;
   for (let y = 0; y < height; y++) {
     const row = (y + 2) * stride + 4;
-    let same = true;
-    const above = row - stride;
-    for (let x = 0; x < width; x++) {
-      if (pad[row + x] !== pad[above + x]) {
-        same = false;
-        break;
+    if (typicalPrediction) {
+      let same = true;
+      const above = row - stride;
+      for (let x = 0; x < width; x++) {
+        if (pad[row + x] !== pad[above + x]) {
+          same = false;
+          break;
+        }
       }
+      const typical = same ? 1 : 0;
+      mq.encode(SLTP_CONTEXT, typical ^ previousTypical);
+      previousTypical = typical;
+      if (typical) continue;
     }
-    const typical = same ? 1 : 0;
-    mq.encode(SLTP_CONTEXT, typical ^ previousTypical);
-    previousTypical = typical;
-    if (typical) continue;
     const r1 = row - stride;
     const r2 = row - 2 * stride;
-    // Windows hold the pixels left of and under the cursor, MSB = leftmost.
-    let w0 = 0;
+    // Windows hold the pixels around the cursor, MSB = leftmost.
+    let w0 = 0; // x-4..x-1
     // x = 0: row y-2 spans x-2..x+2 and row y-1 spans x-3..x+3; the left padding is zero.
     let w2 = (pad[r2] << 2) | (pad[r2 + 1] << 1) | pad[r2 + 2];
     let w1 = (pad[r1] << 3) | (pad[r1 + 1] << 2) | (pad[r1 + 2] << 1) | pad[r1 + 3];
     for (let x = 0; x < width; x++) {
-      const cx = (w2 << 11) | (w1 << 4) | w0;
       const bit = pad[row + x];
-      mq.encode(cx, bit);
+      mq.encode((w2 << 11) | (w1 << 4) | w0, bit);
       w2 = ((w2 << 1) | pad[r2 + x + 3]) & 0x1f;
       w1 = ((w1 << 1) | pad[r1 + x + 4]) & 0x7f;
       w0 = ((w0 << 1) | bit) & 0xf;
     }
   }
+}
+
+/** Codes one generic region into MQ bytes. */
+export function encodeGenericRegion(pixels: Uint8Array, width: number, height: number): Uint8Array {
+  const mq = new MqEncoder(1 << 16);
+  codeBitmap(mq, pixels, width, height, true);
   return mq.finish();
 }
 
-/**
- * The bytes of a PDF /JBIG2Decode stream for one bilevel image.
- * pixels holds width * height samples, 1 for ink and 0 for paper.
- */
-export function encodeJbig2(
+export function pageInfoSegment(number: number, width: number, height: number): Uint8Array {
+  return segment(
+    number,
+    48,
+    new Uint8Array([
+      ...be32(width),
+      ...be32(height),
+      ...be32(0),
+      ...be32(0),
+      0, // flags: default pixel 0, OR combination
+      0,
+      0, // not striped
+    ]),
+  );
+}
+
+/** Region segment information field: size, position, and OR combination. */
+export function regionInfo(width: number, height: number): number[] {
+  return [...be32(width), ...be32(height), ...be32(0), ...be32(0), 0];
+}
+
+function concat(parts: Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let o = 0;
+  for (const p of parts) {
+    out.set(p, o);
+    o += p.length;
+  }
+  return out;
+}
+export { concat };
+
+/** Generic region segment (immediate, arithmetic, template 0, typical prediction). */
+export function genericRegionSegment(
+  number: number,
   pixels: Uint8Array,
   width: number,
   height: number,
 ): Uint8Array {
-  const page = new Uint8Array([
-    ...be32(width),
-    ...be32(height),
-    ...be32(0),
-    ...be32(0),
-    0, // flags: default pixel 0, OR combination
-    0,
-    0, // not striped
-  ]);
-  const body = encodeGenericRegion(pixels, width, height);
-  const info = new Uint8Array([...be32(width), ...be32(height), ...be32(0), ...be32(0), 0]);
   const flags = 0x08; // template 0, typical prediction on, arithmetic coding
-  const adaptive = new Uint8Array([3, 0xff, 0xfd, 0xff, 2, 0xfe, 0xfe, 0xfe]); // (3,-1) (-3,-1) (2,-2) (-2,-2)
-  const region = new Uint8Array(info.length + 1 + adaptive.length + body.length);
-  region.set(info);
-  region[info.length] = flags;
-  region.set(adaptive, info.length + 1);
-  region.set(body, info.length + 1 + adaptive.length);
-  const first = segment(0, 48, page);
-  const second = segment(1, 38, region);
-  const out = new Uint8Array(first.length + second.length);
-  out.set(first);
-  out.set(second, first.length);
-  return out;
+  const body = encodeGenericRegion(pixels, width, height);
+  return segment(
+    number,
+    38,
+    concat([new Uint8Array([...regionInfo(width, height), flags]), DEFAULT_AT, body]),
+  );
+}
+
+/**
+ * The bytes of a PDF /JBIG2Decode stream for one bilevel image, coded as a
+ * single generic region. pixels holds width * height samples, 1 for ink.
+ */
+export function encodeJbig2(pixels: Uint8Array, width: number, height: number): Uint8Array {
+  return concat([
+    pageInfoSegment(0, width, height),
+    genericRegionSegment(1, pixels, width, height),
+  ]);
 }
