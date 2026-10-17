@@ -41,10 +41,6 @@ import {
   processEditMetadata,
   processAskPdf,
   processCropPdf,
-  processCsvToPdf,
-  processExcelToPdf,
-  processHtmlToPdf,
-  processMarkdownToPdf,
   processPptxToPdf,
   processScanToPdf,
   processFlattenPdf,
@@ -195,15 +191,15 @@ async function runTool(
     case "word-to-pdf":
       return processWordToPdf(files, onProgress);
     case "excel-to-pdf":
-      return processExcelToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "pptx-to-pdf":
       return processPptxToPdf(files, onProgress);
     case "markdown-to-pdf":
-      return processMarkdownToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "csv-to-pdf":
-      return processCsvToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "html-to-pdf":
-      return processHtmlToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "scan-to-pdf":
       return processScanToPdf(files, onProgress);
     case "strip-metadata":
