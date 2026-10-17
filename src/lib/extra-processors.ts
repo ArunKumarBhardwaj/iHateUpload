@@ -12,6 +12,11 @@ import type { FileItem, ResultItem } from "@/lib/job";
 import { stripInvisibleText } from "@/lib/page-ops";
 import { loadPdfJs } from "@/lib/pdfjs";
 import { extractPdfText } from "@/lib/pdf-text";
+import {
+  applyMetadata,
+  loadForMetadata,
+  wipePdfMetadata,
+} from "@/lib/pdf-meta";
 import { lineDiff } from "@/lib/text-diff";
 import {
   processImageToPdf,
@@ -36,6 +41,7 @@ import {
   type ToolOptions,
   editMarkReady,
 } from "@/lib/tool-options";
+import { batesLabel, batesPlacement, batesReady } from "@/lib/bates";
 import { parseHexColor, watermarkStamps } from "@/lib/watermark";
 
 type ProgressFn = (ratio: number) => void;
@@ -481,6 +487,114 @@ function numberLabel(
   }
 }
 
+/** `resolvePageRange`, with the file's name on the error so a batch says which one. */
+function pageRangeFor(item: FileItem, range: string, pageCount: number) {
+  try {
+    return resolvePageRange(range, pageCount);
+  } catch (error) {
+    throw new Error(
+      `${item.name}: ${error instanceof Error ? error.message : "Enter pages like 1-3, 7."}`,
+    );
+  }
+}
+
+/**
+ * Bates numbers run on through every file in the order given: the counter is
+ * spent only on pages that are actually stamped, never reset between files.
+ */
+async function processBatesPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: Extract<ToolOptions, { kind: "annotate" }>,
+): Promise<ResultItem[]> {
+  if (!batesReady(options)) {
+    throw new Error("Check the Bates settings: digits, size, start and prefix.");
+  }
+  const [red, green, blue] = parseHexColor(options.color);
+  const results: ResultItem[] = [];
+  const log: string[][] = [];
+  let counter = options.startAt;
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const doc = await loadPdf(item.file);
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const pages = doc.getPages();
+    const wanted = new Set(pageRangeFor(item, options.range, pages.length));
+    const first = counter;
+    let stamped = 0;
+    pages.forEach((page, index) => {
+      if (!wanted.has(index) || (options.skipFirst && index === 0)) return;
+      const label = batesLabel(options, counter++);
+      stamped++;
+      const { width, height } = page.getSize();
+      const size = options.batesSize;
+      const textWidth = font.widthOfTextAtSize(label, size);
+      const point = batesPlacement(
+        options.position,
+        width,
+        height,
+        textWidth,
+        size,
+        options.margin,
+      );
+      if (options.batesPlate) {
+        const pad = size * 0.3;
+        page.drawRectangle({
+          x: point.x - pad,
+          y: point.y - size * 0.25 - pad / 2,
+          width: textWidth + pad * 2,
+          height: size * 1.2 + pad,
+          color: rgb(1, 1, 1),
+        });
+      }
+      page.drawText(label, {
+        x: point.x,
+        y: point.y,
+        size,
+        font,
+        color: rgb(red, green, blue),
+      });
+    });
+    if (stamped === 0) {
+      throw new Error(`${item.name}: no pages left to number.`);
+    }
+    const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
+    const result = resultFrom(
+      item,
+      blob,
+      replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-bates.pdf"),
+      item.size,
+    );
+    result.note = `${batesLabel(options, first)} to ${batesLabel(options, counter - 1)}`;
+    results.push(result);
+    log.push([
+      item.name,
+      result.name,
+      batesLabel(options, first),
+      batesLabel(options, counter - 1),
+      String(stamped),
+    ]);
+    onProgress((i + 1) / files.length);
+  }
+  results.push(batesLog(log));
+  return results;
+}
+
+/** The production log lawyers file with a Bates set: one CSV row per file. */
+function batesLog(rows: string[][]): ResultItem {
+  const quote = (text: string) => `"${text.replace(/"/g, '""')}"`;
+  const head = ["Source file", "Stamped file", "First Bates", "Last Bates", "Pages"];
+  const csv = [head, ...rows].map((row) => row.map(quote).join(",")).join("\r\n");
+  const blob = new Blob([`${csv}\r\n`], { type: "text/csv" });
+  return {
+    id: crypto.randomUUID(),
+    name: "bates-production-log.csv",
+    size: blob.size,
+    blob,
+    originalSize: blob.size,
+  };
+}
+
 export async function processAnnotatePdf(
   files: FileItem[],
   onProgress: ProgressFn,
@@ -488,6 +602,9 @@ export async function processAnnotatePdf(
 ): Promise<ResultItem[]> {
   if (options.kind !== "annotate") {
     throw new Error("Watermark needs stamp settings.");
+  }
+  if (options.variant === "numbers" && options.bates) {
+    return processBatesPdf(files, onProgress, options);
   }
   const results: ResultItem[] = [];
   for (let i = 0; i < files.length; i++) {
@@ -498,16 +615,15 @@ export async function processAnnotatePdf(
     const numberPoints =
       NUMBER_SIZES.find((entry) => entry.id === options.numberSize)?.points ??
       11;
-    const inRange =
-      options.variant === "watermark"
-        ? new Set(resolvePageRange(options.range, pages.length))
-        : null;
+    const inRange = new Set(
+      pageRangeFor(item, options.range, pages.length),
+    );
     const [red, green, blue] = parseHexColor(options.color);
     pages.forEach((page, index) => {
       if (options.variant === "numbers" && options.skipFirst && index === 0) {
         return;
       }
-      if (inRange && !inRange.has(index)) return;
+      if (!inRange.has(index)) return;
       const { width, height } = page.getSize();
       if (options.variant === "watermark") {
         const text = options.text.trim();
@@ -612,8 +728,8 @@ export async function processStripMetadata(
   const results: ResultItem[] = [];
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
-    const doc = await loadPdf(item.file);
-    stripPdfMetadata(doc);
+    const doc = await loadForMetadata(await item.file.arrayBuffer());
+    wipePdfMetadata(doc);
     const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
     results.push(
       resultFrom(
@@ -626,6 +742,33 @@ export async function processStripMetadata(
     onProgress((i + 1) / files.length);
   }
   return results;
+}
+
+export async function processEditMetadata(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "metadata") {
+    throw new Error("Edit metadata needs the fields to write.");
+  }
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF to edit.");
+  if (options.sourceId !== item.id) {
+    throw new Error("The properties are still loading. Try again in a moment.");
+  }
+  const doc = await loadForMetadata(await item.file.arrayBuffer());
+  applyMetadata(doc, options);
+  const blob = pdfBlob(await doc.save({ useObjectStreams: false }));
+  onProgress(1);
+  return [
+    resultFrom(
+      item,
+      blob,
+      replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-metadata.pdf"),
+      item.size,
+    ),
+  ];
 }
 
 export async function processOcrPdf(

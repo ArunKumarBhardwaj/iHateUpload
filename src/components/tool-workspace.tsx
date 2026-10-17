@@ -38,6 +38,7 @@ import type { ToolDefinition, ToolId } from "@/lib/tools";
 import { shouldWarnLargeJob } from "@/lib/device-caps";
 import {
   processAnnotatePdf,
+  processEditMetadata,
   processAskPdf,
   processCropPdf,
   processCsvToPdf,
@@ -179,6 +180,7 @@ async function runTool(
       );
     case "watermark-pdf":
     case "page-numbers":
+    case "bates-numbering":
       return processAnnotatePdf(files, onProgress, options);
     case "flatten-pdf":
       return processFlattenPdf(files, onProgress);
@@ -202,6 +204,8 @@ async function runTool(
       return processScanToPdf(files, onProgress);
     case "strip-metadata":
       return processStripMetadata(files, onProgress);
+    case "edit-metadata":
+      return processEditMetadata(files, onProgress, options);
     case "ask-pdf":
       return processAskPdf(files, onProgress, options);
   }
@@ -455,6 +459,8 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       pagePreviews={pagePreviews}
       pageCount={pageCount}
       firstPage={files[0] ? previews.get(files[0].id)?.thumbnail : undefined}
+      files={files}
+      filePages={files.map((file) => pdfPageCount(previews.get(file.id)?.facts))}
       disabled={locked}
       onAddFiles={(next) => {
         const items = createFileItems(next);
