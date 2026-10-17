@@ -1359,17 +1359,50 @@ export async function processComparePdfs(
 export async function processExtractText(
   files: FileItem[],
   onProgress: ProgressFn,
+  options?: ToolOptions,
 ): Promise<ResultItem[]> {
+  const ocr = options?.kind === "extract-text" ? options.ocr : false;
+  const language = options?.kind === "extract-text" ? options.language : "eng";
+  const engine = await import("@/lib/text-extract");
   const results: ResultItem[] = [];
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
-    const text = await extractPdfText(item.file);
+    const step = (ratio: number) => onProgress((i + ratio) / files.length);
+    let text: string;
+    let note: string | undefined;
+    if (item.file.type.startsWith("image/")) {
+      if (!ocr) {
+        throw new Error("Pictures need OCR. Turn on OCR scanned pages.");
+      }
+      text = await engine.extractImageText(item.file, {
+        ocr,
+        language,
+        onProgress: step,
+      });
+    } else {
+      const { pages, ocrPages } = await engine.extractPdfPages(item.file, {
+        ocr,
+        language,
+        onProgress: step,
+      });
+      text = engine.joinPages(pages);
+      if (ocrPages.length > 0) {
+        note = `Read with OCR: page${ocrPages.length === 1 ? "" : "s"} ${ocrPages.join(", ")}.`;
+      }
+    }
+    if (!text.trim()) {
+      throw new Error(
+        ocr
+          ? `No text found in "${item.name}".`
+          : `"${item.name}" has no selectable text. Turn on OCR scanned pages to read it.`,
+      );
+    }
     const blob = new Blob([text], { type: "text/plain" });
-    results.push(
-      resultFrom(item, blob, replaceExt(item.name, "txt"), item.size, {
-        previewText: text,
-      }),
-    );
+    const result = resultFrom(item, blob, replaceExt(item.name, "txt"), item.size, {
+      previewText: text,
+    });
+    if (note) result.note = note;
+    results.push(result);
     onProgress((i + 1) / files.length);
   }
   return results;
@@ -1378,63 +1411,13 @@ export async function processExtractText(
 export async function processExtractImages(
   files: FileItem[],
   onProgress: ProgressFn,
+  options: ToolOptions,
 ): Promise<ResultItem[]> {
-  const item = files[0];
-  if (!item) throw new Error("Choose a PDF to pull images from.");
-  const pdfjs = await loadPdfJs();
-  const data = new Uint8Array(await item.file.arrayBuffer());
-  const src = await pdfjs.getDocument({ data }).promise;
-  const images: { name: string; blob: Blob }[] = [];
-  try {
-    for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
-      const page = await src.getPage(pageNum);
-      const ops = await page.getOperatorList();
-      const seen = new Set<string>();
-      for (let i = 0; i < ops.fnArray.length; i++) {
-        const fn = ops.fnArray[i];
-        if (
-          fn !== pdfjs.OPS.paintImageXObject &&
-          fn !== pdfjs.OPS.paintImageXObjectRepeat &&
-          fn !== pdfjs.OPS.paintInlineImageXObject
-        ) {
-          continue;
-        }
-        const arg0 = ops.argsArray[i]?.[0];
-        const img =
-          fn === pdfjs.OPS.paintInlineImageXObject && arg0 && typeof arg0 === "object"
-            ? (arg0 as PdfImage)
-            : typeof arg0 === "string"
-              ? await imageObject(page, arg0)
-              : null;
-        if (!img) continue;
-        const key =
-          typeof arg0 === "string"
-            ? arg0
-            : `${img.width}x${img.height}:${img.data?.length ?? "bitmap"}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const blob = await rasterToPng(img);
-        images.push({
-          name: `${item.name.replace(/\.[^.]+$/, "")}-p${pageNum}-${images.length + 1}.png`,
-          blob,
-        });
-      }
-      page.cleanup();
-      onProgress(pageNum / (src.numPages + 1));
-    }
-  } finally {
-    await src.loadingTask.destroy();
-  }
-  if (images.length === 0) {
-    throw new Error("This PDF has no embedded images to extract.");
-  }
-  onProgress(1);
-  return images.map((image) =>
-    resultFrom(item, image.blob, image.name, item.size),
-  );
+  const engine = await import("@/lib/extract-images");
+  return engine.processExtractImages(files, onProgress, options);
 }
 
-type PdfImage = {
+export type PdfImage = {
   width: number;
   height: number;
   data?: Uint8Array | Uint8ClampedArray | null;
@@ -1442,7 +1425,7 @@ type PdfImage = {
   bitmap?: CanvasImageSource | ImageData | null;
 };
 
-async function imageObject(
+export async function imageObject(
   page: {
     objs: { get: (name: string, cb?: (v: unknown) => void) => unknown };
     commonObjs: { get: (name: string, cb?: (v: unknown) => void) => unknown };
@@ -1473,7 +1456,7 @@ function resolveObj(
   });
 }
 
-function rasterToPng(img: PdfImage): Promise<Blob> {
+export function rasterToPng(img: PdfImage): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = img.width;
   canvas.height = img.height;

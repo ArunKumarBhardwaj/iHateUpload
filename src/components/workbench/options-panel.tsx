@@ -7,6 +7,12 @@ import { BatesControls } from "@/components/workbench/bates-controls";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
 import { SplitExtras } from "@/components/workbench/split-extras";
 import { ScanCapture } from "@/components/workbench/scan-capture";
+import {
+  ExtractImagesPanel,
+  ExtractTextPanel,
+  ProtectPanel,
+  UnlockPanel,
+} from "@/components/workbench/security-panels";
 import { Thumbnail } from "@/components/workbench/thumbnail";
 import { WatermarkPreview } from "@/components/workbench/watermark-preview";
 import { Button } from "@/components/ui/button";
@@ -134,6 +140,16 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Type the password this PDF was locked with. It never leaves the tab.";
     case "password-confirm":
       return "Choose a password. You will need it every time you open the PDF.";
+    case "protect":
+      return "Choose what readers may do once they open the file. Everything is allowed unless you untick it.";
+    case "unlock":
+      return options.lock === "restricted"
+        ? "This PDF opens without a password. One click writes a copy with the limits removed."
+        : "Type the password this PDF was locked with. It never leaves the tab.";
+    case "extract-images":
+      return "Pick the pictures you want. JPEGs are saved exactly as they sit in the PDF.";
+    case "extract-text":
+      return "Selectable text is copied as it is. Scanned pages can be read with OCR.";
     case "rotate":
       return "Turn the pages, mirror them, or both. Leave the pages box empty for all of them.";
     case "split":
@@ -258,6 +274,45 @@ export function OptionsPanel({
             placeholder="PDF password"
           />
         </Field>
+      );
+
+    case "protect":
+      return (
+        <ProtectPanel
+          options={options}
+          onOptions={onOptions}
+          confirmPassword={confirmPassword}
+          onConfirmPassword={onConfirmPassword}
+          disabled={disabled}
+        />
+      );
+
+    case "unlock":
+      return (
+        <UnlockPanel
+          options={options}
+          onOptions={onOptions}
+          disabled={disabled}
+          files={files}
+        />
+      );
+
+    case "extract-images":
+      return (
+        <ExtractImagesPanel
+          options={options}
+          onOptions={onOptions}
+          disabled={disabled}
+        />
+      );
+
+    case "extract-text":
+      return (
+        <ExtractTextPanel
+          options={options}
+          onOptions={onOptions}
+          disabled={disabled}
+        />
       );
 
     case "password-confirm": {

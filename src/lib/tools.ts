@@ -92,6 +92,10 @@ export type ToolDefinition = {
     | "redact"
     | "compare"
     | "header-footer"
+    | "protect"
+    | "unlock"
+    | "extract-images"
+    | "extract-text"
     | "insert-blank"
     | "invert"
     | "nup"
@@ -360,7 +364,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "password-confirm",
+    ui: "protect",
   },
   {
     id: "unlock-pdf",
@@ -383,7 +387,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: false,
     kind: "pdf",
-    ui: "password",
+    ui: "unlock",
   },
   {
     id: "rotate-pdf",
@@ -567,7 +571,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "extract-text",
   },
   {
     id: "extract-images",
@@ -590,7 +594,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "extract-images",
   },
   {
     id: "header-footer",
