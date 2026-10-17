@@ -25,7 +25,7 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 
 | | Count |
 |---|---|
-| ✅ We are better (measured) | 17 rows |
+| ✅ We are better (measured) | 20 rows |
 | 🟰 Equal (measured) | 11 rows |
 | ⚠️ They are better | 20 rows |
 | ❔ Shared, not compared yet | 1 rows |
@@ -33,7 +33,7 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 | ❌ Only they have | 19 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
-Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, workflows, Ask PDF privacy, SEO pages.
+Biggest gaps: 20 shared tools behind on options (see section 2 ⚠️ rows), PDF to PowerPoint, Repair, Fill form, workflows, Ask PDF privacy, SEO pages.
 
 ---
 
@@ -69,9 +69,9 @@ Biggest gaps: PDF to Excel / PowerPoint, Repair, Fill form, workflows, Ask PDF p
 | PDF to Word: CJK text | Unified ideographs, East Asian fonts and language tags | Keeps Kangxi radicals; font by regex | ✅ | cjk.pdf: 0 radicals in ours; teardown of theirs. 2026-10-17 |
 | PDF to Word: slide / cover backgrounds | Kept behind text | Lost in both modes | ✅ | slides.pdf visual 0.40 vs 0.26, 2026-10-17 |
 | PDF to Word: comments from annotations | No | Yes (7 annotation types, highlights as shading) | ❌ | Teardown, 2026-10-17 |
-| PDF to Excel: cell accuracy and typed numbers | Typed cells, merged headers, fills, tables joined over pages, OCR | Same feature set plus an editable preview before export | 🟰 | `bun bench/pdf-to-excel/scoreboard.ts`: 8 synthetic docs, cells 99% vs 100%, typed 100% vs 99%; ours wins the 3-page bank statement (100% vs 98%: their last two rows become a second table). Ours loses one OCR letter on the scanned invoice (97% vs 100%). 2026-10-17 |
+| PDF to Excel: cell accuracy and typed numbers | Typed cells, merged headers, fills, tables joined over pages, row-wise OCR with column-aware fixes | Typed cells, editable preview | ✅ | Synthetic corpus (9 docs): cells 100% vs 98%, hardest scan 97% vs 83%, faster on every doc (scan invoice 2.0 s vs 4.5 s). bench/pdf-to-excel, 2026-10-17 |
 | PDF to Excel: no-table PDFs and sheet names | Text sheet always filled, sheets named from the heading above | Nothing exported when no table is found; sheets named "Table 1 (p1)" | ✅ | report-chart.pdf: ours Text sheet, theirs no output. 2026-10-17 |
-| PDF to Excel: preview and cell edits before export | No | Yes (click a cell to correct) | ❌ | Teardown, 2026-10-17 |
+| PDF to Excel: preview and cell edits before export | Editable grid: cells, sheet names, header rows, delete row/column, column types with inferred-type badges and untyped-cell warnings | Click a cell to correct | ✅ | Branch, browser-checked, 2026-10-17 |
 | Merge PDF | Yes | Yes | 🟰 | Same pages, order and links; both drop bookmarks; ours 0.10 s vs 0.20 s. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Split PDF | Pages, ranges, in half, by size, by bookmarks (depth, per-bookmark toggles, front matter) and by text (regex, match case, whole word, named by match); parts preview before running | By bookmarks (toggles, preview) and by text (case, whole word) | ✅ | Same parts on synthetic files; ours has more options; text split 255 ms vs 1184 ms on 300 pages (tiny files: ours ~150 ms vs ~60 ms). bench/pdf-tools/h2h.mjs, 2026-10-17 |
 | PDF to JPG / PNG | 72 / 150 / 300 / 600 DPI (true 600 on desktop: Letter = 5100×6600), JPG quality Smaller/Balanced/Best, JPG or PNG, page ranges, ZIP | Up to 600 DPI, quality slider, PNG toggle | 🟰 | Same options; ours 600 DPI page in ~0.6 s, 1.36 MB. `.scratch/head-to-head-2026-10-17.md` + lead check, 2026-10-17 |
