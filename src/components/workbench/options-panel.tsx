@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, FileText, RotateCcw, X } from "lucide-react";
 
 import { ConvertOptions, convertDocHint } from "@/components/workbench/convert-options";
 import { BatesControls } from "@/components/workbench/bates-controls";
+import { NupPanel } from "@/components/workbench/page-tools/nup-panel";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
 import { SplitExtras } from "@/components/workbench/split-extras";
 import { ScanCapture } from "@/components/workbench/scan-capture";
@@ -203,7 +204,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "invert":
       return "Invert flips every pixel. Grayscale keeps the layout, drops the color.";
     case "nup":
-      return "How many pages to print on each sheet.";
+      return "Pick a grid, a paper size and how pages flow. Pages stay vector, so text stays selectable.";
     case "page-size":
       return "Fit fills the sheet and may clip. Letterbox keeps the whole page.";
     case "annotate":
@@ -1173,24 +1174,7 @@ export function OptionsPanel({
 
     case "nup":
       return (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-ink">Pages per sheet</p>
-          <div className="flex flex-wrap gap-2">
-            {([2, 4, 9] as const).map((n) => (
-              <Button
-                key={n}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.n === n ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() => onOptions({ kind: "nup", n })}
-              >
-                {n}-up
-              </Button>
-            ))}
-          </div>
-        </div>
+        <NupPanel options={options} onOptions={onOptions} disabled={disabled} />
       );
 
     case "page-size":
