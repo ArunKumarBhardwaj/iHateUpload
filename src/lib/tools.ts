@@ -38,6 +38,8 @@ export type ToolId =
   | "html-to-pdf"
   | "scan-to-pdf"
   | "strip-metadata"
+  | "edit-metadata"
+  | "bates-numbering"
   | "ask-pdf"
   | "heic-to-jpg"
   | "heic-to-pdf"
@@ -94,6 +96,8 @@ export type ToolDefinition = {
     | "page-size"
     | "watermark"
     | "page-numbers"
+    | "bates-numbering"
+    | "metadata"
     | "ocr"
     | "ask"
     | "scan"
@@ -753,10 +757,10 @@ export const TOOLS: ToolDefinition[] = [
     title: "Page Numbers",
     shortTitle: "Page numbers",
     description:
-      "Add page numbers to a PDF. The stamp runs in this tab.",
+      "Add page numbers to a PDF, or switch to Bates numbering across a whole set. The stamp runs in this tab.",
     accept: "application/pdf,.pdf",
     multiple: true,
-    ordered: false,
+    ordered: true,
     actionLabel: "Add page numbers",
     seoTitle: "Add Page Numbers to PDF Free — No Upload",
     seoDescription:
@@ -769,6 +773,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: false,
     kind: "pdf",
     ui: "page-numbers",
+  },
+  {
+    id: "bates-numbering",
+    slug: "bates-numbering",
+    title: "Bates Numbering",
+    shortTitle: "Bates numbering",
+    description:
+      "Stamp ABC000001-style Bates numbers that run on across every file you add. Real selectable text.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: true,
+    actionLabel: "Apply Bates numbers",
+    seoTitle: "Bates Numbering for PDF Free — No Upload",
+    seoDescription:
+      "Bates number PDFs online free. Prefix, padded counter and suffix that continue across files, as real text — in your browser, no upload.",
+    seoHowTo: [
+      "Add the PDFs in the order they should be numbered.",
+      "Set the prefix, starting number, digits, suffix and where the stamp sits.",
+      "Download the numbered PDFs. The counter runs on from one file to the next.",
+    ],
+    showInNav: false,
+    kind: "pdf",
+    ui: "bates-numbering",
   },
   {
     id: "flatten-pdf",
@@ -838,6 +865,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: false,
     kind: "pdf",
     ui: "none",
+  },
+  {
+    id: "edit-metadata",
+    slug: "edit-metadata",
+    title: "Edit Metadata",
+    shortTitle: "Edit metadata",
+    description:
+      "See and change a PDF's title, author, dates, custom properties and XMP. Or strip it all. Stays on this device.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Save metadata",
+    seoTitle: "Edit PDF Metadata Free — No Upload",
+    seoDescription:
+      "Edit PDF metadata online free: title, author, subject, keywords, dates, custom properties and XMP. Runs in your browser — no upload.",
+    seoHowTo: [
+      "Choose the PDF. Its current properties fill in below.",
+      "Edit or clear any field, add custom properties, or press Strip everything.",
+      "Download the PDF. The Info dictionary and XMP packet are kept in agreement.",
+    ],
+    showInNav: false,
+    kind: "pdf",
+    ui: "metadata",
   },
   {
     id: "ask-pdf",

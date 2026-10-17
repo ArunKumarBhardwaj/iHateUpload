@@ -17,6 +17,14 @@ import {
 } from "@/lib/pdf-image";
 import { loadPdfJs } from "@/lib/pdfjs";
 import {
+  partNote,
+  planByBookmarks,
+  planByText,
+  readOutline,
+  readPageTexts,
+  type SplitPart,
+} from "@/lib/split-plan";
+import {
   parsePageRange,
   parseRangeGroups,
   resolvePageRange,
@@ -716,6 +724,16 @@ export async function processMergePdf(
   ];
 }
 
+function uniqueNames(names: string[]) {
+  const seen = new Map<string, number>();
+  return names.map((name) => {
+    const key = name.toLowerCase();
+    const n = seen.get(key) ?? 0;
+    seen.set(key, n + 1);
+    return n === 0 ? name : name.replace(/\.pdf$/i, ` (${n + 1}).pdf`);
+  });
+}
+
 /** Copies the listed pages of `donor` into a fresh document and saves it. */
 async function savePageSubset(donor: PDFDocument, indices: number[]) {
   const out = await PDFDocument.create();
@@ -788,6 +806,36 @@ export async function processSplitPdf(
       note,
     });
   };
+
+  if (options.mode === "bookmarks" || options.mode === "text") {
+    const data = new Uint8Array(await item.file.arrayBuffer());
+    let parts: SplitPart[];
+    if (options.mode === "bookmarks") {
+      const outline = await readOutline(data);
+      if (outline.length === 0) {
+        throw new Error("This PDF has no bookmarks to split on.");
+      }
+      parts = planByBookmarks(
+        outline,
+        count,
+        options.bookmarkDepth,
+        base,
+        options.bookmarkOff,
+      );
+    } else {
+      const plan = planByText(await readPageTexts(data), options, base);
+      if (!plan.ok) throw new Error(plan.error);
+      parts = plan.parts;
+    }
+    const names = uniqueNames(parts.map((part) => `${part.name}.pdf`));
+    for (let i = 0; i < parts.length; i++) {
+      const { start, end } = parts[i];
+      const indices = Array.from({ length: end - start + 1 }, (_, k) => start + k);
+      push(await savePageSubset(donor, indices), names[i], partNote(parts[i]));
+      onProgress((i + 1) / parts.length);
+    }
+    return results;
+  }
 
   if (options.mode === "size") {
     const limit = options.maxMb * 1_000_000;

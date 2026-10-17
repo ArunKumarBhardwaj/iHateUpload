@@ -3,11 +3,15 @@
 import { useRef } from "react";
 import { ArrowDown, ArrowUp, FileText, RotateCcw, X } from "lucide-react";
 
+import { BatesControls } from "@/components/workbench/bates-controls";
+import { MetadataEditor } from "@/components/workbench/metadata-editor";
+import { SplitExtras } from "@/components/workbench/split-extras";
 import { ScanCapture } from "@/components/workbench/scan-capture";
 import { Thumbnail } from "@/components/workbench/thumbnail";
 import { WatermarkPreview } from "@/components/workbench/watermark-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { FileItem } from "@/lib/job";
 import { JPEG_QUALITIES } from "@/lib/pdf-image";
 import {
   PENDING_THUMBNAIL,
@@ -64,6 +68,51 @@ function Field({
   );
 }
 
+/** Plain page numbers or Bates: same stamp engine, different counter. */
+function NumberingMode({
+  options,
+  onOptions,
+  disabled,
+}: {
+  options: Extract<ToolOptions, { kind: "annotate" }>;
+  onOptions: (next: ToolOptions) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-ink">Numbering</p>
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            [false, "Page numbers"],
+            [true, "Bates"],
+          ] as const
+        ).map(([bates, title]) => (
+          <Button
+            key={title}
+            type="button"
+            size="sm"
+            className={OPTION_BUTTON}
+            variant={options.bates === bates ? "default" : "outline"}
+            disabled={disabled}
+            onClick={() =>
+              options.bates === bates
+                ? undefined
+                : onOptions(
+                    bates
+                      ? { ...options, bates, position: "br", opacity: 1, color: "#14161c" }
+                      : { ...options, bates, position: "footer", opacity: 0.9 },
+                  )
+            }
+          >
+            {title}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Page grids need the canvas width; narrow controls sit in the sidebar. */
 export function optionsNeedCanvas(options: ToolOptions): boolean {
   return (
@@ -88,7 +137,13 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "rotate":
       return "Pick how far to turn the pages. Leave the pages box empty for all of them.";
     case "split":
-      return "Pick how to cut the PDF. Each piece is its own file.";
+      return options.mode === "bookmarks"
+        ? "Cut at the PDF's own bookmarks. The files below are exactly what you will get."
+        : options.mode === "text"
+          ? "Start a new file at every page that contains your text. The files below update as you type."
+          : "Pick how to cut the PDF. Each piece is its own file.";
+    case "metadata":
+      return "Every property the PDF carries, ready to edit or clear. Nothing leaves this tab.";
     case "pdf-image":
       return "Higher DPI is sharper and bigger. Leave the pages box empty for every page.";
     case "pdf-to-word":
@@ -127,7 +182,9 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Fit fills the sheet and may clip. Letterbox keeps the whole page.";
     case "annotate":
       return options.variant === "numbers"
-        ? "Pick where the numbers sit, how they read, and where counting starts."
+        ? options.bates
+          ? "Bates numbers run on through every file, in list order, as real selectable text."
+          : "Pick where the numbers sit, how they read, and where counting starts."
         : "Type the stamp, then set how it looks. The preview shows page 1. It is drawn in this tab as real text.";
     case "ocr":
       return "Tesseract reads each page in this tab. Hindi keeps its letters. Pages that already have words can be copied as-is. Slow on long scans.";
@@ -158,6 +215,8 @@ export function OptionsPanel({
   firstPage,
   disabled,
   onAddFiles,
+  files,
+  filePages,
 }: {
   options: ToolOptions;
   onOptions: (next: ToolOptions) => void;
@@ -169,6 +228,10 @@ export function OptionsPanel({
   firstPage?: ThumbnailState;
   disabled: boolean;
   onAddFiles?: (files: File[]) => void;
+  /** Selected files, in order; the split preview and metadata editor read them. */
+  files?: FileItem[];
+  /** Page count of each selected file, 0 while unknown. */
+  filePages?: number[];
 }) {
   switch (options.kind) {
     case "none":
@@ -304,6 +367,14 @@ export function OptionsPanel({
               />
             </Field>
           ) : null}
+          <SplitExtras
+            options={options}
+            onOptions={onOptions}
+            file={files?.[0]?.file}
+            fileKey={files?.[0]?.id ?? ""}
+            baseName={(files?.[0]?.name ?? "document").replace(/\.[^.]+$/, "")}
+            disabled={disabled}
+          />
           {options.mode === "size" ? (
             <Field label="Max size per part (MB)" htmlFor="split-size">
               <Input
@@ -1187,8 +1258,23 @@ export function OptionsPanel({
           </div>
         );
       }
+      if (options.variant === "numbers" && options.bates) {
+        return (
+          <div className="space-y-4">
+            <NumberingMode options={options} onOptions={onOptions} disabled={disabled} />
+            <BatesControls
+              options={options}
+              onOptions={onOptions}
+              disabled={disabled}
+              filePages={filePages ?? []}
+              firstPage={firstPage}
+            />
+          </div>
+        );
+      }
       return (
         <div className="space-y-3">
+          <NumberingMode options={options} onOptions={onOptions} disabled={disabled} />
           <p className="text-sm font-medium text-ink">Position</p>
           <div className="flex flex-wrap gap-2">
             {ANNOTATE_POSITIONS.map((position) => (
@@ -1278,9 +1364,32 @@ export function OptionsPanel({
                 />
                 <span>Leave the first page without a number.</span>
               </label>
+              <Field label="Pages" htmlFor="numbers-range">
+                <Input
+                  id="numbers-range"
+                  value={options.range}
+                  disabled={disabled}
+                  onChange={(e) =>
+                    onOptions({ ...options, range: e.target.value })
+                  }
+                  placeholder="All pages, or e.g. 2-, 1-3, 7"
+                  inputMode="text"
+                  autoComplete="off"
+                />
+              </Field>
             </>
           ) : null}
         </div>
+      );
+
+    case "metadata":
+      return (
+        <MetadataEditor
+          options={options}
+          onOptions={onOptions}
+          file={files?.[0]}
+          disabled={disabled}
+        />
       );
 
     case "ocr":

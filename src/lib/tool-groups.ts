@@ -72,6 +72,7 @@ export const TOOL_GROUPS: { id: string; title: string; tools: ToolId[] }[] = [
       "edit-pdf",
       "watermark-pdf",
       "page-numbers",
+      "bates-numbering",
       "header-footer",
       "flatten-pdf",
     ],
@@ -79,7 +80,7 @@ export const TOOL_GROUPS: { id: string; title: string; tools: ToolId[] }[] = [
   {
     id: "private",
     title: "Keep it private",
-    tools: ["protect-pdf", "unlock-pdf", "redact-pdf", "strip-metadata"],
+    tools: ["protect-pdf", "unlock-pdf", "redact-pdf", "strip-metadata", "edit-metadata"],
   },
   {
     id: "read",

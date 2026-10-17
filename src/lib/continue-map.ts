@@ -41,6 +41,8 @@ const CONTINUE_MAP: Partial<Record<ToolId, ToolId[]>> = {
   "html-to-pdf": ["compress-pdf", "protect-pdf"],
   "scan-to-pdf": ["compress-pdf", "ocr-pdf", "protect-pdf"],
   "strip-metadata": ["protect-pdf", "compress-pdf"],
+  "edit-metadata": ["protect-pdf", "compress-pdf"],
+  "bates-numbering": ["merge-pdf", "compress-pdf"],
   "heic-to-jpg": ["compress-image", "resize-image", "image-to-pdf"],
   "heic-to-pdf": ["compress-pdf", "protect-pdf", "merge-pdf"],
   "compress-image": ["resize-image", "crop-image", "image-to-pdf"],

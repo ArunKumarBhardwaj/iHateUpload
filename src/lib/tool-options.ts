@@ -1,3 +1,5 @@
+import { batesReady } from "@/lib/bates";
+import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
 import type { ToolDefinition } from "@/lib/tools";
 
 export type CompressLevel = "light" | "medium" | "heavy";
@@ -46,7 +48,13 @@ export type AnnotatePosition =
   | "bl"
   | "br";
 
-export type SplitMode = "pages" | "ranges" | "half" | "size";
+export type SplitMode =
+  | "pages"
+  | "ranges"
+  | "half"
+  | "size"
+  | "bookmarks"
+  | "text";
 
 export type PdfImageDpi = 72 | 150 | 300 | 600;
 
@@ -75,7 +83,21 @@ export type ToolOptions =
       /** Empty or "all" turns every page. */
       range: string;
     }
-  | { kind: "split"; mode: SplitMode; ranges: string; maxMb: number }
+  | {
+      kind: "split";
+      mode: SplitMode;
+      ranges: string;
+      maxMb: number;
+      /** Bookmarks mode: 1 cuts at top-level items only. */
+      bookmarkDepth: number;
+      /** Bookmarks mode: indexes (at this depth) the user switched off. */
+      bookmarkOff: number[];
+      /** Text mode: start a new file at every page that matches. */
+      phrase: string;
+      regex: boolean;
+      matchCase: boolean;
+      wholeWord: boolean;
+    }
   | {
       kind: "pdf-image";
       /** Older sessions may still hold 144; any number renders. */
@@ -119,12 +141,39 @@ export type ToolOptions =
       startAt: number;
       skipFirst: boolean;
       numberSize: NumberSize;
+      /** Bates numbering: PREFIX + padded counter + SUFFIX, running on across every file. */
+      bates: boolean;
+      batesPrefix: string;
+      batesSuffix: string;
+      batesDigits: number;
+      /** Points; Bates only. */
+      batesSize: number;
+      /** Points in from the page edge; Bates only. */
+      margin: number;
+      /** White box behind the number so it reads on dark artwork. */
+      batesPlate: boolean;
       /** The next five only shape watermarks. */
       size: WatermarkSize;
       color: string;
       layout: WatermarkLayout;
       /** Empty or "all" stamps every page. */
       range: string;
+    }
+  | {
+      kind: "metadata";
+      /** Id of the file these fields were read from; "" until they are. */
+      sourceId: string;
+      title: string;
+      author: string;
+      subject: string;
+      keywords: string;
+      creator: string;
+      producer: string;
+      /** `YYYY-MM-DDTHH:mm`, local time; "" removes the date. */
+      created: string;
+      modified: string;
+      custom: { key: string; value: string }[];
+      xmp: "update" | "remove";
     }
   | { kind: "ocr"; language: string; output: OcrOutput; skipTextPages: boolean }
   | { kind: "ask"; question: string }
@@ -137,6 +186,16 @@ export type ToolOptions =
       flipV: boolean;
     }
   | { kind: "target-kb"; maxKb: number };
+
+const BATES_DEFAULTS = {
+  bates: false,
+  batesPrefix: "ABC",
+  batesSuffix: "",
+  batesDigits: 6,
+  batesSize: 9,
+  margin: 28,
+  batesPlate: false,
+};
 
 export const DEFAULT_PAGE_BOX: PageBox = {
   pageIndex: 0,
@@ -397,6 +456,8 @@ export const SPLIT_MODES: { id: SplitMode; title: string }[] = [
   { id: "ranges", title: "By ranges" },
   { id: "half", title: "In half" },
   { id: "size", title: "By size" },
+  { id: "bookmarks", title: "By bookmarks" },
+  { id: "text", title: "By text" },
 ];
 
 export const PDF_IMAGE_DPIS: { id: PdfImageDpi; title: string }[] = [
@@ -452,7 +513,18 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "rotate":
       return { kind: "rotate", degrees: 90, range: "" };
     case "split":
-      return { kind: "split", mode: "pages", ranges: "", maxMb: 5 };
+      return {
+        kind: "split",
+        mode: "pages",
+        ranges: "",
+        maxMb: 5,
+        bookmarkDepth: 1,
+        bookmarkOff: [],
+        phrase: "",
+        regex: false,
+        matchCase: false,
+        wholeWord: false,
+      };
     case "pdf-image":
       return {
         kind: "pdf-image",
@@ -523,8 +595,28 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         startAt: 1,
         skipFirst: false,
         numberSize: "medium",
+        ...BATES_DEFAULTS,
         size: "medium",
         color: WATERMARK_COLORS[0],
+        layout: "single",
+        range: "",
+      };
+    case "bates-numbering":
+      return {
+        kind: "annotate",
+        variant: "numbers",
+        text: "",
+        opacity: 1,
+        rotation: 0,
+        position: "br",
+        numberFormat: "n",
+        startAt: 1,
+        skipFirst: false,
+        numberSize: "medium",
+        ...BATES_DEFAULTS,
+        bates: true,
+        size: "medium",
+        color: "#14161c",
         layout: "single",
         range: "",
       };
@@ -540,10 +632,26 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         startAt: 1,
         skipFirst: false,
         numberSize: "medium",
+        ...BATES_DEFAULTS,
         size: "medium",
         color: WATERMARK_COLORS[0],
         layout: "single",
         range: "",
+      };
+    case "metadata":
+      return {
+        kind: "metadata",
+        sourceId: "",
+        title: "",
+        author: "",
+        subject: "",
+        keywords: "",
+        creator: "",
+        producer: "",
+        created: "",
+        modified: "",
+        custom: [],
+        xmp: "update",
       };
     case "ocr":
       return {
@@ -597,7 +705,19 @@ export function optionsReady(
         ? options.ranges.trim().length > 0
         : options.mode === "size"
           ? Number.isFinite(options.maxMb) && options.maxMb > 0
-          : true;
+          : options.mode === "text"
+            ? options.phrase.trim().length > 0
+            : true;
+    case "metadata": {
+      const keys = options.custom
+        .map((entry) => entry.key.trim())
+        .filter(Boolean);
+      return (
+        options.sourceId !== "" &&
+        new Set(keys).size === keys.length &&
+        keys.every((key) => !RESERVED_INFO_KEYS.has(key))
+      );
+    }
     case "image-turn":
       return options.degrees !== 0 || options.flipH || options.flipV;
     case "image-crop":
@@ -646,7 +766,9 @@ export function optionsReady(
       return options.boxes.some((box) => box.w > 0.04 && box.h > 0.04);
     case "annotate":
       return options.variant === "numbers"
-        ? Number.isInteger(options.startAt) && options.startAt >= 0
+        ? options.bates
+          ? batesReady(options)
+          : Number.isInteger(options.startAt) && options.startAt >= 0
         : options.text.trim().length > 0;
     case "ask":
       return options.question.trim().length > 0;
