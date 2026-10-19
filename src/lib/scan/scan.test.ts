@@ -7,6 +7,7 @@ import { encodeJbig2 } from "@/lib/jbig2-encode";
 import { buildScanPdf, placeOnPage } from "./build-pdf";
 import { applyFilter } from "./filters";
 import { cameraQuad, makeSheet, photographSheet } from "./fixtures";
+import { detectDocument } from "./detect";
 import { renderScanPage } from "./pipeline";
 import type { Quad, RGBAImage } from "./types";
 
@@ -139,3 +140,50 @@ test("an OCR text PDF lends its invisible words to a page with our image", async
   expect(Buffer.from(bytes).includes(Buffer.from("Hello scan"))).toBe(false); // compressed streams
   expect(bytes.length).toBeGreaterThan(500);
 });
+
+for (const background of ["desk", "dark"] as const) {
+  test(`the scanned page is pure page, no ${background} background at its edges`, () => {
+    const sheet = makeSheet(600, 800);
+    const cam = cameraQuad(210, 297, { yaw: 0.4, pitch: 0.3, roll: 0.08, dist: 270, focal: 500, width: 800, height: 1000 });
+    const photo = photographSheet(sheet, cam, { width: 800, height: 1000, background, noise: 8, shade: 0.2 });
+    const found = detectDocument(photo);
+    expect(found.found).toBe(true);
+    const corners = found.quad.map((p) => ({ x: p.x / photo.width, y: p.y / photo.height })) as Quad;
+    const base = { corners, rotate: 0 as const, brightness: 0, contrast: 0, maxSide: 1200 };
+
+    const doc = renderScanPage(photo, { ...base, filter: "document" }).rgba;
+    const bx = Math.round(doc.width * 0.02);
+    const by = Math.round(doc.height * 0.02);
+    const interior = mean(doc, bx * 2, by * 2, doc.width - bx * 2, doc.height - by * 2);
+    for (const [x0, y0, x1, y1] of [
+      [0, 0, bx, doc.height],
+      [doc.width - bx, 0, doc.width, doc.height],
+      [0, 0, doc.width, by],
+      [0, doc.height - by, doc.width, doc.height],
+    ]) {
+      expect(mean(doc, x0, y0, x1, y1)).toBeGreaterThanOrEqual(interior);
+    }
+
+    const bw = renderScanPage(photo, { ...base, filter: "bw" });
+    const ink = bw.ink!;
+    const { width: w, height: h } = bw.rgba;
+    const col = (x: number) => {
+      let n = 0;
+      for (let y = 0; y < h; y++) n += ink[y * w + x];
+      return n / h;
+    };
+    const row = (y: number) => {
+      let n = 0;
+      for (let x = 0; x < w; x++) n += ink[y * w + x];
+      return n / w;
+    };
+    for (let i = 0; i < Math.round(w * 0.02); i++) {
+      expect(col(i)).toBeLessThan(0.3);
+      expect(col(w - 1 - i)).toBeLessThan(0.3);
+    }
+    for (let i = 0; i < Math.round(h * 0.02); i++) {
+      expect(row(i)).toBeLessThan(0.3);
+      expect(row(h - 1 - i)).toBeLessThan(0.3);
+    }
+  });
+}
