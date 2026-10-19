@@ -37,6 +37,12 @@ for (const background of ["desk", "dark", "white"] as const) {
   });
 }
 
+test("corners land on the sheet edge, not on the table beside it", () => {
+  const photo = photographSheet(SHEET, QUAD, { width: 1000, height: 1200, background: "dark", noise: 8, shade: 0.15 });
+  const found = detectDocument(photo);
+  expect(maxCornerError(found.quad, QUAD, Math.hypot(1000, 1200))).toBeLessThan(0.008);
+});
+
 test("a sheet filling the whole frame reports no crop", () => {
   const photo = photographSheet(
     SHEET,

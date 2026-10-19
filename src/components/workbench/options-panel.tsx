@@ -14,7 +14,6 @@ import { MetadataEditor } from "@/components/workbench/metadata-editor";
 import { SplitExtras } from "@/components/workbench/split-extras";
 import { ScanCapture } from "@/components/workbench/scan-capture";
 import { ScanSettings } from "@/components/workbench/scan-settings";
-import { Thumbnail } from "@/components/workbench/thumbnail";
 import { HeaderFooterPanel } from "@/components/workbench/header-footer-panel";
 import {
   ExtractImagesPanel,

@@ -2,6 +2,8 @@ import type { FinalPage, PreviewSettings } from "./runtime";
 import type { ScanRequest } from "./scan.worker";
 import type { Quad, RGBAImage } from "./types";
 
+export const SCAN_CLOSED = "The scanner was closed.";
+
 export type ScanClient = {
   detect(key: string, file: Blob): Promise<{ corners: Quad | null; width: number; height: number }>;
   preview(key: string, file: Blob, settings: PreviewSettings, side: number): Promise<RGBAImage>;
@@ -52,7 +54,11 @@ export function createScanClient(): ScanClient {
     preview: (key, file, settings, side) => call({ op: "preview", key, file, settings, side }),
     final: (key, file, settings, ocr) => call({ op: "final", key, file, settings, ocr }),
     forget: (key) => void call({ op: "forget", key }).catch(() => {}),
-    dispose: () => w.terminate(),
+    dispose: () => {
+      w.terminate();
+      for (const p of pending.values()) p.reject(new Error(SCAN_CLOSED));
+      pending.clear();
+    },
   };
 }
 

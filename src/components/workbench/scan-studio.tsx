@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Crop, Plus, RotateCw, ScanLine, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { createScanClient, type ScanClient } from "@/lib/scan/client";
 import type { Pt, Quad, ScanPageEdit } from "@/lib/scan/types";
 import type { ToolOptions } from "@/lib/tool-options";
 import { cn } from "@/lib/utils";
+
+import { SCAN_CLOSED as CLOSED } from "@/lib/scan/client";
 
 type ScanOptions = Extract<ToolOptions, { kind: "scan" }>;
 
@@ -19,16 +21,27 @@ const FULL: Quad = [
   { x: 0, y: 1 },
 ];
 
-function useObjectUrl(file: File | undefined) {
-  const url = useMemo(() => (file ? URL.createObjectURL(file) : ""), [file]);
-  useEffect(() => () => (url ? URL.revokeObjectURL(url) : undefined), [url]);
-  return url;
+/** One object URL per photo, made on first use and freed when the page is deleted. */
+const urls = new WeakMap<File, string>();
+function urlFor(file: File | undefined) {
+  if (!file) return "";
+  let u = urls.get(file);
+  if (!u) {
+    u = URL.createObjectURL(file);
+    urls.set(file, u);
+  }
+  return u;
+}
+function freeUrl(file: File) {
+  const u = urls.get(file);
+  if (u) URL.revokeObjectURL(u);
+  urls.delete(file);
 }
 
 function Thumb({ file }: { file: File }) {
-  const url = useObjectUrl(file);
+  const url = urlFor(file);
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={url} alt="" className="h-full w-full object-cover" />;
+  return url ? <img src={url} alt="" className="h-full w-full object-cover" /> : null;
 }
 
 export function ScanStudio({
@@ -60,10 +73,13 @@ export function ScanStudio({
     if (!clientRef.current) clientRef.current = createScanClient();
     return clientRef.current;
   }, []);
+  // Photos still being looked at when the client goes away are looked at again.
+  const detecting = useRef(new Set<string>());
   useEffect(
     () => () => {
       clientRef.current?.dispose();
       clientRef.current = null;
+      detecting.current.clear();
     },
     [],
   );
@@ -78,7 +94,6 @@ export function ScanStudio({
   );
 
   // Look for the page edges on every new photo, one at a time.
-  const detecting = useRef(new Set<string>());
   useEffect(() => {
     const todo = files.find(
       (f) => !latest.current.pages[f.id]?.detected && !detecting.current.has(f.id),
@@ -88,10 +103,13 @@ export function ScanStudio({
     void client()
       .detect(todo.id, todo.file)
       .then((r) => patchPage(todo.id, { corners: r.corners, detected: true }))
-      .catch(() => patchPage(todo.id, { corners: null, detected: true }));
+      .catch((e: Error) => {
+        if (e.message === CLOSED) return;
+        patchPage(todo.id, { corners: null, detected: true });
+      });
   }, [files, options.pages, client, patchPage]);
 
-  const src = useObjectUrl(selected?.file);
+  const src = urlFor(selected?.file);
   const frame = useRef<HTMLDivElement>(null);
   const corners = edit?.corners ?? FULL;
   const dragging = useRef<number | null>(null);
@@ -152,6 +170,8 @@ export function ScanStudio({
 
   function remove(id: string) {
     client().forget(id);
+    const gone = files.find((f) => f.id === id);
+    if (gone) freeUrl(gone.file);
     onFiles(files.filter((f) => f.id !== id));
   }
   function move(index: number, dir: -1 | 1) {
@@ -243,7 +263,7 @@ export function ScanStudio({
             onPointerCancel={() => (dragging.current = null)}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={`Photo ${index + 1}`} className="block max-h-[28rem] max-w-full rounded-lg" draggable={false} />
+            {src ? <img src={src} alt={`Photo ${index + 1}`} className="block max-h-[28rem] max-w-full rounded-lg" draggable={false} /> : null}
             <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 1 1" preserveAspectRatio="none">
               <polygon points={polygon} fill="rgba(37,99,235,0.12)" stroke="rgb(37,99,235)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
             </svg>

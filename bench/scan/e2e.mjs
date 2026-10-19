@@ -28,7 +28,7 @@ async function corners() {
   });
 }
 console.log("auto corners page 1 (px in displayed frame, frame w,h last):", JSON.stringify(await corners()));
-await page.screenshot({ path: `${out}/1-detected.png` });
+await page.screenshot({ path: `${out}/1-detected.png`, fullPage: true });
 
 // Drag one corner a little, check it moved.
 const before = await corners();
@@ -50,7 +50,7 @@ async function run(label, { filter, searchable, size }) {
   const box = page.getByLabel("Searchable PDF");
   if ((await box.isChecked()) !== !!searchable) await box.setChecked(!!searchable);
   await page.waitForTimeout(1200);
-  await page.screenshot({ path: `${out}/${label}-ui.png` });
+  await page.screenshot({ path: `${out}/${label}-ui.png`, fullPage: true });
   const t0 = Date.now();
   await page.getByRole("button", { name: "Make PDF" }).click();
   const dl = page.waitForEvent("download", { timeout: 180000 });

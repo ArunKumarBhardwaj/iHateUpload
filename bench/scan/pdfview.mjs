@@ -3,8 +3,7 @@
 import { createServer } from "node:http";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { join } from "node:path";
 
 const root = process.env.PDFJS_ROOT; // .../node_modules/pdfjs-dist/legacy/build
 const pw = process.env.PLAYWRIGHT_CORE; // path to playwright-core
@@ -18,8 +17,9 @@ const server = createServer((req, res) => {
     return;
   }
   try {
-    const data = readFileSync(join(root, req.url.replace(/^\//, "")));
-    res.setHeader("content-type", "text/javascript");
+    const wasm = req.url.startsWith("/wasm/");
+    const data = readFileSync(wasm ? join(root, "../../wasm", req.url.slice(6)) : join(root, req.url.replace(/^\//, "")));
+    res.setHeader("content-type", req.url.endsWith(".wasm") ? "application/wasm" : "text/javascript");
     res.end(data);
   } catch {
     res.statusCode = 404;
@@ -37,7 +37,7 @@ const result = await page.evaluate(
     const pdfjs = await import(`http://127.0.0.1:${port}/pdf.mjs`);
     pdfjs.GlobalWorkerOptions.workerSrc = `http://127.0.0.1:${port}/pdf.worker.mjs`;
     const data = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    const doc = await pdfjs.getDocument({ data }).promise;
+    const doc = await pdfjs.getDocument({ data, wasmUrl: `http://127.0.0.1:${port}/wasm/` }).promise;
     const pages = [];
     for (let n = 1; n <= doc.numPages; n++) {
       const p = await doc.getPage(n);

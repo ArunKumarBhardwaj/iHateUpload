@@ -845,7 +845,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         brightness: 0,
         contrast: 0,
         pageSize: "a4",
-        searchable: false,
+        searchable: true,
         language: "eng",
         pages: {},
       };

@@ -286,7 +286,35 @@ function fromEdges(g: Float32Array, w: number, h: number, scale: number): Quad |
       bestArea = area;
     }
   }
-  return best ? scaleQuad(best, scale, scale) : null;
+  // The edge walls were thickened to close gaps, so the outline sits outside the true edge.
+  return best ? scaleQuad(insetQuad(best, EDGE_INSET), scale, scale) : null;
+}
+
+/** Work-size pixels the outline is pulled in after thickened edges were traced. */
+const EDGE_INSET = 1.5;
+
+/** Moves every side of a convex quad `d` pixels toward its middle. */
+function insetQuad(q: Quad, d: number): Quad {
+  const cx = (q[0].x + q[1].x + q[2].x + q[3].x) / 4;
+  const cy = (q[0].y + q[1].y + q[2].y + q[3].y) / 4;
+  const lines = q.map((a, i) => {
+    const b = q[(i + 1) % 4];
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    let nx = -(b.y - a.y) / len;
+    let ny = (b.x - a.x) / len;
+    if (nx * (cx - a.x) + ny * (cy - a.y) < 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+    return { p: { x: a.x + nx * d, y: a.y + ny * d }, v: { x: b.x - a.x, y: b.y - a.y } };
+  });
+  const corner = (l1: (typeof lines)[number], l2: (typeof lines)[number], fallback: Pt) => {
+    const det = l1.v.x * l2.v.y - l1.v.y * l2.v.x;
+    if (Math.abs(det) < 1e-9) return fallback;
+    const t = ((l2.p.x - l1.p.x) * l2.v.y - (l2.p.y - l1.p.y) * l2.v.x) / det;
+    return { x: l1.p.x + l1.v.x * t, y: l1.p.y + l1.v.y * t };
+  };
+  return [corner(lines[3], lines[0], q[0]), corner(lines[0], lines[1], q[1]), corner(lines[1], lines[2], q[2]), corner(lines[2], lines[3], q[3])];
 }
 
 /** Share of the quad's outline that sits on a detected edge. */
