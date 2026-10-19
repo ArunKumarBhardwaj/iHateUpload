@@ -21,13 +21,13 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 - When we ship or measure something, update the row in the same commit.
 - Their tool list comes from `https://www.ihatepdf.cv/sitemap.xml` (last pulled 2026-10-17: 68 tool pages).
 
-## Summary (2026-10-17)
+## Summary (2026-10-19)
 
 | | Count |
 |---|---|
-| ✅ We are better (measured) | 22 rows |
-| 🟰 Equal (measured) | 17 rows |
-| ⚠️ They are better | 12 rows |
+| ✅ We are better (measured) | 23 rows |
+| 🟰 Equal (measured) | 19 rows |
+| ⚠️ They are better | 9 rows |
 | ❔ Shared, not compared yet | 1 rows |
 | ➕ Only we have | 15 tools (section 3) |
 | ❌ Only they have | 19 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
@@ -97,9 +97,9 @@ Biggest gaps: 20 shared tools behind on options (see section 2 ⚠️ rows), PDF
 | Metadata | Edit all Info fields, dates, custom keys and XMP (kept in step), Copy from another PDF, Revert; Strip wipes custom keys, dates and XMP | Edit Info fields and dates; custom keys hidden; leaves stale XMP | ✅ | bench/pdf-tools h2h metadata-xmp, 2026-10-17 |
 | Word to PDF | Follows the docx: theme fonts (Calibri→Carlito, Cambria→Caladea), heading colours, spacing, table width/grid/shading, image size; lists, links, page breaks; selectable text; ~0.07 s | Same fidelity on the test file, selectable text; ~0.8 s; smaller files | 🟰 | Same synthetic docx rendered side by side: same line breaks, colours, table and image. Ours faster, theirs smaller (108 KB vs 226 KB, we embed fonts whole). Lead check, 2026-10-17 |
 | Excel to PDF | All or chosen sheets, sheet titles, number formats right-aligned, repeated header row, fit to width, orientation, footer; text selectable | All sheets, picker, titles, numbers aligned | 🟰 | merged from wave2 branches, agent browser-proved + lead render check; rival features from `.scratch/head-to-head-wave2.md`; no fresh side-by-side, 2026-10-17 |
-| PowerPoint to PDF | Text only (selectable), loses fills/bold/size | Keeps layout (raster, text not selectable) | ⚠️ | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
-| Markdown to PDF | Real GFM rendering (bold, lists, quotes, code, tables, links), TOC, numbered headings, typeface, size, margins | Same plus LaTeX math and line spacing | ⚠️ | merged from wave2 branches, agent browser-proved + lead render check; rival features from `.scratch/head-to-head-wave2.md`; no fresh side-by-side, 2026-10-17 (math missing) |
-| CSV to PDF | Repeated header row, title, orientation/paper, auto widths, zebra rows | Repeated header, title, in-page edit/sort/search | ⚠️ | merged from wave2 branches, agent browser-proved + lead render check; rival features from `.scratch/head-to-head-wave2.md`; no fresh side-by-side, 2026-10-17 (no in-page edit/sort) |
+| PowerPoint to PDF | One page per slide at slide size: master/layout placeholders, shapes (rect, round rect, ellipse, line), fills, outlines, backgrounds, pictures, tables, bullets, bold/italic/colour/alignment; text selectable; hidden-slides option | Hi-Fi raster (text not selectable) or Vector mode, grid preview | ✅ | Synthetic 3-slide deck: ours 54 KB, 159 ms, all text selectable, all shapes/picture/master title drawn; their preview dropped the master title and bullets and showed the picture as a grey box. bench/wave2-b (prove.mjs, rival.mjs), 2026-10-19 |
+| Markdown to PDF | Real GFM rendering, TOC, numbered headings, typeface, size, margins, line spacing, LaTeX math ($, $$, \\(, \\[) as vector paths (MathJax SVG); "$5" stays text | Same plus live editor and per-side margins; KaTeX-style math | 🟰 | Synthetic math.md: ours 23 KB, 1 page, 257 ms, math rendered; their preview typesets the same equations. Ours vector from a file, theirs has a live editor. bench/wave2-b, 2026-10-19 |
+| CSV to PDF | Repeated header row, title, orientation/paper, auto widths, zebra rows; in-page preview with sort (numeric-aware), search, hide columns; PDF prints the view | Repeated header, title, in-page sort and cell edit, bulk/folder | 🟰 | Synthetic people.csv filtered+sorted: 15 rows in order, 5.4 KB. We have search/column hiding, they have cell edit and bulk. bench/wave2-b, 2026-10-19 |
 | HTML to PDF | Inline and <style> CSS (colour, background, borders, fonts, alignment), lists, tables, data images, A4/Letter/Legal/A3, orientation; text selectable | Full CSS as a raster (text not selectable), page size, orientation | 🟰 | merged from wave2 branches, agent browser-proved + lead render check; rival features from `.scratch/head-to-head-wave2.md`; no fresh side-by-side, 2026-10-17 (ours selectable, theirs keeps more CSS) |
 | Scan to PDF (camera) | No text layer | Corner crop, filters, brightness/contrast, OCR text layer (20 languages) | ⚠️ | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
 | Ask / chat with PDF | Preset prompts, one question, no key; tool page wrongly says "Nothing is uploaded" | BYO Gemini key, multi-turn, up to 10 PDFs | 🟰 | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
