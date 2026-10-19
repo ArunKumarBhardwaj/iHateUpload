@@ -1,13 +1,27 @@
 import { batesReady } from "@/lib/bates";
 import type { ScanFilter, ScanPageEdit, ScanPageSize } from "@/lib/scan/types";
 import type { FlipMode } from "@/lib/page-ops";
+import type { InvertEngine, InvertMode, OrganizeEntry } from "@/lib/page-tools/types";
+import { DEFAULT_FLATTEN, DEFAULT_STRIP, type FlattenSettings } from "@/lib/page-tools/flatten";
+import { DEFAULT_RESIZE, type ResizeSettings } from "@/lib/page-tools/resize";
+import { DEFAULT_NUP, type NupSettings } from "@/lib/page-tools/nup";
 import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
 import type { PiiCategory } from "@/lib/pii-detect";
+import type { DocConvertOptions } from "@/lib/doc-render/options";
+import { defaultDocOptions } from "@/lib/doc-render/options";
 import type { ToolDefinition } from "@/lib/tools";
 
 export type CompressLevel = "light" | "medium" | "heavy";
 
-export type SignMode = "draw" | "type" | "image";
+/** One signature, initials, or stamp on a page. Text stamps stay real PDF text. */
+export type SignPlacement = PageBox & {
+  id: string;
+  /** PNG of the signature. Empty for text stamps. */
+  dataUrl?: string;
+  /** Date or other typed stamp, drawn as vector text. */
+  text?: string;
+  color?: string;
+};
 
 export type RatioBox = {
   x: number;
@@ -88,8 +102,33 @@ export type WatermarkLayout = "single" | "tiled";
 
 export type ToolOptions =
   | { kind: "none" }
+  | ({ kind: "convert-doc" } & DocConvertOptions)
   | { kind: "password"; password: string }
   | { kind: "password-confirm"; password: string }
+  | {
+      kind: "protect";
+      password: string;
+      /** Empty: derived (same as the open password, or random when anything is locked). */
+      ownerPassword: string;
+      allowPrint: boolean;
+      allowCopy: boolean;
+      allowEdit: boolean;
+      allowAnnotate: boolean;
+    }
+  | {
+      kind: "unlock";
+      password: string;
+      /** What the file itself said when it was loaded; "unknown" until probed. */
+      lock: "unknown" | "open" | "restricted" | "password";
+    }
+  | {
+      kind: "extract-images";
+      /** Hide pictures whose shorter side is under this many pixels. */
+      minEdge: number;
+      /** Ids the person unticked. */
+      excluded: string[];
+    }
+  | { kind: "extract-text"; ocr: boolean; language: string }
   | {
       kind: "rotate";
       /** 0 only flips. */
@@ -98,6 +137,8 @@ export type ToolOptions =
       flip: FlipMode;
       /** Empty or "all" turns every page. */
       range: string;
+      /** Extra clockwise turn for single pages (zero-based), on top of `degrees`. */
+      perPage: Record<number, 0 | 90 | 180 | 270>;
     }
   | {
       kind: "split";
@@ -144,13 +185,20 @@ export type ToolOptions =
       /** Empty or "all" reads every page. */
       range: string;
     }
-  | { kind: "organize"; pageOrder: number[] }
+  | { kind: "organize"; entries: OrganizeEntry[] }
   | { kind: "resize"; maxEdge: number }
   | { kind: "compress"; level: CompressLevel; targetKb: number | null }
   | { kind: "extract"; range: string; pageCount: number }
-  | { kind: "sign"; mode: SignMode; text: string; dataUrl: string; box: PageBox }
+  | { kind: "sign"; placements: SignPlacement[] }
   | { kind: "edit"; marks: EditMark[] }
-  | { kind: "crop"; box: PageBox }
+  | {
+      kind: "crop";
+      /** Shared box, ratios of the page as shown. */
+      box: PageBox;
+      /** Own box per page, used when `applyAll` is off. */
+      perPage: Record<number, RatioBox>;
+      applyAll: boolean;
+    }
   | {
       kind: "redact";
       /** Boxes drawn by hand. */
@@ -171,11 +219,20 @@ export type ToolOptions =
       center: string;
       right: string;
       band: "header" | "footer" | "both";
+      fontSize: number;
+      color: string;
+      bold: boolean;
+      /** Points in from the page edge. */
+      margin: number;
+      /** Empty or "all" stamps every page. */
+      range: string;
+      skipFirst: boolean;
     }
   | { kind: "insert-blank"; afterPage: number }
-  | { kind: "invert"; mode: "invert" | "grayscale" }
-  | { kind: "nup"; n: 2 | 4 | 9 }
-  | { kind: "page-size"; size: "a4" | "letter"; fit: "fit" | "letterbox" }
+  | ({ kind: "flatten" } & FlattenSettings)
+  | { kind: "invert"; mode: InvertMode; engine: InvertEngine; dpi: number; keepHues: boolean }
+  | ({ kind: "nup" } & NupSettings)
+  | ({ kind: "page-size" } & ResizeSettings)
   | {
       kind: "annotate";
       variant: "watermark" | "numbers";
@@ -269,9 +326,13 @@ export const DEFAULT_RATIO_BOX: RatioBox = {
   h: 0.84,
 };
 
+/** The whole page: a fresh crop starts with zero margins. */
 export const DEFAULT_CROP_BOX: PageBox = {
   pageIndex: 0,
-  ...DEFAULT_RATIO_BOX,
+  x: 0,
+  y: 0,
+  w: 1,
+  h: 1,
 };
 
 export const DEFAULT_EDIT_BOX: PageBox = {
@@ -354,6 +415,11 @@ export function newHighlightMark(box: PageBox, color = EDIT_HIGHLIGHT[0]): EditM
 
 export function newRectMark(box: PageBox, color = EDIT_INK[0]): EditMark {
   return { id: newEditId(), kind: "rect", color, fill: false, ...box };
+}
+
+export function signPlacementReady(p: SignPlacement): boolean {
+  if (p.w <= 0.02 || p.h <= 0.01) return false;
+  return Boolean(p.text?.trim()) || Boolean(p.dataUrl?.startsWith("data:"));
 }
 
 export function editMarkReady(mark: EditMark): boolean {
@@ -563,12 +629,22 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
   switch (ui) {
     case "none":
       return { kind: "none" };
+    case "md-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("markdown") };
+    case "excel-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("excel") };
+    case "csv-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("csv") };
+    case "html-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("html") };
+    case "pptx-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("pptx") };
     case "password":
       return { kind: "password", password: "" };
     case "password-confirm":
       return { kind: "password-confirm", password: "" };
     case "rotate":
-      return { kind: "rotate", degrees: 90, flip: "none", range: "" };
+      return { kind: "rotate", degrees: 0, flip: "none", range: "", perPage: {} };
     case "split":
       return {
         kind: "split",
@@ -614,7 +690,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         range: "",
       };
     case "organize":
-      return { kind: "organize", pageOrder: [] };
+      return { kind: "organize", entries: [] };
     case "resize":
       return { kind: "resize", maxEdge: 1280 };
     case "compress":
@@ -622,17 +698,16 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "extract":
       return { kind: "extract", range: "", pageCount: 0 };
     case "sign":
-      return {
-        kind: "sign",
-        mode: "draw",
-        text: "",
-        dataUrl: "",
-        box: { ...DEFAULT_PAGE_BOX },
-      };
+      return { kind: "sign", placements: [] };
     case "edit":
       return { kind: "edit", marks: [] };
     case "crop":
-      return { kind: "crop", box: { ...DEFAULT_CROP_BOX } };
+      return {
+        kind: "crop",
+        box: { ...DEFAULT_CROP_BOX },
+        perPage: {},
+        applyAll: true,
+      };
     case "redact":
       return {
         kind: "redact",
@@ -651,15 +726,39 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         center: "{page} / {pages}",
         right: "",
         band: "both",
+        fontSize: 10,
+        color: "#333338",
+        bold: false,
+        margin: 24,
+        range: "",
+        skipFirst: false,
       };
+    case "protect":
+      return {
+        kind: "protect",
+        password: "",
+        ownerPassword: "",
+        allowPrint: true,
+        allowCopy: true,
+        allowEdit: true,
+        allowAnnotate: true,
+      };
+    case "unlock":
+      return { kind: "unlock", password: "", lock: "unknown" };
+    case "extract-images":
+      return { kind: "extract-images", minEdge: 0, excluded: [] };
+    case "extract-text":
+      return { kind: "extract-text", ocr: true, language: "eng" };
     case "insert-blank":
       return { kind: "insert-blank", afterPage: 1 };
     case "invert":
-      return { kind: "invert", mode: "invert" };
+      return { kind: "invert", mode: "invert", engine: "vector", dpi: 150, keepHues: true };
     case "nup":
-      return { kind: "nup", n: 2 };
+      return { kind: "nup", ...DEFAULT_NUP };
+    case "flatten":
+      return { kind: "flatten", ...DEFAULT_FLATTEN, strip: { ...DEFAULT_STRIP } };
     case "page-size":
-      return { kind: "page-size", size: "a4", fit: "letterbox" };
+      return { kind: "page-size", ...DEFAULT_RESIZE };
     case "watermark":
       return {
         kind: "annotate",
@@ -775,19 +874,34 @@ export function optionsReady(
           options.targetKb <= PDF_TARGET_KB_MAX)
       );
     case "none":
+    case "convert-doc":
     case "crop":
     case "ocr":
     case "compare":
     case "invert":
-    case "nup":
     case "page-size":
     case "scan":
     case "pdf-image":
     case "pdf-to-word":
     case "pdf-to-excel":
       return true;
+    case "flatten":
+      return (
+        options.mode === "form" ||
+        (Number.isFinite(options.dpi) && options.dpi >= 96 && options.dpi <= 400)
+      );
+    case "nup":
+      return (
+        options.cols >= 1 &&
+        options.rows >= 1 &&
+        options.cols * options.rows >= 2
+      );
     case "rotate":
-      return options.degrees !== 0 || options.flip !== "none";
+      return (
+        options.degrees !== 0 ||
+        options.flip !== "none" ||
+        Object.values(options.perPage ?? {}).some((turn) => turn !== 0)
+      );
     case "split":
       return options.mode === "ranges"
         ? options.ranges.trim().length > 0
@@ -826,13 +940,29 @@ export function optionsReady(
       );
     case "password":
       return options.password.trim().length > 0;
+    case "unlock":
+      return options.lock === "restricted" || options.password.length > 0;
+    case "protect":
+      return (
+        options.password === confirmPassword &&
+        (options.password.length > 0 ||
+          !(
+            options.allowPrint &&
+            options.allowCopy &&
+            options.allowEdit &&
+            options.allowAnnotate
+          ))
+      );
+    case "extract-images":
+    case "extract-text":
+      return true;
     case "password-confirm":
       return (
         options.password.trim().length > 0 &&
         options.password === confirmPassword
       );
     case "organize":
-      return options.pageOrder.length >= 1;
+      return options.entries.some((entry) => entry.src >= 0);
     case "resize":
       return (
         Number.isFinite(options.maxEdge) &&
@@ -841,13 +971,8 @@ export function optionsReady(
       );
     case "extract":
       return parsePageRange(options.range, options.pageCount).length >= 1;
-    case "sign": {
-      const ink =
-        options.mode === "type"
-          ? options.text.trim().length > 0
-          : options.dataUrl.startsWith("data:");
-      return ink && options.box.w > 0.04 && options.box.h > 0.04;
-    }
+    case "sign":
+      return options.placements.some(signPlacementReady);
     case "edit":
       return options.marks.some(editMarkReady);
     case "redact":

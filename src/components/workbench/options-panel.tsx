@@ -1,24 +1,32 @@
 "use client";
 
-import { useRef } from "react";
-import { ArrowDown, ArrowUp, FileText, RotateCcw, X } from "lucide-react";
 
+import { ConvertOptions, convertDocHint } from "@/components/workbench/convert-options";
 import { BatesControls } from "@/components/workbench/bates-controls";
+import { CropPanel } from "@/components/workbench/page-tools/crop-panel";
+import { FlattenPanel } from "@/components/workbench/page-tools/flatten-panel";
+import { InvertPanel } from "@/components/workbench/page-tools/invert-panel";
+import { RotatePanel } from "@/components/workbench/page-tools/rotate-panel";
+import { OrganizePanel } from "@/components/workbench/page-tools/organize-panel";
+import { PageSizePanel } from "@/components/workbench/page-tools/page-size-panel";
+import { NupPanel } from "@/components/workbench/page-tools/nup-panel";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
 import { SplitExtras } from "@/components/workbench/split-extras";
 import { ScanCapture } from "@/components/workbench/scan-capture";
 import { ScanSettings } from "@/components/workbench/scan-settings";
 import { Thumbnail } from "@/components/workbench/thumbnail";
+import { HeaderFooterPanel } from "@/components/workbench/header-footer-panel";
+import {
+  ExtractImagesPanel,
+  ExtractTextPanel,
+  ProtectPanel,
+  UnlockPanel,
+} from "@/components/workbench/security-panels";
 import { WatermarkPreview } from "@/components/workbench/watermark-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { FileItem } from "@/lib/job";
 import { JPEG_QUALITIES } from "@/lib/pdf-image";
-import {
-  PENDING_THUMBNAIL,
-  UNAVAILABLE_THUMBNAIL,
-  type ThumbnailState,
-} from "@/lib/preview";
 import {
   ANNOTATE_POSITIONS,
   COMPRESS_LEVELS,
@@ -37,18 +45,16 @@ import {
   TARGET_KB_MAX,
   TARGET_KB_MIN,
   TARGET_KB_PRESETS,
-  type SignMode,
   WATERMARK_COLORS,
   WATERMARK_ROTATIONS,
   WATERMARK_SIZES,
   type ToolOptions,
 } from "@/lib/tool-options";
-import { PAGE_THUMBNAIL_LIMIT } from "@/lib/use-previews";
+import { type ThumbnailState } from "@/lib/preview";
 import { cn } from "@/lib/utils";
 
 /** Same reasoning as the file cards: phones need a bigger hit area than 28px. */
 const OPTION_BUTTON = "h-10 sm:h-7";
-const PAGE_BUTTON = "size-10 sm:size-7";
 
 function Field({
   label,
@@ -118,9 +124,12 @@ function NumberingMode({
 export function optionsNeedCanvas(options: ToolOptions): boolean {
   return (
     options.kind === "organize" ||
+    options.kind === "rotate" ||
+    options.kind === "invert" ||
     options.kind === "sign" ||
     options.kind === "edit" ||
     options.kind === "crop" ||
+    options.kind === "page-size" ||
     options.kind === "image-crop" ||
     options.kind === "redact"
   );
@@ -129,14 +138,26 @@ export function optionsNeedCanvas(options: ToolOptions): boolean {
 /** One sentence telling the reader what the panel next to it is asking for. */
 export function optionsHint(options: ToolOptions, actionLabel: string): string {
   switch (options.kind) {
+    case "convert-doc":
+      return convertDocHint(options);
     case "none":
       return `Nothing to set up. Press ${actionLabel} and the work runs right here in this tab.`;
     case "password":
       return "Type the password this PDF was locked with. It never leaves the tab.";
     case "password-confirm":
       return "Choose a password. You will need it every time you open the PDF.";
+    case "protect":
+      return "Choose what readers may do once they open the file. Everything is allowed unless you untick it.";
+    case "unlock":
+      return options.lock === "restricted"
+        ? "This PDF opens without a password. One click writes a copy with the limits removed."
+        : "Type the password this PDF was locked with. It never leaves the tab.";
+    case "extract-images":
+      return "Pick the pictures you want. JPEGs are saved exactly as they sit in the PDF.";
+    case "extract-text":
+      return "Selectable text is copied as it is. Scanned pages can be read with OCR.";
     case "rotate":
-      return "Turn the pages, mirror them, or both. Leave the pages box empty for all of them.";
+      return "Turn each page left, right or 180 degrees, or all at once. You can also mirror pages. Text stays text.";
     case "split":
       return options.mode === "bookmarks"
         ? "Cut at the PDF's own bookmarks. The files below are exactly what you will get."
@@ -162,7 +183,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "resize":
       return "Set the longest edge in pixels. The aspect ratio stays as it is.";
     case "organize":
-      return "Reorder or drop pages in the grid, then save the new PDF.";
+      return "Drag pages into order, turn, duplicate, delete or add blank pages, then save the new PDF.";
     case "compress":
       return "Every level keeps text selectable. Smallest may flatten scanned pages that have no text to shrink them further.";
     case "extract":
@@ -172,7 +193,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "edit":
       return "Click a line to change it. Scans are read with OCR. Old letters are covered, not rewritten.";
     case "crop":
-      return "Drag the box to the area every page should keep.";
+      return "Drag the box, or type margins. Keep one crop for every page or give each page its own.";
     case "redact":
       return "Scan for personal info or draw boxes over the text. Those pixels are burned out, not covered.";
     case "compare":
@@ -181,12 +202,16 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Left, center, and right. {page} {pages} {date} expand on each page.";
     case "insert-blank":
       return "Insert one blank page after the page number you type. 0 puts it first.";
+    case "flatten":
+      return options.mode === "form"
+        ? "Fields become part of the page. Text stays selectable. Choose what else to strip."
+        : "Every page becomes a picture, so nothing underneath can be copied, edited or clicked.";
     case "invert":
-      return "Invert flips every pixel. Grayscale keeps the layout, drops the color.";
+      return "Pick a look. Text-keeping mode recolours without redrawing, so text stays selectable and the file stays small.";
     case "nup":
-      return "How many pages to print on each sheet.";
+      return "Pick a grid, a paper size and how pages flow. Pages stay vector, so text stays selectable.";
     case "page-size":
-      return "Fit fills the sheet and may clip. Letterbox keeps the whole page.";
+      return "Pick a sheet or type your own size. Pages stay vector, so text stays selectable.";
     case "annotate":
       return options.variant === "numbers"
         ? options.bates
@@ -217,7 +242,6 @@ export function OptionsPanel({
   onOptions,
   confirmPassword,
   onConfirmPassword,
-  pagePreviews,
   pageCount,
   firstPage,
   disabled,
@@ -229,7 +253,6 @@ export function OptionsPanel({
   onOptions: (next: ToolOptions) => void;
   confirmPassword: string;
   onConfirmPassword: (next: string) => void;
-  pagePreviews: ReadonlyMap<number, ThumbnailState>;
   pageCount: number;
   /** Page 1 thumbnail, drawn under the live watermark preview. */
   firstPage?: ThumbnailState;
@@ -243,6 +266,9 @@ export function OptionsPanel({
   switch (options.kind) {
     case "none":
       return null;
+
+    case "convert-doc":
+      return <ConvertOptions options={options} onOptions={onOptions} disabled={disabled} files={files} />;
 
     case "password":
       return (
@@ -259,6 +285,45 @@ export function OptionsPanel({
             placeholder="PDF password"
           />
         </Field>
+      );
+
+    case "protect":
+      return (
+        <ProtectPanel
+          options={options}
+          onOptions={onOptions}
+          confirmPassword={confirmPassword}
+          onConfirmPassword={onConfirmPassword}
+          disabled={disabled}
+        />
+      );
+
+    case "unlock":
+      return (
+        <UnlockPanel
+          options={options}
+          onOptions={onOptions}
+          disabled={disabled}
+          files={files}
+        />
+      );
+
+    case "extract-images":
+      return (
+        <ExtractImagesPanel
+          options={options}
+          onOptions={onOptions}
+          disabled={disabled}
+        />
+      );
+
+    case "extract-text":
+      return (
+        <ExtractTextPanel
+          options={options}
+          onOptions={onOptions}
+          disabled={disabled}
+        />
       );
 
     case "password-confirm": {
@@ -305,65 +370,12 @@ export function OptionsPanel({
 
     case "rotate":
       return (
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-ink">Rotate by</p>
-            <div className="flex flex-wrap gap-2">
-              {([0, 90, 180, 270] as const).map((degrees) => (
-                <Button
-                  key={degrees}
-                  type="button"
-                  size="sm"
-                  className={OPTION_BUTTON}
-                  variant={options.degrees === degrees ? "default" : "outline"}
-                  disabled={disabled}
-                  onClick={() => onOptions({ ...options, degrees })}
-                >
-                  {degrees === 0 ? "No turn" : `${degrees}°`}
-                </Button>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-ink">Mirror</p>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  ["none", "Off"],
-                  ["h", "Left-right"],
-                  ["v", "Top-bottom"],
-                  ["hv", "Both"],
-                ] as const
-              ).map(([flip, label]) => (
-                <Button
-                  key={flip}
-                  type="button"
-                  size="sm"
-                  className={OPTION_BUTTON}
-                  variant={options.flip === flip ? "default" : "outline"}
-                  disabled={disabled}
-                  onClick={() => onOptions({ ...options, flip })}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Mirrors the page after any turn. Text stays text, not a picture.
-            </p>
-          </div>
-          <Field label="Pages" htmlFor="rotate-range">
-            <Input
-              id="rotate-range"
-              value={options.range}
-              disabled={disabled}
-              onChange={(e) => onOptions({ ...options, range: e.target.value })}
-              placeholder="All pages, or e.g. 1-3, 7"
-              inputMode="text"
-              autoComplete="off"
-            />
-          </Field>
-        </div>
+        <RotatePanel
+          options={options}
+          onOptions={onOptions}
+          file={files?.[0]?.file}
+          disabled={disabled}
+        />
       );
 
     case "split":
@@ -860,144 +872,22 @@ export function OptionsPanel({
         </div>
       );
 
-    case "organize": {
-      const { pageOrder } = options;
-      const setOrder = (next: number[]) =>
-        onOptions({ kind: "organize", pageOrder: next });
-      const move = (index: number, direction: -1 | 1) => {
-        const target = index + direction;
-        if (target < 0 || target >= pageOrder.length) return;
-        const next = [...pageOrder];
-        [next[index], next[target]] = [next[target], next[index]];
-        setOrder(next);
-      };
-      const edited =
-        pageOrder.length !== pageCount ||
-        pageOrder.some((page, index) => page !== index);
-
-      if (pageCount === 0) {
-        return (
-          <p className="text-sm text-muted-foreground">
-            Reading the pages in this PDF…
-          </p>
-        );
-      }
-
+    case "organize":
       return (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium text-ink">
-              {pageOrder.length === pageCount
-                ? `${pageCount} pages`
-                : `Keeping ${pageOrder.length} of ${pageCount} pages`}
-            </p>
-            {edited && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className={OPTION_BUTTON}
-                disabled={disabled}
-                onClick={() =>
-                  setOrder(Array.from({ length: pageCount }, (_, i) => i))
-                }
-              >
-                <RotateCcw />
-                Reset order
-              </Button>
-            )}
-          </div>
-
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {pageOrder.map((page, index) => (
-              <li
-                key={`${page}-${index}`}
-                className="flex flex-col gap-1.5 rounded-lg border border-ink/10 bg-card p-2"
-              >
-                <Thumbnail
-                  state={
-                    pagePreviews.get(page) ??
-                    (page < PAGE_THUMBNAIL_LIMIT
-                      ? PENDING_THUMBNAIL
-                      : UNAVAILABLE_THUMBNAIL)
-                  }
-                  alt={`Page ${page + 1}`}
-                  icon={<FileText className="size-4" />}
-                  className="h-28 w-full bg-muted/40 sm:h-32"
-                />
-                <p className="text-[11px] font-medium text-ink">
-                  Page {page + 1}
-                </p>
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="outline"
-                    className={PAGE_BUTTON}
-                    aria-label={`Move page ${page + 1} earlier`}
-                    disabled={disabled || index === 0}
-                    onClick={() => move(index, -1)}
-                  >
-                    <ArrowUp />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="outline"
-                    className={PAGE_BUTTON}
-                    aria-label={`Move page ${page + 1} later`}
-                    disabled={disabled || index === pageOrder.length - 1}
-                    onClick={() => move(index, 1)}
-                  >
-                    <ArrowDown />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="outline"
-                    className={cn(PAGE_BUTTON, "ml-auto")}
-                    aria-label={`Remove page ${page + 1}`}
-                    disabled={disabled || pageOrder.length <= 1}
-                    onClick={() =>
-                      setOrder(pageOrder.filter((_, i) => i !== index))
-                    }
-                  >
-                    <X />
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          {pageCount > PAGE_THUMBNAIL_LIMIT && (
-            <p className="text-xs text-muted-foreground">
-              Thumbnails stop after page {PAGE_THUMBNAIL_LIMIT}. Later pages
-              still reorder and export normally.
-            </p>
-          )}
-        </div>
-      );
-    }
-
-    case "sign":
-      return (
-        <SignControls
+        <OrganizePanel
           options={options}
           onOptions={onOptions}
+          file={files?.[0]?.file}
           pageCount={pageCount}
           disabled={disabled}
         />
       );
 
-    case "edit":
+    case "sign":
       return null;
 
-    case "crop":
-      return (
-        <p className="text-sm text-muted-foreground">
-          The same crop applies to every page. Drag the box on the page.
-        </p>
-      );
+    case "edit":
+      return null;
 
     case "redact": {
       const kept = options.findings.filter((f) => f.accepted).length;
@@ -1046,63 +936,14 @@ export function OptionsPanel({
 
     case "header-footer":
       return (
-        <div className="space-y-3">
-          <Field label="Left" htmlFor="hf-left">
-            <Input
-              id="hf-left"
-              value={options.left}
-              disabled={disabled}
-              onChange={(e) =>
-                onOptions({ ...options, left: e.target.value })
-              }
-              placeholder="Name"
-            />
-          </Field>
-          <Field label="Center" htmlFor="hf-center">
-            <Input
-              id="hf-center"
-              value={options.center}
-              disabled={disabled}
-              onChange={(e) =>
-                onOptions({ ...options, center: e.target.value })
-              }
-              placeholder="{page} / {pages}"
-            />
-          </Field>
-          <Field label="Right" htmlFor="hf-right">
-            <Input
-              id="hf-right"
-              value={options.right}
-              disabled={disabled}
-              onChange={(e) =>
-                onOptions({ ...options, right: e.target.value })
-              }
-              placeholder="{date}"
-            />
-          </Field>
-          <p className="text-sm font-medium text-ink">Place on</p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["header", "Header"],
-                ["footer", "Footer"],
-                ["both", "Both"],
-              ] as const
-            ).map(([band, title]) => (
-              <Button
-                key={band}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.band === band ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() => onOptions({ ...options, band })}
-              >
-                {title}
-              </Button>
-            ))}
-          </div>
-        </div>
+        <HeaderFooterPanel
+          options={options}
+          onOptions={onOptions}
+          disabled={disabled}
+          firstPage={firstPage}
+          filename={(files?.[0]?.name ?? "document.pdf").replace(/\.pdf$/i, "")}
+          pageCount={filePages?.[0] ?? 0}
+        />
       );
 
     case "insert-blank":
@@ -1132,101 +973,44 @@ export function OptionsPanel({
         </Field>
       );
 
+    case "flatten":
+      return (
+        <FlattenPanel options={options} onOptions={onOptions} disabled={disabled} />
+      );
+
     case "invert":
       return (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-ink">Mode</p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["invert", "Invert"],
-                ["grayscale", "Grayscale"],
-              ] as const
-            ).map(([mode, title]) => (
-              <Button
-                key={mode}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.mode === mode ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() => onOptions({ kind: "invert", mode })}
-              >
-                {title}
-              </Button>
-            ))}
-          </div>
-        </div>
+        <InvertPanel
+          options={options}
+          onOptions={onOptions}
+          file={files?.[0]?.file}
+          disabled={disabled}
+        />
       );
 
     case "nup":
       return (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-ink">Pages per sheet</p>
-          <div className="flex flex-wrap gap-2">
-            {([2, 4, 9] as const).map((n) => (
-              <Button
-                key={n}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.n === n ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() => onOptions({ kind: "nup", n })}
-              >
-                {n}-up
-              </Button>
-            ))}
-          </div>
-        </div>
+        <NupPanel options={options} onOptions={onOptions} disabled={disabled} />
       );
 
     case "page-size":
       return (
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-ink">Sheet</p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["a4", "A4"],
-                ["letter", "Letter"],
-              ] as const
-            ).map(([size, title]) => (
-              <Button
-                key={size}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.size === size ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() => onOptions({ ...options, size })}
-              >
-                {title}
-              </Button>
-            ))}
-          </div>
-          <p className="text-sm font-medium text-ink">How to fit</p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["letterbox", "Letterbox"],
-                ["fit", "Fit"],
-              ] as const
-            ).map(([fit, title]) => (
-              <Button
-                key={fit}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.fit === fit ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() => onOptions({ ...options, fit })}
-              >
-                {title}
-              </Button>
-            ))}
-          </div>
-        </div>
+        <PageSizePanel
+          options={options}
+          onOptions={onOptions}
+          file={files?.[0]?.file}
+          disabled={disabled}
+        />
+      );
+
+    case "crop":
+      return (
+        <CropPanel
+          options={options}
+          onOptions={onOptions}
+          file={files?.[0]?.file}
+          disabled={disabled}
+        />
       );
 
     case "annotate":
@@ -1770,178 +1554,4 @@ export function OptionsPanel({
         </div>
       );
   }
-}
-
-function SignControls({
-  options,
-  onOptions,
-  pageCount,
-  disabled,
-}: {
-  options: Extract<ToolOptions, { kind: "sign" }>;
-  onOptions: (next: ToolOptions) => void;
-  pageCount: number;
-  disabled: boolean;
-}) {
-  const modes: { id: SignMode; title: string }[] = [
-    { id: "draw", title: "Draw" },
-    { id: "type", title: "Type" },
-    { id: "image", title: "Image" },
-  ];
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {modes.map((mode) => (
-          <Button
-            key={mode.id}
-            type="button"
-            size="sm"
-            className={OPTION_BUTTON}
-            variant={options.mode === mode.id ? "default" : "outline"}
-            disabled={disabled}
-            onClick={() => onOptions({ ...options, mode: mode.id })}
-          >
-            {mode.title}
-          </Button>
-        ))}
-      </div>
-      {options.mode === "type" ? (
-        <Field label="Name" htmlFor="sign-text">
-          <Input
-            id="sign-text"
-            value={options.text}
-            disabled={disabled}
-            onChange={(e) => onOptions({ ...options, text: e.target.value })}
-            placeholder="Your name"
-          />
-        </Field>
-      ) : null}
-      {options.mode === "image" ? (
-        <Field label="Signature image" htmlFor="sign-image">
-          <Input
-            id="sign-image"
-            type="file"
-            accept="image/png,image/jpeg,.png,.jpg,.jpeg"
-            disabled={disabled}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = () => {
-                if (typeof reader.result === "string") {
-                  onOptions({ ...options, dataUrl: reader.result });
-                }
-              };
-              reader.readAsDataURL(file);
-            }}
-          />
-        </Field>
-      ) : null}
-      {options.mode === "draw" ? (
-        <DrawPad
-          disabled={disabled}
-          onInk={(dataUrl) => onOptions({ ...options, dataUrl })}
-        />
-      ) : null}
-      {pageCount > 1 ? (
-        <Field label="Page" htmlFor="sign-page">
-          <Input
-            id="sign-page"
-            type="number"
-            min={1}
-            max={pageCount}
-            value={options.box.pageIndex + 1}
-            disabled={disabled}
-            onChange={(e) => {
-              const page = Number(e.target.value);
-              if (!Number.isInteger(page)) return;
-              onOptions({
-                ...options,
-                box: {
-                  ...options.box,
-                  pageIndex: Math.min(pageCount, Math.max(1, page)) - 1,
-                },
-              });
-            }}
-          />
-        </Field>
-      ) : null}
-    </div>
-  );
-}
-
-function DrawPad({
-  disabled,
-  onInk,
-}: {
-  disabled: boolean;
-  onInk: (dataUrl: string) => void;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef(false);
-
-  const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
-      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
-    };
-  };
-
-  return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-ink">Draw</p>
-      <canvas
-        ref={canvasRef}
-        width={480}
-        height={160}
-        className="h-28 w-full touch-none rounded-xl border border-ink/15 bg-background"
-        onPointerDown={(event) => {
-          if (disabled) return;
-          const canvas = canvasRef.current;
-          const ctx = canvas?.getContext("2d");
-          if (!ctx) return;
-          drawing.current = true;
-          event.currentTarget.setPointerCapture(event.pointerId);
-          const start = point(event);
-          ctx.strokeStyle = "#111827";
-          ctx.lineWidth = 4;
-          ctx.lineCap = "round";
-          ctx.beginPath();
-          ctx.moveTo(start.x, start.y);
-        }}
-        onPointerMove={(event) => {
-          if (!drawing.current) return;
-          const ctx = canvasRef.current?.getContext("2d");
-          if (!ctx) return;
-          const next = point(event);
-          ctx.lineTo(next.x, next.y);
-          ctx.stroke();
-        }}
-        onPointerUp={() => {
-          drawing.current = false;
-          const canvas = canvasRef.current;
-          if (canvas) onInk(canvas.toDataURL("image/png"));
-        }}
-      />
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className={OPTION_BUTTON}
-        disabled={disabled}
-        onClick={() => {
-          const canvas = canvasRef.current;
-          const ctx = canvas?.getContext("2d");
-          if (!canvas || !ctx) return;
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          onInk("");
-        }}
-      >
-        Clear
-      </Button>
-    </div>
-  );
 }

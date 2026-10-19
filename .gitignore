@@ -44,3 +44,6 @@ next-env.d.ts
 bench/pdf-to-word/results/
 bench/pdf-to-word/fixtures/long.*
 bench/pdf-to-excel/results/
+bench/wave2-a/fx/
+bench/wave2-a/out/
+bench/page-tools/out/

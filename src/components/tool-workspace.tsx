@@ -12,8 +12,10 @@ import {
   optionsHint,
   optionsNeedCanvas,
 } from "@/components/workbench/options-panel";
+import { CsvPreview } from "@/components/workbench/csv-preview";
+import { ExtractImagesGrid } from "@/components/workbench/extract-images-grid";
 import { ImageCropOverlay } from "@/components/workbench/image-crop-overlay";
-import { PageOverlay } from "@/components/workbench/page-overlay";
+import { SignCanvas } from "@/components/workbench/sign-canvas";
 import { PdfEditCanvas } from "@/components/workbench/pdf-edit-canvas";
 import { ComparePreview } from "@/components/workbench/compare-preview";
 import { RedactOverlay } from "@/components/workbench/redact-overlay";
@@ -42,11 +44,6 @@ import {
   processEditMetadata,
   processAskPdf,
   processCropPdf,
-  processCsvToPdf,
-  processExcelToPdf,
-  processHtmlToPdf,
-  processMarkdownToPdf,
-  processPptxToPdf,
   processScanToPdf,
   processFlattenPdf,
   processOcrPdf,
@@ -93,7 +90,7 @@ import {
 } from "@/lib/processors";
 import type { FileFacts } from "@/lib/preview";
 import { TOOL_GROUPS } from "@/lib/tool-groups";
-import { useFilePreviews, usePagePreviews } from "@/lib/use-previews";
+import { useFilePreviews } from "@/lib/use-previews";
 import { cn, downloadBlob, formatBytes } from "@/lib/utils";
 
 async function runTool(
@@ -156,9 +153,9 @@ async function runTool(
     case "compare-pdfs":
       return processComparePdfs(files, onProgress, options);
     case "extract-text":
-      return processExtractText(files, onProgress);
+      return processExtractText(files, onProgress, options);
     case "extract-images":
-      return processExtractImages(files, onProgress);
+      return processExtractImages(files, onProgress, options);
     case "header-footer":
       return processHeaderFooter(files, onProgress, options);
     case "reverse-pages":
@@ -188,7 +185,7 @@ async function runTool(
     case "bates-numbering":
       return processAnnotatePdf(files, onProgress, options);
     case "flatten-pdf":
-      return processFlattenPdf(files, onProgress);
+      return processFlattenPdf(files, onProgress, options);
     case "png-to-pdf":
       return processPngToPdf(files, onProgress);
     case "ocr-pdf":
@@ -196,15 +193,15 @@ async function runTool(
     case "word-to-pdf":
       return processWordToPdf(files, onProgress);
     case "excel-to-pdf":
-      return processExcelToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "pptx-to-pdf":
-      return processPptxToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "markdown-to-pdf":
-      return processMarkdownToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "csv-to-pdf":
-      return processCsvToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "html-to-pdf":
-      return processHtmlToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "scan-to-pdf":
       return processScanToPdf(files, onProgress, options);
     case "strip-metadata":
@@ -305,8 +302,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       : undefined;
   const pagedFacts = pagedFile ? previews.get(pagedFile.id)?.facts : undefined;
   const pageCount = pagedFacts?.kind === "pdf" ? pagedFacts.pages : 0;
-  const organizeFile = options.kind === "organize" ? pagedFile : undefined;
-  const pagePreviews = usePagePreviews(organizeFile, pageCount);
 
   const setFiles = useCallback((next: FileItem[]) => {
     setJob(next.length === 0 ? idleJob() : { status: "ready", files: next });
@@ -342,7 +337,11 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     setOrderedKey(pageKey);
     setOptions({
       kind: "organize",
-      pageOrder: Array.from({ length: pageCount }, (_, index) => index),
+      entries: Array.from({ length: pageCount }, (_, index) => ({
+        id: `p${index}`,
+        src: index,
+        turn: 0 as const,
+      })),
     });
   }
   if (options.kind === "extract" && orderedKey !== pageKey) {
@@ -353,11 +352,16 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       pageCount,
     });
   }
-  const editFileId = options.kind === "edit" ? (pagedFile?.id ?? "") : "";
+  const editFileId =
+    options.kind === "edit" || options.kind === "sign" ? (pagedFile?.id ?? "") : "";
   const [editKey, setEditKey] = useState(editFileId);
   if (options.kind === "edit" && editKey !== editFileId) {
     setEditKey(editFileId);
     setOptions({ kind: "edit", marks: [] });
+  }
+  if (options.kind === "sign" && editKey !== editFileId) {
+    setEditKey(editFileId);
+    setOptions({ kind: "sign", placements: [] });
   }
 
   const addFiles = useCallback(
@@ -455,7 +459,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const overlayFile =
     (options.kind === "sign" ||
       options.kind === "edit" ||
-      options.kind === "crop" ||
       options.kind === "redact") &&
     pagedFile
       ? pagedFile.file
@@ -467,7 +470,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       onOptions={setOptions}
       confirmPassword={confirmPassword}
       onConfirmPassword={setConfirmPassword}
-      pagePreviews={pagePreviews}
       pageCount={pageCount}
       firstPage={files[0] ? previews.get(files[0].id)?.thumbnail : undefined}
       files={files}
@@ -623,12 +625,12 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                 />
               ) : null}
               {overlayFile && options.kind === "sign" ? (
-                <PageOverlay
+                <SignCanvas
                   file={overlayFile}
-                  box={options.box}
-                  onBox={(box) => setOptions({ ...options, box })}
+                  placements={options.placements}
+                  onPlacements={(placements) => setOptions({ kind: "sign", placements })}
+                  pageCount={pageCount}
                   disabled={locked}
-                  label="Place the signature"
                 />
               ) : null}
               {overlayFile && options.kind === "edit" ? (
@@ -638,15 +640,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   onMarks={(marks) => setOptions({ kind: "edit", marks })}
                   pageCount={pageCount}
                   disabled={locked}
-                />
-              ) : null}
-              {overlayFile && options.kind === "crop" ? (
-                <PageOverlay
-                  file={overlayFile}
-                  box={options.box}
-                  onBox={(box) => setOptions({ ...options, box })}
-                  disabled={locked}
-                  label="Keep this area"
                 />
               ) : null}
               {overlayFile && options.kind === "redact" ? (
@@ -667,7 +660,24 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   label="Keep this area"
                 />
               ) : null}
-              {optionsInCanvas && options.kind !== "edit" && optionsPanel}
+              {options.kind === "extract-images" && files[0] ? (
+                <ExtractImagesGrid
+                  file={files[0].file}
+                  baseName={files[0].name.replace(/\.[^.]+$/, "")}
+                  options={options}
+                  onOptions={setOptions}
+                  disabled={locked}
+                />
+              ) : null}
+              {options.kind === "convert-doc" && options.src === "csv" && files[0] ? (
+                <CsvPreview
+                  file={files[0].file}
+                  options={options}
+                  onOptions={(patch) => setOptions({ ...options, ...patch })}
+                  disabled={locked}
+                />
+              ) : null}
+              {optionsInCanvas && options.kind !== "edit" && options.kind !== "sign" && optionsPanel}
             </div>
 
             <aside className="space-y-4 lg:border-l lg:border-ink/10 lg:pl-6">
@@ -776,7 +786,9 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   disabled={!canProcess}
                   onClick={process}
                 >
-                  {tool.actionLabel}
+                  {options.kind === "unlock" && options.lock === "restricted"
+                    ? "Remove restrictions"
+                    : tool.actionLabel}
                 </Button>
               )}
             </div>
