@@ -416,9 +416,21 @@ export async function processCropPdf(
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to crop.");
   const doc = await loadPdf(item.file);
-  cropPages(doc, (index) =>
-    options.applyAll ? options.box : (options.perPage[index] ?? options.box),
-  );
+  const whole = (r: { x: number; y: number; w: number; h: number }) =>
+    r.x <= 0.0005 && r.y <= 0.0005 && r.w >= 0.999 && r.h >= 0.999;
+  const rectFor = (index: number) =>
+    options.applyAll ? options.box : (options.perPage[index] ?? null);
+  const changed = doc.getPages().some((_, i) => {
+    const r = rectFor(i);
+    return r !== null && !whole(r);
+  });
+  if (!changed) {
+    throw new Error("Nothing to crop yet. Drag the box or type margins first.");
+  }
+  cropPages(doc, (index) => {
+    const r = rectFor(index);
+    return r && !whole(r) ? r : null;
+  });
   onProgress(0.7);
   stripPdfMetadata(doc);
   const blob = pdfBlob(await doc.save({ useObjectStreams: true }));

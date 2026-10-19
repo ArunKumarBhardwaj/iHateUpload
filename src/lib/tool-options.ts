@@ -315,9 +315,13 @@ export const DEFAULT_RATIO_BOX: RatioBox = {
   h: 0.84,
 };
 
+/** The whole page: a fresh crop starts with zero margins. */
 export const DEFAULT_CROP_BOX: PageBox = {
   pageIndex: 0,
-  ...DEFAULT_RATIO_BOX,
+  x: 0,
+  y: 0,
+  w: 1,
+  h: 1,
 };
 
 export const DEFAULT_EDIT_BOX: PageBox = {

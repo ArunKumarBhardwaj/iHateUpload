@@ -190,7 +190,7 @@ export function CropPanel({
   const size = sizes?.[page] ?? { width: 595, height: 842 };
   const rect: RatioRect = options.applyAll
     ? options.box
-    : (options.perPage[page] ?? options.box);
+    : (options.perPage[page] ?? { x: 0, y: 0, w: 1, h: 1 });
 
   const setRect = (next: RatioRect) => {
     if (options.applyAll) {
