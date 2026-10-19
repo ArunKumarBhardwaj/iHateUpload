@@ -1,5 +1,6 @@
 // Drives the real Edit PDF page on a dev server and checks the downloaded PDF.
 // Usage: node bench/wave2-d/proof.mjs [baseUrl]   (needs `next dev` running)
+import { statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,12 +33,14 @@ async function clickAt(page, rx, ry) {
   await page.waitForTimeout(500);
 }
 async function save(page, name) {
+  const t0 = Date.now();
   await page.getByRole("button", { name: "Save PDF" }).click();
   const dlButton = page.getByRole("button", { name: /^Download/ }).first();
   await dlButton.waitFor({ timeout: 60000 });
   const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 60000 }), dlButton.click()]);
   const path = out(name);
   await dl.saveAs(path);
+  console.log(`  ${name}: ${Date.now() - t0} ms click-to-download, ${statSync(path).size} bytes`);
   return path;
 }
 
@@ -159,6 +162,20 @@ async function save(page, name) {
   await page.keyboard.press("Control+Shift+z");
   await page.waitForTimeout(300);
   check("shortcut redo brings the edit back", await page.getByRole("button", { name: "Save PDF" }).isEnabled());
+  await page.context().close();
+}
+
+// ---- 5. scanned page still goes through OCR ----
+{
+  const page = await open("scan.pdf");
+  await page.waitForFunction(() => /OCR/.test(document.body.innerText), null, { timeout: 90000 });
+  await clickAt(page, 0.3, 0.19); // "Invoice for Acme Corp" (y=300/1584)
+  const area = page.getByLabel("Text on the page");
+  const read = await area.inputValue().catch(() => "");
+  check("OCR reads a line on a scanned page", /Acme/.test(read), JSON.stringify(read));
+  await area.fill("Invoice for Globex");
+  const path = await save(page, "5-scan.pdf");
+  render(path, out("5-scan.png"));
   await page.context().close();
 }
 

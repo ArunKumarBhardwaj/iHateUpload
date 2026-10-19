@@ -37,4 +37,15 @@ const fx = (n) => join(HERE, "fx", n);
   p.drawText("Keep this line as it is", { x: 60, y: 600, size: 14, font });
   writeFileSync(fx("invoice-type0.pdf"), await doc.save());
 }
+// scan.pdf: a picture of text, no text layer (the OCR path).
+{
+  const sharp = (await import("sharp")).default;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1224" height="1584"><rect width="100%" height="100%" fill="white"/><text x="120" y="300" font-family="Helvetica, Arial, sans-serif" font-size="56" fill="black">Invoice for Acme Corp</text><text x="120" y="420" font-family="Helvetica, Arial, sans-serif" font-size="56" fill="black">Total due 1200 dollars</text></svg>`;
+  const png = await sharp(Buffer.from(svg)).png().toBuffer();
+  const doc = await PDFDocument.create();
+  const img = await doc.embedPng(png);
+  const p = doc.addPage([612, 792]);
+  p.drawImage(img, { x: 0, y: 0, width: 612, height: 792 });
+  writeFileSync(fx("scan.pdf"), await doc.save());
+}
 console.log("ok");

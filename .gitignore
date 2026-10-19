@@ -46,3 +46,4 @@ bench/pdf-to-word/fixtures/long.*
 bench/pdf-to-excel/results/
 bench/wave2-a/fx/
 bench/wave2-a/out/
+bench/wave2-d/out/
