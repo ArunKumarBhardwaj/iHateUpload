@@ -1,6 +1,6 @@
-import { CloudOff, WifiOff } from "lucide-react";
 import Link from "next/link";
 
+import { FooterClaims } from "@/components/footer-claims";
 import { GROUP_COLOR } from "@/components/tool-icon";
 import { TOOL_GROUPS } from "@/lib/tool-groups";
 import { getTool, type ToolId } from "@/lib/tools";
@@ -24,20 +24,7 @@ export function SiteFooter() {
           <p className="text-xl font-semibold tracking-tight text-ink">
             iHate<span className="text-signal-ink">Upload</span>
           </p>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            PDF and image tools that run in your browser. Your files never
-            leave your device.
-          </p>
-          <ul className="mt-5 space-y-2 text-sm text-ink">
-            <li className="flex items-center gap-2">
-              <CloudOff className="size-4 text-lagoon" aria-hidden />
-              Nothing is uploaded
-            </li>
-            <li className="flex items-center gap-2">
-              <WifiOff className="size-4 text-lagoon" aria-hidden />
-              Works offline once loaded
-            </li>
-          </ul>
+          <FooterClaims />
         </div>
 
         <FooterColumn title="Browse by job">

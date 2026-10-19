@@ -125,7 +125,7 @@ export default async function ToolPage({ params }: ToolPageProps) {
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
           {tool.seoDescription}
           {tool.ui === "ask"
-            ? " The extracted text and your question are sent to Google Gemini to get an answer."
+            ? " The extracted text and your chat are sent to Google Gemini to get an answer, through our server or, with your own key, straight from this browser."
             : " Processing never leaves this tab."}
         </p>
       </section>

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Download, FileImage, FileText, Loader2, Lock, Upload } from "lucide-react";
 import JSZip from "jszip";
 
+import { AskChat } from "@/components/workbench/ask-chat";
+import { ScanStudio } from "@/components/workbench/scan-studio";
 import { FileList } from "@/components/workbench/file-list";
 import {
   OptionsPanel,
@@ -202,7 +204,7 @@ async function runTool(
     case "html-to-pdf":
       return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "scan-to-pdf":
-      return processScanToPdf(files, onProgress);
+      return processScanToPdf(files, onProgress, options);
     case "strip-metadata":
       return processStripMetadata(files, onProgress);
     case "edit-metadata":
@@ -562,10 +564,27 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
           </div>
         )}
 
-        {(settled || busy) && (
+        {(settled || busy) && options.kind === "ask" && (
+          <AskChat
+            files={files}
+            onFiles={(next) => setFiles(next.slice(0, 10))}
+            onAddMore={() => inputRef.current?.click()}
+          />
+        )}
+
+        {(settled || busy) && options.kind !== "ask" && (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="min-w-0 space-y-5">
-              {optionsInCanvas ? (
+              {options.kind === "scan" ? (
+                <ScanStudio
+                  files={files}
+                  options={options}
+                  onOptions={setOptions}
+                  onFiles={setFiles}
+                  onAddMore={() => inputRef.current?.click()}
+                  disabled={locked}
+                />
+              ) : optionsInCanvas ? (
                 <div className="flex items-center gap-3 rounded-xl border border-ink/10 bg-secondary px-3 py-2.5">
                   <SourceIcon className="size-4 shrink-0 text-signal" />
                   <span
@@ -720,7 +739,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
           />
         )}
 
-        {job.status !== "idle" && (
+        {job.status !== "idle" && options.kind !== "ask" && (
           <div className="sticky bottom-0 -mx-5 -mb-5 mt-6 rounded-b-2xl border-t border-ink/10 bg-card/95 px-5 pb-5 pt-4 backdrop-blur sm:-mx-8 sm:-mb-8 sm:px-8 sm:pb-8">
             {job.status === "processing" && (
               <div className="mb-3 space-y-1.5">
@@ -741,7 +760,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
             <p className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <Lock className="size-3" />
               {tool.ui === "ask"
-                ? "The PDF stays in this tab. Its text and your question go to Google Gemini."
+                ? "The PDFs stay in this tab. Their text and your chat go to Google Gemini."
                 : "Runs in this tab. Nothing is uploaded."}
             </p>
             <div className="flex items-center gap-2">

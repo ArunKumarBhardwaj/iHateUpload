@@ -31,8 +31,11 @@ export default function PrivacyPage() {
           One tool is different. Ask PDF reads the text out of your PDF in this
           tab, then sends that text and your question to Google Gemini through
           our server to get an answer. The PDF file itself is not sent, and we
-          do not keep the text. Skip Ask PDF if the words themselves are
-          private.
+          do not keep the text. If you choose &ldquo;my own Gemini key&rdquo;,
+          the text and chat go straight from your browser to Google and skip our
+          server; the key stays in your browser, and is saved only if you tick
+          remember. Either way Google receives the text. Skip Ask PDF if the
+          words themselves are private.
         </p>
       </div>
 

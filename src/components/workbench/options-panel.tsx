@@ -13,6 +13,7 @@ import { NupPanel } from "@/components/workbench/page-tools/nup-panel";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
 import { SplitExtras } from "@/components/workbench/split-extras";
 import { ScanCapture } from "@/components/workbench/scan-capture";
+import { ScanSettings } from "@/components/workbench/scan-settings";
 import { HeaderFooterPanel } from "@/components/workbench/header-footer-panel";
 import {
   ExtractImagesPanel,
@@ -219,9 +220,9 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "ocr":
       return "Tesseract reads each page in this tab. Hindi keeps its letters. Pages that already have words can be copied as-is. Slow on long scans.";
     case "ask":
-      return "The PDF stays here. Only extracted text is sent with your question.";
+      return "The PDFs stay here. Their extracted text and your chat go to Google Gemini.";
     case "scan":
-      return "Use the camera or drop a photo. Each capture becomes a page.";
+      return "Use the camera or drop photos. Drag the corners to the page edges, pick a filter, then make the PDF. Nothing leaves this tab.";
     case "image-crop":
       return "Drag the box on the photo. Only that area is kept.";
     case "image-turn":
@@ -1447,10 +1448,15 @@ export function OptionsPanel({
     }
     case "scan":
       return (
-        <ScanCapture
-          disabled={disabled}
-          onCapture={(file) => onAddFiles?.([file])}
-        />
+        <div className="space-y-5">
+          {files && files.length > 0 ? (
+            <ScanSettings options={options} onOptions={onOptions} disabled={disabled} />
+          ) : null}
+          <ScanCapture
+            disabled={disabled}
+            onCapture={(file) => onAddFiles?.([file])}
+          />
+        </div>
       );
 
     case "image-crop":
