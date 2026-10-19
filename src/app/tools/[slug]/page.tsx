@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { FaqSection } from "@/components/seo/faq-section";
+import { JsonLd } from "@/components/seo/json-ld";
 import { ToolCardGrid } from "@/components/tool-card";
 import { ToolIcon } from "@/components/tool-icon";
 import { ToolWorkspace } from "@/components/tool-workspace";
+import { breadcrumbLd, faqPageLd } from "@/lib/seo/json-ld";
 import { siteUrl } from "@/lib/site";
+import { TOOL_FAQ } from "@/lib/tool-faq";
 import { getTool, TOOLS } from "@/lib/tools";
 
 type ToolPageProps = PageProps<"/tools/[slug]">;
@@ -48,6 +52,8 @@ export default async function ToolPage({ params }: ToolPageProps) {
     (t) => t.id !== tool.id && t.kind === tool.kind,
   ).slice(0, 8);
 
+  const faq = TOOL_FAQ[tool.id];
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
@@ -83,13 +89,15 @@ export default async function ToolPage({ params }: ToolPageProps) {
 
   return (
     <div className="mx-auto max-w-[90rem] px-6 py-8 sm:py-10">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(howToLd) }}
+      <JsonLd data={jsonLd} />
+      <JsonLd data={howToLd} />
+      <JsonLd data={faqPageLd(faq)} />
+      <JsonLd
+        data={breadcrumbLd([
+          { name: "Home", path: "/" },
+          { name: "Tools", path: "/tools" },
+          { name: tool.title, path: `/tools/${tool.slug}` },
+        ])}
       />
 
       <div className="mx-auto mb-8 flex max-w-2xl flex-col items-center text-center">
@@ -129,6 +137,8 @@ export default async function ToolPage({ params }: ToolPageProps) {
             : " Processing never leaves this tab."}
         </p>
       </section>
+
+      <FaqSection items={faq} />
 
       {related.length > 0 && (
         <section className="mt-12">

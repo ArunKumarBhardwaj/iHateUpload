@@ -26,14 +26,14 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 | | Count |
 |---|---|
 | ✅ We are better (measured) | 29 rows |
-| 🟰 Equal (measured) | 21 rows |
-| ⚠️ They are better | 1 rows |
+| 🟰 Equal (measured) | 22 rows |
+| ⚠️ They are better | 0 rows |
 | ❔ Shared, not compared yet | 1 rows |
 | ➕ Only we have | 15 tools (section 3) |
-| ❌ Only they have | 19 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
+| ❌ Only they have | 17 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
-Biggest gaps: SEO pages (the only ⚠️ row left), PDF to PowerPoint, Repair, Fill form, workflows, on-device AI.
+Biggest gaps: PDF to PowerPoint, Repair, Fill form, workflows, on-device AI, blog content (113 posts vs none).
 
 ---
 
@@ -56,13 +56,13 @@ Biggest gaps: SEO pages (the only ⚠️ row left), PDF to PowerPoint, Repair, F
 | Recent files / starred tools | No | Yes (IndexedDB, localStorage) | ❌ | REA storage capture, 2026-10-12 |
 | Saved multi-step workflows / batch | No (one-step "Continue with" only) | Yes ("Chain steps, run once", batch panel) | ❌ | Bundle teardown, 2026-10-12 |
 | Install as app / share target | Manifest, no share target | Manifest with share target (POST handler looks broken) | ❔ | Manifest read, 2026-10-12 |
-| SEO surface | ~55 URLs, per-tool HowTo JSON-LD | ~190 URLs, 113 blog posts, alternative-to pages, FAQ JSON-LD, compress-to-N-KB pages | ⚠️ | Sitemaps, 2026-10-12 |
+| SEO surface | 80 URLs: 54 tool pages, 5 compress-to-size pages (100 KB, 200 KB, 500 KB, 1 MB, 2 MB, target preset), 18 comparison pages (vs ihatepdf.cv overall + 16 per tool, each with dated evidence and their wins listed); FAQ, HowTo and Breadcrumb JSON-LD; no blog | 190 URLs, of which 113 blog posts and 77 other pages (3 compress-to pages: 100 KB, 200 KB, 2 MB; 3 alternative-to pages); FAQ JSON-LD | 🟰 | Their sitemap.xml pulled 2026-10-19. Ours: all 80 sitemap URLs 200, FAQPage JSON-LD on 59 pages matches visible text, canonicals match (scratch ld-check script); Lighthouse 12 SEO 100 on /compress-pdf-to-100kb, /tools/compress-pdf, /tools/ask-pdf, /alternatives/ihatepdf, /alternatives/ihatepdf/pdf-to-word, 2026-10-19. Non-blog pages 80 vs 77; their 113 blog posts are the gap left |
 
 ## 2. Shared tools
 
 | Tool | Ours | Theirs | Verdict | Evidence |
 |---|---|---|---|---|
-| Compress PDF | Resamples images to drawn size (MozJPEG + Rust Lanczos3) in a worker, PSNR-guided quality, keeps text; target size 200 KB–5 MB | Multi-codec per image, font subsetting, JBIG2 for scans; levels + target size | ✅ | 10.5 MB photo PDF, medium: ours 94.3 KB, theirs 95 KB, both keep text; our Light 283 KB. 2026-10-12 |
+| Compress PDF | Resamples images to drawn size (MozJPEG + Rust Lanczos3) in a worker, PSNR-guided quality, keeps text; target size 100 KB–5 MB | Multi-codec per image, font subsetting, JBIG2 for scans; levels + target size | ✅ | 10.5 MB photo PDF, medium: ours 94.3 KB, theirs 95 KB, both keep text; our Light 283 KB. 2026-10-12 |
 | Compress scanned pages | Two-tone scans → 1-bit JBIG2 (block-adaptive threshold; letter dictionary at Medium/Smallest, exact generic region at Light), photos and colour kept on JPEG | JBIG2 only for already-1-bit pages, JPEG otherwise | ✅ | 12.6 MB synthetic 5-page scan: Light 391 KB vs 793 KB, Medium 101 KB vs 295 KB, Smallest 48 KB @98.1% OCR vs Heavy 75 KB @34.5% OCR; 2.4–2.9 s vs 19–30 s. bench/compress-bilevel, 2026-10-17 |
 | PDF to Word (editable) | Tables, lists, shapes, images, links, embedded TrueType fonts, CJK fonts | Editable + Exact modes | ✅ | Realistic corpus: struct 0.90 vs 0.80, visual 0.52 vs 0.34; simple corpus 0.96 vs 0.94; 120 pages 0.42 s vs 0.78 s. 2026-10-17 |
 | PDF to Word (exact look, still editable) | Text box per block, shapes behind, pictures placed; text editable in boxes | Text box per block | ✅ | Realistic corpus Exact vs Exact: visual 0.80 vs 0.66, struct 0.67 vs 0.60 (invoice 0.97 vs 0.59, spreadsheet 0.94 vs 0.44, slides 0.94 vs 0.55). Known weak: cjk, gov-form-acro, scanned letter. 2026-10-17 |
@@ -143,7 +143,6 @@ Priority is our guess at value for a privacy-first PDF site; "skip" means off-br
 | LaTeX resume | Skip | |
 | GST invoice, GST filing prep, POS billing | Skip | India-specific business tools |
 | P2P share, Collaborative whiteboard | Skip | |
-| Compress-to-100 KB / 200 KB / 2 MB landing pages | High (SEO) | Our compress already supports targets |
 
 ## 5. How to re-check
 
