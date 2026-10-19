@@ -1088,56 +1088,6 @@ async function linesToPdf(lines: DrawnLine[]): Promise<Blob> {
   return pdfBlob(await doc.save({ useObjectStreams: true }));
 }
 
-function markdownToLines(source: string): DrawnLine[] {
-  const lines: DrawnLine[] = [];
-  let inCode = false;
-  for (const raw of source.replace(/\r\n/g, "\n").split("\n")) {
-    if (raw.trim().startsWith("```")) {
-      inCode = !inCode;
-      continue;
-    }
-    const row = pdfSafe(
-      raw
-        .replace(/\*\*([^*]+)\*\*/g, "$1")
-        .replace(/\*([^*]+)\*/g, "$1")
-        .replace(/`([^`]+)`/g, "$1")
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"),
-    );
-    if (inCode) {
-      lines.push({ text: row.slice(0, 96) || " ", size: 9 });
-      continue;
-    }
-    if (/^###\s+/.test(row)) {
-      for (const line of wrapLines(row.replace(/^###\s+/, ""), 72)) {
-        lines.push({ text: line, size: 13 });
-      }
-    } else if (/^##\s+/.test(row)) {
-      for (const line of wrapLines(row.replace(/^##\s+/, ""), 64)) {
-        lines.push({ text: line, size: 16 });
-      }
-    } else if (/^#\s+/.test(row)) {
-      for (const line of wrapLines(row.replace(/^#\s+/, ""), 56)) {
-        lines.push({ text: line, size: 20 });
-      }
-    } else if (/^\s*[-*]\s+/.test(row)) {
-      for (const line of wrapLines(`- ${row.replace(/^\s*[-*]\s+/, "")}`, 86)) {
-        lines.push({ text: line, size: 11 });
-      }
-    } else if (/^\s*\d+\.\s+/.test(row)) {
-      for (const line of wrapLines(row.trim(), 86)) {
-        lines.push({ text: line, size: 11 });
-      }
-    } else if (row.trim() === "") {
-      lines.push({ text: " ", size: 8 });
-    } else {
-      for (const line of wrapLines(row.trim(), 88)) {
-        lines.push({ text: line, size: 11 });
-      }
-    }
-  }
-  return lines;
-}
-
 function htmlToLines(html: string): DrawnLine[] {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const lines: DrawnLine[] = [];
@@ -1211,20 +1161,6 @@ async function rowsToPdf(
     y -= 14;
   }
   return pdfBlob(await doc.save({ useObjectStreams: true }));
-}
-
-export async function processMarkdownToPdf(
-  files: FileItem[],
-  onProgress: ProgressFn,
-): Promise<ResultItem[]> {
-  const results: ResultItem[] = [];
-  for (let i = 0; i < files.length; i++) {
-    const item = files[i];
-    const blob = await linesToPdf(markdownToLines(await item.file.text()));
-    results.push(resultFrom(item, blob, replaceExt(item.name, "pdf"), item.size));
-    onProgress((i + 1) / files.length);
-  }
-  return results;
 }
 
 export async function processCsvToPdf(
