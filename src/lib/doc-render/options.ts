@@ -1,5 +1,5 @@
 /** Options shared by the Markdown, Excel, CSV and HTML to PDF converters. */
-export type DocSource = "markdown" | "excel" | "csv" | "html";
+export type DocSource = "markdown" | "excel" | "csv" | "html" | "pptx";
 export type DocPaper = "a4" | "letter" | "legal" | "a3";
 export type DocMargin = "narrow" | "normal" | "wide";
 export type DocFont = "sans" | "serif" | "mono";
@@ -24,6 +24,8 @@ export interface DocConvertOptions {
   fit: "shrink" | "wrap";
   /** Excel and CSV: shade every other row */
   zebra: boolean;
+  /** PowerPoint: also print slides marked hidden */
+  hiddenSlides: boolean;
 }
 
 export const MARGIN_PT: Record<DocMargin, number> = { narrow: 36, normal: 54, wide: 80 };
@@ -44,5 +46,6 @@ export function defaultDocOptions(src: DocSource): DocConvertOptions {
     footer: true,
     fit: "shrink",
     zebra: true,
+    hiddenSlides: false,
   };
 }

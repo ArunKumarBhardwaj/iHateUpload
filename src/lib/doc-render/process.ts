@@ -32,6 +32,11 @@ export async function convertDoc(
   let footer: FlowOptions["footer"];
   const title = stem(name);
 
+  if (o.src === "pptx") {
+    const { convertPptxToPdf } = await import("./pptx");
+    return convertPptxToPdf(await data.bytes(), { ...engine, includeHidden: o.hiddenSlides });
+  }
+
   if (o.src === "markdown") {
     const doc = markdownToDoc(await data.text(), o);
     blocks = doc.blocks;

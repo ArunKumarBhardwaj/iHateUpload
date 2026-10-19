@@ -78,6 +78,7 @@ export type ToolDefinition = {
     | "excel-to-pdf"
     | "csv-to-pdf"
     | "html-to-pdf"
+    | "pptx-to-pdf"
     | "password"
     | "password-confirm"
     | "rotate"
@@ -999,7 +1000,7 @@ export const TOOLS: ToolDefinition[] = [
     title: "PowerPoint to PDF",
     shortTitle: "PPTX → PDF",
     description:
-      "Turn slides into a PDF. Text is kept. Fancy layout is not. Stays in this tab.",
+      "Turn slides into a PDF, one page per slide. Shapes, pictures and backgrounds are drawn; text stays selectable. Stays in this tab.",
     accept:
       ".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation",
     multiple: true,
@@ -1010,12 +1011,12 @@ export const TOOLS: ToolDefinition[] = [
       "Convert PPTX to PDF online free. Slides stay in your browser — no upload.",
     seoHowTo: [
       "Choose one or more .pptx files.",
-      "Click Create PDF. Each slide becomes a page.",
+      "Click Create PDF. Each slide becomes a page with its shapes, pictures and real text.",
       "Download the PDF.",
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "pptx-to-pdf",
   },
   {
     id: "markdown-to-pdf",

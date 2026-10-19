@@ -118,7 +118,8 @@ function colorOf(holder: X | undefined, theme: Theme, ph?: string): string | und
     hex = v === "phClr".toLowerCase() || v === "phclr" ? ph : theme[SCHEME_ALIAS[v] ?? v];
   }
   if (!hex || !/^[0-9A-F]{6}$/.test(hex)) return undefined;
-  let [h, s, l] = hslFromHex(hex);
+  const [h, s0, l0] = hslFromHex(hex);
+  let s = s0, l = l0;
   for (const m of kids(c)) {
     const v = num(m.attrs.val, 100000) / 100000;
     if (m.tag === "a:lummod") l *= v;
@@ -159,11 +160,6 @@ interface PhStyle {
   family?: Family;
   align?: Para["align"];
   bullet?: Para["bullet"];
-}
-
-interface PartRefs {
-  zip: JSZip;
-  rels: Map<string, string>;
 }
 
 async function readRels(zip: JSZip, file: string): Promise<Map<string, string>> {
@@ -463,13 +459,17 @@ async function table(n: X, ctx: WalkCtx, slide: Slide, xf: Xf | undefined): Prom
   return true;
 }
 
-function parseParas(body: X | undefined, ctx: WalkCtx, ph: PhStyle & { lst?: X; level0?: PhStyle }, fontRefColor?: string): Para[] {
+function parseParas(body: X | undefined, ctx: WalkCtx, ph: PhStyle & { lst?: X; mstyle?: X }, fontRefColor?: string): Para[] {
   const out: Para[] = [];
   for (const p of kids(body, "a:p")) {
     const pPr = kid(p, "a:ppr");
     const level = num(pPr?.attrs.lvl);
+    const defined = (o: PhStyle) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+    // deeper levels take their size, bullet and colour from the master text style
+    const mLvl = ph.mstyle && level > 0 ? defined(lvlStyle(ph.mstyle, level, ctx.theme)) : {};
+    if (ph.bullet === null) delete (mLvl as PhStyle).bullet;
     const lstLvl = ph.lst ? lvlStyle(ph.lst, level, ctx.theme) : {};
-    const inherited: PhStyle = { ...ph, ...Object.fromEntries(Object.entries(lstLvl).filter(([, v]) => v !== undefined)) };
+    const inherited: PhStyle = { ...ph, ...mLvl, ...defined(lstLvl) };
     const bu = pPr && (kid(pPr, "a:bunone") ? null : kid(pPr, "a:buchar") ? ({ kind: "char", ch: kid(pPr, "a:buchar")?.attrs.char ?? "•" } as const) : kid(pPr, "a:buautonum") ? ({ kind: "num" } as const) : undefined);
     const para: Para = {
       runs: [],
@@ -564,7 +564,7 @@ async function shape(n: X, ctx: WalkCtx, slide: Slide, xf: Xf | undefined) {
   const tb = kid(n, "p:txbody");
   if (!tb || ctx.decor && !tb) return;
   const fontRef = colorOf(path(n, "p:style", "a:fontref"), ctx.theme);
-  const paras = parseParas(tb, ctx, { ...style, lst }, fontRef);
+  const paras = parseParas(tb, ctx, { ...style, lst, mstyle: ph ? (titleLike(ph.type) ? ctx.master.title : ctx.master.body) : undefined }, fontRef);
   if (!paras.some((p) => p.runs.some((r) => r.text.trim() || r.field))) return;
   const bp = kid(tb, "a:bodypr");
   const anchor = bp?.attrs.anchor === "ctr" ? "ctr" : bp?.attrs.anchor === "b" ? "b" : "t";

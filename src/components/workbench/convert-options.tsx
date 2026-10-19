@@ -19,6 +19,8 @@ export function convertDocHint(o: Opts): string {
       return "Every sheet you pick, with numbers right-aligned as Excel shows them and the header row repeated on each page.";
     case "csv":
       return "A table with the header row repeated on every page. The text stays selectable.";
+    case "pptx":
+      return "One page per slide at the slide size. Shapes, fills, pictures and backgrounds are drawn, and the text stays selectable.";
     case "html":
       return "Basic CSS is applied: colours, backgrounds, borders, fonts and alignment. Scripts do not run, and nothing is fetched.";
   }
@@ -143,6 +145,10 @@ export function ConvertOptions({
           </div>
         </div>
       ) : null}
+      {options.src === "pptx" ? (
+        <Check label="Include slides marked hidden" checked={options.hiddenSlides} disabled={disabled} onChange={(hiddenSlides) => set({ hiddenSlides })} />
+      ) : (
+        <>
       <Group<DocPaper>
         label="Paper"
         value={options.paper}
@@ -176,6 +182,8 @@ export function ConvertOptions({
           ["wide", "Wide"],
         ]}
       />
+        </>
+      )}
       {options.src === "markdown" ? (
         <>
           <Group<DocFont>

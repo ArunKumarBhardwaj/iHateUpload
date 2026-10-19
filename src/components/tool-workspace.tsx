@@ -43,7 +43,6 @@ import {
   processEditMetadata,
   processAskPdf,
   processCropPdf,
-  processPptxToPdf,
   processScanToPdf,
   processFlattenPdf,
   processOcrPdf,
@@ -195,7 +194,7 @@ async function runTool(
     case "excel-to-pdf":
       return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "pptx-to-pdf":
-      return processPptxToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "markdown-to-pdf":
       return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "csv-to-pdf":

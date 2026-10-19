@@ -1182,16 +1182,6 @@ function htmlToLines(html: string): DrawnLine[] {
   return lines;
 }
 
-function extractPptxSlideTexts(xml: string): string[] {
-  const texts: string[] = [];
-  const tagged = xml.matchAll(/<a:t(?:\s[^>]*)?>([^<]*)<\/a:t>/g);
-  for (const match of tagged) {
-    const value = pdfSafe(match[1] ?? "").trim();
-    if (value) texts.push(value);
-  }
-  return texts;
-}
-
 async function rowsToPdf(
   rows: (string | number | boolean | null)[][],
 ): Promise<Blob> {
@@ -1265,55 +1255,6 @@ export async function processHtmlToPdf(
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
     const blob = await linesToPdf(htmlToLines(await item.file.text()));
-    results.push(resultFrom(item, blob, replaceExt(item.name, "pdf"), item.size));
-    onProgress((i + 1) / files.length);
-  }
-  return results;
-}
-
-export async function processPptxToPdf(
-  files: FileItem[],
-  onProgress: ProgressFn,
-): Promise<ResultItem[]> {
-  const { default: JSZip } = await import("jszip");
-  const results: ResultItem[] = [];
-  for (let i = 0; i < files.length; i++) {
-    const item = files[i];
-    const zip = await JSZip.loadAsync(await item.file.arrayBuffer());
-    const names = Object.keys(zip.files)
-      .filter((name) => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
-      .sort((a, b) => {
-        const left = Number(a.match(/slide(\d+)/i)?.[1] ?? 0);
-        const right = Number(b.match(/slide(\d+)/i)?.[1] ?? 0);
-        return left - right;
-      });
-    if (names.length === 0) {
-      throw new Error("This PowerPoint file has no slides.");
-    }
-    const doc = await PDFDocument.create();
-    const font = await doc.embedFont(StandardFonts.Helvetica);
-    for (const name of names) {
-      const xml = await zip.files[name].async("string");
-      const texts = extractPptxSlideTexts(xml);
-      const page = doc.addPage([720, 540]);
-      let y = 500;
-      const drawn = texts.length > 0 ? texts : ["(empty slide)"];
-      drawn.forEach((text, index) => {
-        const size = index === 0 ? 18 : 12;
-        for (const line of wrapLines(text, index === 0 ? 48 : 72)) {
-          if (y < 36) return;
-          page.drawText(line, {
-            x: 40,
-            y,
-            size,
-            font,
-            color: rgb(0.1, 0.1, 0.12),
-          });
-          y -= size + 8;
-        }
-      });
-    }
-    const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
     results.push(resultFrom(item, blob, replaceExt(item.name, "pdf"), item.size));
     onProgress((i + 1) / files.length);
   }

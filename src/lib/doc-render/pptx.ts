@@ -6,6 +6,11 @@ import type { Block, Inline, Para as BlockPara } from "../word-to-pdf/model";
 import { browserRasterise, embedImage, renderPages, type EngineOptions, type OutPage } from "./engine";
 import { parsePptx, type Box, type Op, type Para } from "./pptx-parse";
 
+export interface PptxOptions extends EngineOptions {
+  /** Print slides marked hidden too. */
+  includeHidden?: boolean;
+}
+
 export interface PptxResult {
   bytes: Uint8Array;
   pageCount: number;
@@ -126,12 +131,14 @@ function shapePath(op: Extract<Op, { k: "shape" }>): string | undefined {
 
 export async function convertPptxToPdf(
   input: ArrayBuffer | Uint8Array,
-  opts: EngineOptions = {},
+  opts: PptxOptions = {},
 ): Promise<PptxResult> {
   const warnings: string[] = [];
   let slides = await parsePptx(input, warnings);
-  const visible = slides.filter((s) => !s.hidden);
-  if (visible.length) slides = visible;
+  if (!opts.includeHidden) {
+    const visible = slides.filter((s) => !s.hidden);
+    if (visible.length) slides = visible;
+  }
 
   const doc = await PDFDocument.create();
   doc.setProducer("iHateUpload");
