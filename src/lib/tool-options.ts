@@ -4,11 +4,21 @@ import { DEFAULT_RESIZE, type ResizeSettings } from "@/lib/page-tools/resize";
 import { DEFAULT_NUP, type NupSettings } from "@/lib/page-tools/nup";
 import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
 import type { PiiCategory } from "@/lib/pii-detect";
+import type { DocConvertOptions } from "@/lib/doc-render/options";
+import { defaultDocOptions } from "@/lib/doc-render/options";
 import type { ToolDefinition } from "@/lib/tools";
 
 export type CompressLevel = "light" | "medium" | "heavy";
 
-export type SignMode = "draw" | "type" | "image";
+/** One signature, initials, or stamp on a page. Text stamps stay real PDF text. */
+export type SignPlacement = PageBox & {
+  id: string;
+  /** PNG of the signature. Empty for text stamps. */
+  dataUrl?: string;
+  /** Date or other typed stamp, drawn as vector text. */
+  text?: string;
+  color?: string;
+};
 
 export type RatioBox = {
   x: number;
@@ -89,8 +99,33 @@ export type WatermarkLayout = "single" | "tiled";
 
 export type ToolOptions =
   | { kind: "none" }
+  | ({ kind: "convert-doc" } & DocConvertOptions)
   | { kind: "password"; password: string }
   | { kind: "password-confirm"; password: string }
+  | {
+      kind: "protect";
+      password: string;
+      /** Empty: derived (same as the open password, or random when anything is locked). */
+      ownerPassword: string;
+      allowPrint: boolean;
+      allowCopy: boolean;
+      allowEdit: boolean;
+      allowAnnotate: boolean;
+    }
+  | {
+      kind: "unlock";
+      password: string;
+      /** What the file itself said when it was loaded; "unknown" until probed. */
+      lock: "unknown" | "open" | "restricted" | "password";
+    }
+  | {
+      kind: "extract-images";
+      /** Hide pictures whose shorter side is under this many pixels. */
+      minEdge: number;
+      /** Ids the person unticked. */
+      excluded: string[];
+    }
+  | { kind: "extract-text"; ocr: boolean; language: string }
   | {
       kind: "rotate";
       /** 0 only flips. */
@@ -149,7 +184,7 @@ export type ToolOptions =
   | { kind: "resize"; maxEdge: number }
   | { kind: "compress"; level: CompressLevel; targetKb: number | null }
   | { kind: "extract"; range: string; pageCount: number }
-  | { kind: "sign"; mode: SignMode; text: string; dataUrl: string; box: PageBox }
+  | { kind: "sign"; placements: SignPlacement[] }
   | { kind: "edit"; marks: EditMark[] }
   | {
       kind: "crop";
@@ -179,6 +214,14 @@ export type ToolOptions =
       center: string;
       right: string;
       band: "header" | "footer" | "both";
+      fontSize: number;
+      color: string;
+      bold: boolean;
+      /** Points in from the page edge. */
+      margin: number;
+      /** Empty or "all" stamps every page. */
+      range: string;
+      skipFirst: boolean;
     }
   | { kind: "insert-blank"; afterPage: number }
   | { kind: "invert"; mode: "invert" | "grayscale" }
@@ -352,6 +395,11 @@ export function newHighlightMark(box: PageBox, color = EDIT_HIGHLIGHT[0]): EditM
 
 export function newRectMark(box: PageBox, color = EDIT_INK[0]): EditMark {
   return { id: newEditId(), kind: "rect", color, fill: false, ...box };
+}
+
+export function signPlacementReady(p: SignPlacement): boolean {
+  if (p.w <= 0.02 || p.h <= 0.01) return false;
+  return Boolean(p.text?.trim()) || Boolean(p.dataUrl?.startsWith("data:"));
 }
 
 export function editMarkReady(mark: EditMark): boolean {
@@ -561,6 +609,14 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
   switch (ui) {
     case "none":
       return { kind: "none" };
+    case "md-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("markdown") };
+    case "excel-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("excel") };
+    case "csv-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("csv") };
+    case "html-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("html") };
     case "password":
       return { kind: "password", password: "" };
     case "password-confirm":
@@ -620,13 +676,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "extract":
       return { kind: "extract", range: "", pageCount: 0 };
     case "sign":
-      return {
-        kind: "sign",
-        mode: "draw",
-        text: "",
-        dataUrl: "",
-        box: { ...DEFAULT_PAGE_BOX },
-      };
+      return { kind: "sign", placements: [] };
     case "edit":
       return { kind: "edit", marks: [] };
     case "crop":
@@ -654,7 +704,29 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         center: "{page} / {pages}",
         right: "",
         band: "both",
+        fontSize: 10,
+        color: "#333338",
+        bold: false,
+        margin: 24,
+        range: "",
+        skipFirst: false,
       };
+    case "protect":
+      return {
+        kind: "protect",
+        password: "",
+        ownerPassword: "",
+        allowPrint: true,
+        allowCopy: true,
+        allowEdit: true,
+        allowAnnotate: true,
+      };
+    case "unlock":
+      return { kind: "unlock", password: "", lock: "unknown" };
+    case "extract-images":
+      return { kind: "extract-images", minEdge: 0, excluded: [] };
+    case "extract-text":
+      return { kind: "extract-text", ocr: true, language: "eng" };
     case "insert-blank":
       return { kind: "insert-blank", afterPage: 1 };
     case "invert":
@@ -769,6 +841,7 @@ export function optionsReady(
           options.targetKb <= PDF_TARGET_KB_MAX)
       );
     case "none":
+    case "convert-doc":
     case "crop":
     case "ocr":
     case "compare":
@@ -825,6 +898,22 @@ export function optionsReady(
       );
     case "password":
       return options.password.trim().length > 0;
+    case "unlock":
+      return options.lock === "restricted" || options.password.length > 0;
+    case "protect":
+      return (
+        options.password === confirmPassword &&
+        (options.password.length > 0 ||
+          !(
+            options.allowPrint &&
+            options.allowCopy &&
+            options.allowEdit &&
+            options.allowAnnotate
+          ))
+      );
+    case "extract-images":
+    case "extract-text":
+      return true;
     case "password-confirm":
       return (
         options.password.trim().length > 0 &&
@@ -840,13 +929,8 @@ export function optionsReady(
       );
     case "extract":
       return parsePageRange(options.range, options.pageCount).length >= 1;
-    case "sign": {
-      const ink =
-        options.mode === "type"
-          ? options.text.trim().length > 0
-          : options.dataUrl.startsWith("data:");
-      return ink && options.box.w > 0.04 && options.box.h > 0.04;
-    }
+    case "sign":
+      return options.placements.some(signPlacementReady);
     case "edit":
       return options.marks.some(editMarkReady);
     case "redact":

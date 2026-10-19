@@ -34,7 +34,7 @@ export async function extractPdfText(file: File): Promise<string> {
   }
 }
 
-function itemsToLines(items: unknown[]): string {
+export function itemsToLines(items: unknown[]): string {
   const lines: { y: number; parts: string[] }[] = [];
   for (const item of items) {
     if (!item || typeof item !== "object" || !("str" in item)) continue;

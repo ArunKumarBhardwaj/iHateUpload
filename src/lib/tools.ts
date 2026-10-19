@@ -74,6 +74,10 @@ export type ToolDefinition = {
   kind: "image" | "pdf";
   ui:
     | "none"
+    | "md-to-pdf"
+    | "excel-to-pdf"
+    | "csv-to-pdf"
+    | "html-to-pdf"
     | "password"
     | "password-confirm"
     | "rotate"
@@ -92,6 +96,10 @@ export type ToolDefinition = {
     | "redact"
     | "compare"
     | "header-footer"
+    | "protect"
+    | "unlock"
+    | "extract-images"
+    | "extract-text"
     | "insert-blank"
     | "invert"
     | "nup"
@@ -360,7 +368,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "password-confirm",
+    ui: "protect",
   },
   {
     id: "unlock-pdf",
@@ -383,7 +391,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: false,
     kind: "pdf",
-    ui: "password",
+    ui: "unlock",
   },
   {
     id: "rotate-pdf",
@@ -552,8 +560,8 @@ export const TOOLS: ToolDefinition[] = [
     title: "Extract Text",
     shortTitle: "Extract text",
     description:
-      "Copy the selectable text out of a PDF into a .txt file. Stays in this tab.",
-    accept: "application/pdf,.pdf",
+      "Copy the text out of a PDF into a .txt file. Scans and photos can be read with OCR. Stays in this tab.",
+    accept: "application/pdf,.pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp",
     multiple: true,
     ordered: false,
     actionLabel: "Extract text",
@@ -567,7 +575,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "extract-text",
   },
   {
     id: "extract-images",
@@ -590,7 +598,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "extract-images",
   },
   {
     id: "header-footer",
@@ -983,7 +991,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: false,
     kind: "pdf",
-    ui: "none",
+    ui: "excel-to-pdf",
   },
   {
     id: "pptx-to-pdf",
@@ -1030,7 +1038,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "md-to-pdf",
   },
   {
     id: "csv-to-pdf",
@@ -1053,7 +1061,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "csv-to-pdf",
   },
   {
     id: "html-to-pdf",
@@ -1076,7 +1084,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "html-to-pdf",
   },
   {
     id: "scan-to-pdf",

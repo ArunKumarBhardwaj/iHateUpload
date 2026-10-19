@@ -1,3 +1,5 @@
+import { encryptionFor } from "@/lib/protect";
+import { unlockPdfBytes, WrongPasswordError } from "@/lib/unlock";
 import imageCompression from "browser-image-compression";
 import { PDFDocument, degrees, toDegrees } from "@cantoo/pdf-lib";
 import type { PDFPageProxy } from "pdfjs-dist";
@@ -1148,7 +1150,17 @@ export async function processProtectPdf(
   onProgress: ProgressFn,
   options: ToolOptions,
 ): Promise<ResultItem[]> {
-  const password = requirePassword(options, "Protect PDF");
+  const choices =
+    options.kind === "protect"
+      ? options
+      : {
+          password: requirePassword(options, "Protect PDF"),
+          ownerPassword: "",
+          allowPrint: true,
+          allowCopy: true,
+          allowEdit: true,
+          allowAnnotate: true,
+        };
   const results: ResultItem[] = [];
 
   for (let i = 0; i < files.length; i++) {
@@ -1156,21 +1168,7 @@ export async function processProtectPdf(
     const doc = await PDFDocument.load(await item.file.arrayBuffer(), {
       ignoreEncryption: true,
     });
-    doc.encrypt({
-      userPassword: password,
-      ownerPassword: password,
-      // The password guards opening; once open, the reader may print, copy
-      // and edit (P -4), like every mainstream protect tool.
-      permissions: {
-        printing: "highResolution",
-        modifying: true,
-        copying: true,
-        annotating: true,
-        fillingForms: true,
-        contentAccessibility: true,
-        documentAssembly: true,
-      },
-    });
+    doc.encrypt(encryptionFor(choices));
     const pdfBytes = await doc.save();
     const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {
       type: "application/pdf",
@@ -1193,28 +1191,32 @@ export async function processUnlockPdf(
   onProgress: ProgressFn,
   options: ToolOptions,
 ): Promise<ResultItem[]> {
-  const password = requirePassword(options, "Unlock PDF");
+  const password =
+    options.kind === "unlock" || options.kind === "password"
+      ? options.password
+      : requirePassword(options, "Unlock PDF");
   const results: ResultItem[] = [];
 
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
-    let doc: PDFDocument;
+    let pdfBytes: Uint8Array;
     try {
-      doc = await PDFDocument.load(await item.file.arrayBuffer(), {
+      pdfBytes = await unlockPdfBytes(
+        new Uint8Array(await item.file.arrayBuffer()),
         password,
-      });
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      if (/password/i.test(message) || /encrypt/i.test(message)) {
+      if (error instanceof WrongPasswordError) {
         throw new Error(
-          `Wrong password for "${item.name}". Check it and try again.`,
+          password
+            ? `Wrong password for "${item.name}". Check it and try again.`
+            : `"${item.name}" needs a password to open. Type it to unlock.`,
         );
       }
       throw error instanceof Error
         ? error
         : new Error(`Could not unlock "${item.name}".`);
     }
-    const pdfBytes = await doc.save({ useObjectStreams: true });
     const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {
       type: "application/pdf",
     });

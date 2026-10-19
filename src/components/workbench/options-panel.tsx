@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef } from "react";
 import { ArrowDown, ArrowUp, FileText, RotateCcw, X } from "lucide-react";
 
+import { ConvertOptions, convertDocHint } from "@/components/workbench/convert-options";
 import { BatesControls } from "@/components/workbench/bates-controls";
 import { CropPanel } from "@/components/workbench/page-tools/crop-panel";
 import { PageSizePanel } from "@/components/workbench/page-tools/page-size-panel";
@@ -10,6 +10,13 @@ import { NupPanel } from "@/components/workbench/page-tools/nup-panel";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
 import { SplitExtras } from "@/components/workbench/split-extras";
 import { ScanCapture } from "@/components/workbench/scan-capture";
+import { HeaderFooterPanel } from "@/components/workbench/header-footer-panel";
+import {
+  ExtractImagesPanel,
+  ExtractTextPanel,
+  ProtectPanel,
+  UnlockPanel,
+} from "@/components/workbench/security-panels";
 import { Thumbnail } from "@/components/workbench/thumbnail";
 import { WatermarkPreview } from "@/components/workbench/watermark-preview";
 import { Button } from "@/components/ui/button";
@@ -39,7 +46,6 @@ import {
   TARGET_KB_MAX,
   TARGET_KB_MIN,
   TARGET_KB_PRESETS,
-  type SignMode,
   WATERMARK_COLORS,
   WATERMARK_ROTATIONS,
   WATERMARK_SIZES,
@@ -132,12 +138,24 @@ export function optionsNeedCanvas(options: ToolOptions): boolean {
 /** One sentence telling the reader what the panel next to it is asking for. */
 export function optionsHint(options: ToolOptions, actionLabel: string): string {
   switch (options.kind) {
+    case "convert-doc":
+      return convertDocHint(options);
     case "none":
       return `Nothing to set up. Press ${actionLabel} and the work runs right here in this tab.`;
     case "password":
       return "Type the password this PDF was locked with. It never leaves the tab.";
     case "password-confirm":
       return "Choose a password. You will need it every time you open the PDF.";
+    case "protect":
+      return "Choose what readers may do once they open the file. Everything is allowed unless you untick it.";
+    case "unlock":
+      return options.lock === "restricted"
+        ? "This PDF opens without a password. One click writes a copy with the limits removed."
+        : "Type the password this PDF was locked with. It never leaves the tab.";
+    case "extract-images":
+      return "Pick the pictures you want. JPEGs are saved exactly as they sit in the PDF.";
+    case "extract-text":
+      return "Selectable text is copied as it is. Scanned pages can be read with OCR.";
     case "rotate":
       return "Turn the pages, mirror them, or both. Leave the pages box empty for all of them.";
     case "split":
@@ -247,6 +265,9 @@ export function OptionsPanel({
     case "none":
       return null;
 
+    case "convert-doc":
+      return <ConvertOptions options={options} onOptions={onOptions} disabled={disabled} files={files} />;
+
     case "password":
       return (
         <Field label="Password" htmlFor="pdf-password">
@@ -262,6 +283,45 @@ export function OptionsPanel({
             placeholder="PDF password"
           />
         </Field>
+      );
+
+    case "protect":
+      return (
+        <ProtectPanel
+          options={options}
+          onOptions={onOptions}
+          confirmPassword={confirmPassword}
+          onConfirmPassword={onConfirmPassword}
+          disabled={disabled}
+        />
+      );
+
+    case "unlock":
+      return (
+        <UnlockPanel
+          options={options}
+          onOptions={onOptions}
+          disabled={disabled}
+          files={files}
+        />
+      );
+
+    case "extract-images":
+      return (
+        <ExtractImagesPanel
+          options={options}
+          onOptions={onOptions}
+          disabled={disabled}
+        />
+      );
+
+    case "extract-text":
+      return (
+        <ExtractTextPanel
+          options={options}
+          onOptions={onOptions}
+          disabled={disabled}
+        />
       );
 
     case "password-confirm": {
@@ -983,14 +1043,7 @@ export function OptionsPanel({
     }
 
     case "sign":
-      return (
-        <SignControls
-          options={options}
-          onOptions={onOptions}
-          pageCount={pageCount}
-          disabled={disabled}
-        />
-      );
+      return null;
 
     case "edit":
       return null;
@@ -1049,63 +1102,14 @@ export function OptionsPanel({
 
     case "header-footer":
       return (
-        <div className="space-y-3">
-          <Field label="Left" htmlFor="hf-left">
-            <Input
-              id="hf-left"
-              value={options.left}
-              disabled={disabled}
-              onChange={(e) =>
-                onOptions({ ...options, left: e.target.value })
-              }
-              placeholder="Name"
-            />
-          </Field>
-          <Field label="Center" htmlFor="hf-center">
-            <Input
-              id="hf-center"
-              value={options.center}
-              disabled={disabled}
-              onChange={(e) =>
-                onOptions({ ...options, center: e.target.value })
-              }
-              placeholder="{page} / {pages}"
-            />
-          </Field>
-          <Field label="Right" htmlFor="hf-right">
-            <Input
-              id="hf-right"
-              value={options.right}
-              disabled={disabled}
-              onChange={(e) =>
-                onOptions({ ...options, right: e.target.value })
-              }
-              placeholder="{date}"
-            />
-          </Field>
-          <p className="text-sm font-medium text-ink">Place on</p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["header", "Header"],
-                ["footer", "Footer"],
-                ["both", "Both"],
-              ] as const
-            ).map(([band, title]) => (
-              <Button
-                key={band}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.band === band ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() => onOptions({ ...options, band })}
-              >
-                {title}
-              </Button>
-            ))}
-          </div>
-        </div>
+        <HeaderFooterPanel
+          options={options}
+          onOptions={onOptions}
+          disabled={disabled}
+          firstPage={firstPage}
+          filename={(files?.[0]?.name ?? "document.pdf").replace(/\.pdf$/i, "")}
+          pageCount={filePages?.[0] ?? 0}
+        />
       );
 
     case "insert-blank":
@@ -1723,178 +1727,4 @@ export function OptionsPanel({
         </div>
       );
   }
-}
-
-function SignControls({
-  options,
-  onOptions,
-  pageCount,
-  disabled,
-}: {
-  options: Extract<ToolOptions, { kind: "sign" }>;
-  onOptions: (next: ToolOptions) => void;
-  pageCount: number;
-  disabled: boolean;
-}) {
-  const modes: { id: SignMode; title: string }[] = [
-    { id: "draw", title: "Draw" },
-    { id: "type", title: "Type" },
-    { id: "image", title: "Image" },
-  ];
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {modes.map((mode) => (
-          <Button
-            key={mode.id}
-            type="button"
-            size="sm"
-            className={OPTION_BUTTON}
-            variant={options.mode === mode.id ? "default" : "outline"}
-            disabled={disabled}
-            onClick={() => onOptions({ ...options, mode: mode.id })}
-          >
-            {mode.title}
-          </Button>
-        ))}
-      </div>
-      {options.mode === "type" ? (
-        <Field label="Name" htmlFor="sign-text">
-          <Input
-            id="sign-text"
-            value={options.text}
-            disabled={disabled}
-            onChange={(e) => onOptions({ ...options, text: e.target.value })}
-            placeholder="Your name"
-          />
-        </Field>
-      ) : null}
-      {options.mode === "image" ? (
-        <Field label="Signature image" htmlFor="sign-image">
-          <Input
-            id="sign-image"
-            type="file"
-            accept="image/png,image/jpeg,.png,.jpg,.jpeg"
-            disabled={disabled}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = () => {
-                if (typeof reader.result === "string") {
-                  onOptions({ ...options, dataUrl: reader.result });
-                }
-              };
-              reader.readAsDataURL(file);
-            }}
-          />
-        </Field>
-      ) : null}
-      {options.mode === "draw" ? (
-        <DrawPad
-          disabled={disabled}
-          onInk={(dataUrl) => onOptions({ ...options, dataUrl })}
-        />
-      ) : null}
-      {pageCount > 1 ? (
-        <Field label="Page" htmlFor="sign-page">
-          <Input
-            id="sign-page"
-            type="number"
-            min={1}
-            max={pageCount}
-            value={options.box.pageIndex + 1}
-            disabled={disabled}
-            onChange={(e) => {
-              const page = Number(e.target.value);
-              if (!Number.isInteger(page)) return;
-              onOptions({
-                ...options,
-                box: {
-                  ...options.box,
-                  pageIndex: Math.min(pageCount, Math.max(1, page)) - 1,
-                },
-              });
-            }}
-          />
-        </Field>
-      ) : null}
-    </div>
-  );
-}
-
-function DrawPad({
-  disabled,
-  onInk,
-}: {
-  disabled: boolean;
-  onInk: (dataUrl: string) => void;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef(false);
-
-  const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
-      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
-    };
-  };
-
-  return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-ink">Draw</p>
-      <canvas
-        ref={canvasRef}
-        width={480}
-        height={160}
-        className="h-28 w-full touch-none rounded-xl border border-ink/15 bg-background"
-        onPointerDown={(event) => {
-          if (disabled) return;
-          const canvas = canvasRef.current;
-          const ctx = canvas?.getContext("2d");
-          if (!ctx) return;
-          drawing.current = true;
-          event.currentTarget.setPointerCapture(event.pointerId);
-          const start = point(event);
-          ctx.strokeStyle = "#111827";
-          ctx.lineWidth = 4;
-          ctx.lineCap = "round";
-          ctx.beginPath();
-          ctx.moveTo(start.x, start.y);
-        }}
-        onPointerMove={(event) => {
-          if (!drawing.current) return;
-          const ctx = canvasRef.current?.getContext("2d");
-          if (!ctx) return;
-          const next = point(event);
-          ctx.lineTo(next.x, next.y);
-          ctx.stroke();
-        }}
-        onPointerUp={() => {
-          drawing.current = false;
-          const canvas = canvasRef.current;
-          if (canvas) onInk(canvas.toDataURL("image/png"));
-        }}
-      />
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className={OPTION_BUTTON}
-        disabled={disabled}
-        onClick={() => {
-          const canvas = canvasRef.current;
-          const ctx = canvas?.getContext("2d");
-          if (!canvas || !ctx) return;
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          onInk("");
-        }}
-      >
-        Clear
-      </Button>
-    </div>
-  );
 }

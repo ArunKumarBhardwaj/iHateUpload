@@ -1,6 +1,7 @@
 // Synthetic fixtures for the page tools. Usage: bun bench/page-tools/gen-fixtures.ts <outdir>
 import { writeFileSync } from "node:fs";
 import { PDFDocument, StandardFonts, rgb, degrees } from "@cantoo/pdf-lib";
+import { writeFileSync } from "node:fs";
 
 const dir = process.argv[2] ?? "bench/page-tools/out";
 const doc = await PDFDocument.create();
