@@ -609,6 +609,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "convert-doc", ...defaultDocOptions("csv") };
     case "html-to-pdf":
       return { kind: "convert-doc", ...defaultDocOptions("html") };
+    case "pptx-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("pptx") };
     case "password":
       return { kind: "password", password: "" };
     case "password-confirm":

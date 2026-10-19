@@ -5,8 +5,9 @@ import type { ToolOptions } from "@/lib/tool-options";
 import { workbookGrids } from "./excel";
 import { pageSpec, renderFlow, type FlowOptions } from "./flow";
 import { markdownToDoc } from "./markdown";
+import { findMathSpans } from "./math-art";
 import { MARGIN_PT, type DocConvertOptions } from "./options";
-import { csvToGrid, gridToBlocks } from "./tables";
+import { csvToGridView, gridToBlocks } from "./tables";
 import type { Block } from "../word-to-pdf/model";
 import type { LaidOutPage } from "../word-to-pdf/layout";
 
@@ -32,13 +33,24 @@ export async function convertDoc(
   let footer: FlowOptions["footer"];
   const title = stem(name);
 
+  if (o.src === "pptx") {
+    const { convertPptxToPdf } = await import("./pptx");
+    return convertPptxToPdf(await data.bytes(), { ...engine, includeHidden: o.hiddenSlides });
+  }
+
   if (o.src === "markdown") {
-    const doc = markdownToDoc(await data.text(), o);
+    const text = await data.text();
+    let mathArt: Awaited<ReturnType<typeof import("./math").renderMath>> | undefined;
+    if (o.math) {
+      const spans = findMathSpans(text);
+      if (spans.length) mathArt = await (await import("./math")).renderMath(spans);
+    }
+    const doc = markdownToDoc(text, { ...o, mathArt });
     blocks = doc.blocks;
     refine = doc.refine as typeof refine;
     footer = { pageNumbers: true };
   } else if (o.src === "csv") {
-    blocks = gridToBlocks(csvToGrid(await data.text()), {
+    blocks = gridToBlocks(csvToGridView(await data.text(), { sort: o.csvSort, filter: o.csvFilter, hidden: o.csvHidden }), {
       fontSize: 9,
       zebra: o.zebra,
       width,

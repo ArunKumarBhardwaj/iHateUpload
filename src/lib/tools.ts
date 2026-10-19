@@ -78,6 +78,7 @@ export type ToolDefinition = {
     | "excel-to-pdf"
     | "csv-to-pdf"
     | "html-to-pdf"
+    | "pptx-to-pdf"
     | "password"
     | "password-confirm"
     | "rotate"
@@ -999,7 +1000,7 @@ export const TOOLS: ToolDefinition[] = [
     title: "PowerPoint to PDF",
     shortTitle: "PPTX → PDF",
     description:
-      "Turn slides into a PDF. Text is kept. Fancy layout is not. Stays in this tab.",
+      "Turn slides into a PDF, one page per slide. Shapes, pictures and backgrounds are drawn; text stays selectable. Stays in this tab.",
     accept:
       ".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation",
     multiple: true,
@@ -1010,12 +1011,12 @@ export const TOOLS: ToolDefinition[] = [
       "Convert PPTX to PDF online free. Slides stay in your browser — no upload.",
     seoHowTo: [
       "Choose one or more .pptx files.",
-      "Click Create PDF. Each slide becomes a page.",
+      "Click Create PDF. Each slide becomes a page with its shapes, pictures and real text.",
       "Download the PDF.",
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "pptx-to-pdf",
   },
   {
     id: "markdown-to-pdf",
@@ -1046,7 +1047,7 @@ export const TOOLS: ToolDefinition[] = [
     title: "CSV to PDF",
     shortTitle: "CSV → PDF",
     description:
-      "Turn a CSV into a simple PDF table. Stays in this tab.",
+      "Turn a CSV into a PDF table. Sort, search and hide columns first. Stays in this tab.",
     accept: ".csv,text/csv,text/plain",
     multiple: true,
     ordered: true,
@@ -1056,7 +1057,7 @@ export const TOOLS: ToolDefinition[] = [
       "Convert a CSV to a PDF table online free. The file stays in your browser — no upload.",
     seoHowTo: [
       "Choose a CSV file.",
-      "Click Create PDF. Columns are drawn as a table.",
+      "Sort or search the preview, then click Create PDF.",
       "Download the PDF.",
     ],
     showInNav: true,

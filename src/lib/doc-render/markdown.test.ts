@@ -76,3 +76,61 @@ describe("markdown to pdf", () => {
     expect((await pdfPages(out.bytes)).join(" ").replace(/\s+/g, " ")).toContain("line 119");
   });
 });
+
+describe("markdown math and line spacing", () => {
+  const MATH = `Energy is $E = mc^2$ and area $A = \\pi r^2$, costs $5 and $10 stay money.
+
+$$\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}$$
+
+$$
+\\sum_{n=1}^{N} n
+$$
+`;
+  async function renderMath(src: string, opt = {}) {
+    const { findMathSpans } = await import("./math-art");
+    const { renderMath } = await import("./math");
+    const mathArt = await renderMath(findMathSpans(src));
+    const doc = markdownToDoc(src, { mathArt, ...opt });
+    return { mathArt, out: await renderFlow(doc.blocks, pageSpec("a4", false, 56), { loadFont }) };
+  }
+
+  test("formulas are drawn as vector paths, money signs stay text", async () => {
+    const { mathArt, out } = await renderMath(MATH);
+    expect(mathArt.size).toBe(4); // two inline, two display
+    const text = (await pdfPages(out.bytes)).join(" ").replace(/\s+/g, " ");
+    expect(text).toContain("Energy is");
+    expect(text).toContain("costs $5 and $10 stay money");
+    expect(text).not.toContain("mc^2");
+    const raw = Buffer.from(out.bytes).toString("latin1");
+    expect(raw).not.toContain("/Subtype /Image");
+    expect(raw).not.toContain("/Subtype/Image");
+  });
+
+  test("\\( \\) and \\[ \\] spellings work too", async () => {
+    const { mathArt, out } = await renderMath("Inline \\(a^2\\) here.\n\n\\[\\frac{1}{2}\\]\n");
+    expect(mathArt.size).toBe(2);
+    const text = (await pdfPages(out.bytes)).join(" ").replace(/\s+/g, " ");
+    expect(text).toContain("Inline");
+    expect(text).not.toContain("a^2");
+  });
+
+  test("a formula MathJax rejects is printed as typed", async () => {
+    const { mathArt, out } = await renderMath("Broken $\\frac{1$ here.");
+    expect(mathArt.size).toBe(0);
+    expect((await pdfPages(out.bytes)).join(" ")).toContain("\\frac{1");
+  });
+
+  test("display math sits on its own centred line, inline math inside a heading and list", async () => {
+    const { out } = await renderMath("# Area $\\pi r^2$\n\n- item $x_i^2$\n\n$$a^2+b^2=c^2$$\n");
+    const text = (await pdfPages(out.bytes)).join(" ");
+    expect(text).toContain("Area");
+    expect(text).toContain("item");
+  });
+
+  test("line spacing stretches the text", async () => {
+    const long = "word ".repeat(1500);
+    const tight = await render(long, { lineSpacing: 1 });
+    const loose = await render(long, { lineSpacing: 2 });
+    expect(loose.pageCount).toBeGreaterThan(tight.pageCount);
+  });
+});

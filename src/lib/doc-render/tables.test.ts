@@ -95,3 +95,40 @@ describe("excel to pdf", () => {
     expect(all).not.toContain("Region 1");
   });
 });
+
+describe("csv view (sort, filter, hide columns)", () => {
+  const rows = parseCsv("name,qty,city\nPen,10,Oslo\nBook,9,Lima\nCup,100,oslo\nBag,,Pune\n");
+  const names = (r: string[][]) => r.slice(1).map((x) => x[0]);
+
+  test("sorts numbers by value, text by locale, empties last, header stays first", async () => {
+    const { applyCsvView } = await import("./tables");
+    expect(names(applyCsvView(rows, { sort: { col: 1, dir: "asc" }, filter: "", hidden: [] }))).toEqual(["Book", "Pen", "Cup", "Bag"]);
+    expect(names(applyCsvView(rows, { sort: { col: 1, dir: "desc" }, filter: "", hidden: [] }))).toEqual(["Cup", "Pen", "Book", "Bag"]);
+    expect(names(applyCsvView(rows, { sort: { col: 0, dir: "asc" }, filter: "", hidden: [] }))).toEqual(["Bag", "Book", "Cup", "Pen"]);
+    expect(applyCsvView(rows, { sort: { col: 0, dir: "asc" }, filter: "", hidden: [] })[0]).toEqual(["name", "qty", "city"]);
+  });
+
+  test("filters rows by any shown cell, ignoring case; hidden columns are not searched and are dropped", async () => {
+    const { applyCsvView } = await import("./tables");
+    expect(names(applyCsvView(rows, { sort: null, filter: "OSLO", hidden: [] }))).toEqual(["Pen", "Cup"]);
+    const v = applyCsvView(rows, { sort: null, filter: "oslo", hidden: [2] });
+    expect(v).toEqual([["name", "qty"]]);
+    expect(applyCsvView(rows, { sort: null, filter: "", hidden: [1] })[1]).toEqual(["Pen", "Oslo"]);
+  });
+
+  test("a sort column past the end is ignored", async () => {
+    const { applyCsvView } = await import("./tables");
+    expect(names(applyCsvView(rows, { sort: { col: 9, dir: "asc" }, filter: "", hidden: [] }))).toEqual(["Pen", "Book", "Cup", "Bag"]);
+  });
+
+  test("the PDF follows the chosen view and the options", async () => {
+    const o = { ...defaultDocOptions("csv"), csvSort: { col: 1, dir: "desc" as const }, csvFilter: "p", csvHidden: [2] };
+    const out = await convertDoc("t.csv", { text: async () => "name,qty,city\nPen,10,Oslo\nBook,9,Lima\nCup,100,oslo\n", bytes: async () => new ArrayBuffer(0) }, o, { loadFont });
+    const text = norm((await pdfPages(out.bytes)).join(" "));
+    expect(text).toContain("Cup");
+    expect(text).toContain("Pen");
+    expect(text).not.toContain("Book");
+    expect(text).not.toContain("Oslo");
+    expect(text.indexOf("Cup")).toBeLessThan(text.indexOf("Pen"));
+  });
+});

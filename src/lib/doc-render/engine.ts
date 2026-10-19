@@ -8,6 +8,7 @@ import { PDFDocument, PDFString, rgb, type PDFImage } from "@cantoo/pdf-lib";
 import { FontSet } from "../word-to-pdf/fonts";
 import type { Cmd, FontKey, Measurer } from "../word-to-pdf/layout";
 import type { Block, Inline } from "../word-to-pdf/model";
+import { MATH_MIME, mathArtOf } from "./math-art";
 
 export interface EngineOptions {
   /** Returns the bytes of a bundled font file, e.g. "LiberationSans-Regular.ttf". */
@@ -100,7 +101,7 @@ export async function embedBlockImages(
   const rasterise = opts.rasterise ?? browserRasterise;
   let dropped = 0;
   const pending: Promise<void>[] = [];
-  const pictures = [...walkInlines(blocks)].filter((w) => w.inl.kind === "image");
+  const pictures = [...walkInlines(blocks)].filter((w) => w.inl.kind === "image" && w.inl.mime !== MATH_MIME);
   const use = extents && extents.length === pictures.length ? extents : undefined;
   let picIndex = 0;
   for (const { inl, list } of pictures) {
@@ -233,6 +234,21 @@ export function drawCmd(
       return;
     }
     case "image": {
+      if (c.mime === MATH_MIME) {
+        const art = mathArtOf(c.data);
+        if (!art) return;
+        const color = hex(c.color);
+        const scale = c.w / art.w;
+        for (const p of art.paths) {
+          const o: Parameters<typeof page.drawSvgPath>[1] = { x: c.x, y: H - c.y, scale };
+          if (p.stroke) {
+            o.borderColor = color;
+            o.borderWidth = p.stroke; // em units: the path scale applies to the line width too
+          } else o.color = color;
+          page.drawSvgPath(p.d, o);
+        }
+        return;
+      }
       const img = images.get(c.data);
       if (img) page.drawImage(img, { x: c.x, y: H - c.y - c.h, width: c.w, height: c.h });
       return;

@@ -14,11 +14,13 @@ const BTN = "h-10 sm:h-7";
 export function convertDocHint(o: Opts): string {
   switch (o.src) {
     case "markdown":
-      return "Headings, lists, code, quotes and tables are drawn as real, selectable text. Images embedded as data are kept.";
+      return "Headings, lists, code, quotes and tables are drawn as real, selectable text. LaTeX formulas become sharp vector shapes. Images embedded as data are kept.";
     case "excel":
       return "Every sheet you pick, with numbers right-aligned as Excel shows them and the header row repeated on each page.";
     case "csv":
-      return "A table with the header row repeated on every page. The text stays selectable.";
+      return "Sort, search and hide columns in the preview, then print exactly that. The header row repeats on every page and the text stays selectable.";
+    case "pptx":
+      return "One page per slide at the slide size. Shapes, fills, pictures and backgrounds are drawn, and the text stays selectable.";
     case "html":
       return "Basic CSS is applied: colours, backgrounds, borders, fonts and alignment. Scripts do not run, and nothing is fetched.";
   }
@@ -143,6 +145,10 @@ export function ConvertOptions({
           </div>
         </div>
       ) : null}
+      {options.src === "pptx" ? (
+        <Check label="Include slides marked hidden" checked={options.hiddenSlides} disabled={disabled} onChange={(hiddenSlides) => set({ hiddenSlides })} />
+      ) : (
+        <>
       <Group<DocPaper>
         label="Paper"
         value={options.paper}
@@ -176,6 +182,8 @@ export function ConvertOptions({
           ["wide", "Wide"],
         ]}
       />
+        </>
+      )}
       {options.src === "markdown" ? (
         <>
           <Group<DocFont>
@@ -201,6 +209,20 @@ export function ConvertOptions({
               ["15", "15 pt"],
             ]}
           />
+          <Group<string>
+            label="Line spacing"
+            value={String(options.lineSpacing)}
+            disabled={disabled}
+            onPick={(v) => set({ lineSpacing: Number(v) })}
+            items={[
+              ["1", "1.0"],
+              ["1.15", "1.15"],
+              ["1.4", "1.4"],
+              ["1.6", "1.6"],
+              ["2", "2.0"],
+            ]}
+          />
+          <Check label="LaTeX math: draw $x^2$ and $$...$$ as formulas" checked={options.math} disabled={disabled} onChange={(math) => set({ math })} />
           <Check label="Table of contents with page numbers" checked={options.toc} disabled={disabled} onChange={(toc) => set({ toc })} />
           <Check label="Number the headings (1, 1.1, 1.2)" checked={options.numberHeadings} disabled={disabled} onChange={(numberHeadings) => set({ numberHeadings })} />
         </>
