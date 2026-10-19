@@ -25,15 +25,15 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 
 | | Count |
 |---|---|
-| ✅ We are better (measured) | 28 rows |
-| 🟰 Equal (measured) | 20 rows |
-| ⚠️ They are better | 3 rows |
+| ✅ We are better (measured) | 29 rows |
+| 🟰 Equal (measured) | 21 rows |
+| ⚠️ They are better | 1 rows |
 | ❔ Shared, not compared yet | 1 rows |
 | ➕ Only we have | 15 tools (section 3) |
 | ❌ Only they have | 19 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
-Biggest gaps: 20 shared tools behind on options (see section 2 ⚠️ rows), PDF to PowerPoint, Repair, Fill form, workflows, Ask PDF privacy, SEO pages.
+Biggest gaps: SEO pages (the only ⚠️ row left), PDF to PowerPoint, Repair, Fill form, workflows, on-device AI.
 
 ---
 
@@ -49,7 +49,7 @@ Biggest gaps: 20 shared tools behind on options (see section 2 ⚠️ rows), PDF
 | Accessibility (Lighthouse) | 100 on home and tool pages | 93–95 | ✅ | Lighthouse 12, 2026-10-13 |
 | Best practices (Lighthouse) | 96–100 | 79 | ✅ | Lighthouse 12, 2026-10-12 |
 | Server-rendered pages (content without JS) | Yes (Next.js) | No, client-rendered SPA with a separate hidden SEO block | ✅ | HTML fetch, 2026-10-12 |
-| Ask / chat with PDF privacy | Extracted text goes to Gemini through our server (disclosed on /privacy) | User's own Gemini key, called from the browser; on-device DistilBART summariser | ⚠️ | Bundle teardown, 2026-10-12 |
+| Ask / chat with PDF privacy | Choice: extracted text via our server to Gemini, or own key straight from the browser to Google (our server never sees text or key); copy says so on the page, footer and /privacy | User's own Gemini key, called from the browser; on-device DistilBART summariser | 🟰 | Code review of src/lib/ask/gemini.ts (key in x-goog-api-key header to generativelanguage.googleapis.com only), 2026-10-19 |
 | On-device AI (speech-to-text, text-to-speech, summaries) | None | Whisper, Kokoro TTS, DistilBART via transformers.js | ❌ | Bundle teardown, 2026-10-12 |
 | Homepage: drop a file, get matching tools | Yes | No ("open a tool first") | ➕ | Our `home-drop.tsx`; their homepage text, 2026-10-12 |
 | Search with Cmd/Ctrl+K | Yes | Yes | 🟰 | Both sites, 2026-10-13 |
@@ -101,8 +101,8 @@ Biggest gaps: 20 shared tools behind on options (see section 2 ⚠️ rows), PDF
 | Markdown to PDF | Real GFM rendering, TOC, numbered headings, typeface, size, margins, line spacing, LaTeX math ($, $$, \\(, \\[) as vector paths (MathJax SVG); "$5" stays text | Same plus live editor and per-side margins; KaTeX-style math | 🟰 | Synthetic math.md: ours 23 KB, 1 page, 257 ms, math rendered; their preview typesets the same equations. Ours vector from a file, theirs has a live editor. bench/wave2-b, 2026-10-19 |
 | CSV to PDF | Repeated header row, title, orientation/paper, auto widths, zebra rows; in-page preview with sort (numeric-aware), search, hide columns; PDF prints the view | Repeated header, title, in-page sort and cell edit, bulk/folder | 🟰 | Synthetic people.csv filtered+sorted: 15 rows in order, 5.4 KB. We have search/column hiding, they have cell edit and bulk. bench/wave2-b, 2026-10-19 |
 | HTML to PDF | Inline and <style> CSS (colour, background, borders, fonts, alignment), lists, tables, data images, A4/Letter/Legal/A3, orientation; text selectable | Full CSS as a raster (text not selectable), page size, orientation | 🟰 | merged from wave2 branches, agent browser-proved + lead render check; rival features from `.scratch/head-to-head-wave2.md`; no fresh side-by-side, 2026-10-17 (ours selectable, theirs keeps more CSS) |
-| Scan to PDF (camera) | No text layer | Corner crop, filters, brightness/contrast, OCR text layer (20 languages) | ⚠️ | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
-| Ask / chat with PDF | Preset prompts, one question, no key; tool page wrongly says "Nothing is uploaded" | BYO Gemini key, multi-turn, up to 10 PDFs | 🟰 | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
+| Scan to PDF (camera) | Camera or photo upload; auto-detected corners with drag handles, perspective fix, edge trim; filters (original, document, grayscale, B&W, photo), brightness/contrast, turn, reorder/delete; page size; searchable OCR text layer (on by default) | Corner crop, filters, brightness/contrast, OCR text layer (20 languages) | ✅ | 2 synthetic perspective photos, defaults: ours corners found and page straight, theirs no crop (tilted page on background); Document 246 KB vs 355 KB, B&W 8.9 KB vs 310 KB; our OCR text clean, theirs mangled; 0.25 s (5 s with OCR) vs ~7 s. Lead checked renders. bench/scan, 2026-10-19 |
+| Ask / chat with PDF | Multi-turn chat, up to 10 PDFs, page-marked text, our server (no key) or own Gemini key from the browser (key stored only if ticked); honest copy | BYO Gemini key, multi-turn, up to 10 PDFs | 🟰 | Feature parity; ours adds a no-key path. Network mocked in tests, no live side-by-side (no key). bench/ask, 2026-10-19 |
 
 ## 3. Only we have
 
