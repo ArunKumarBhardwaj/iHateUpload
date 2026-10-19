@@ -25,9 +25,9 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 
 | | Count |
 |---|---|
-| ✅ We are better (measured) | 23 rows |
-| 🟰 Equal (measured) | 19 rows |
-| ⚠️ They are better | 9 rows |
+| ✅ We are better (measured) | 27 rows |
+| 🟰 Equal (measured) | 20 rows |
+| ⚠️ They are better | 4 rows |
 | ❔ Shared, not compared yet | 1 rows |
 | ➕ Only we have | 15 tools (section 3) |
 | ❌ Only they have | 19 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
@@ -78,11 +78,11 @@ Biggest gaps: 20 shared tools behind on options (see section 2 ⚠️ rows), PDF
 | Images to PDF (JPG, PNG, HEIC) | Image to PDF, PNG to PDF, HEIC to PDF | Images to PDF (no HEIC) | 🟰 | Same page sizing and size (841 vs 840 KB); neither has options. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Protect PDF | AES-256, all allowed by default (/P -4), permission checkboxes (print, copy, edit, annotate/forms), separate owner password, restrict-only mode, show/hide, strength meter | AES-256, all allowed, strength meter, show password; no permission choices | ✅ | branch wave2-a, browser-proved on synthetic files (bench/wave2-a); rival features from `.scratch/head-to-head-wave2.md`, 2026-10-17 |
 | Unlock PDF | Full rewrite (zero /Encrypt bytes left), detects owner-only PDFs and lifts restrictions in one click, show/hide | Lifts owner-only restrictions without a password | 🟰 | branch wave2-a, browser-proved on synthetic files (bench/wave2-a); rival features from `.scratch/head-to-head-wave2.md`, 2026-10-17 |
-| Rotate / flip PDF | One angle + page range; mirror (branch) | Thumbnails, per-page left/right/180 | ⚠️ | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
-| Organize pages | Arrow buttons | Drag and drop + per-page rotate | ⚠️ | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
+| Rotate / flip PDF | Thumbnail grid: per-page left/right/180, select-and-turn, rotate all, reset; page range; mirror | Same grid actions; no page range, no mirror | ✅ | Synthetic six.pdf (mixed sizes/rotations) driven in our page, renders checked; rival run same file. bench/page-tools (drive.mjs, steps/rotate.mjs), 2026-10-19 |
+| Organize pages | Drag and drop + Alt+Arrow keyboard reorder, per-page rotate, duplicate, insert blank, delete, multi-select | Drag and drop, rotate, delete | ✅ | Synthetic six.pdf, output order/rotation checked by render; bench/page-tools steps, 2026-10-19 |
 | Sign PDF | Any page via page strip, ink colour and width, draw/type/photo with background removal, date stamps, multiple placements, undo/redo | Multi-page viewer, ink colour, photo, undo, resize, zoom | 🟰 | merged from wave2 branches, agent browser-proved + lead render check; rival features from `.scratch/head-to-head-wave2.md`; no fresh side-by-side, 2026-10-17 |
 | Edit PDF text | Click a line to edit; OCR for scans | Font, size, B/I, colour, align, find-replace, undo; no OCR | ⚠️ | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
-| Crop / page size | One crop box; A4/Letter, fit/letterbox | Per-page crop, sliders, 6 paper sizes + custom, scale to fit | ⚠️ | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
+| Crop / page size | Per-page or all-pages crop, 8 drag handles, margins in mm or %, untouched pages kept; page size A3/A4/A5/Letter/Legal/Tabloid + custom (mm/in/pt), fit/fill/stretch, keeps orientation, vector | Per-page crop, 4 sliders, 6 paper sizes + custom, scale to fit; their A3 forced a landscape page to portrait | ✅ | six.pdf: lead re-ran per-page crop, crop boxes exact (p1 top 40 mm, p3 left 100 mm, others untouched); 52 ms vs 189 ms. bench/page-tools, 2026-10-19 |
 | Redact PDF | Manual boxes + automatic PII finder (11 types, checksum-validated, OCR for scans, per-item review), pixels burned out | Automatic finder: Aadhaar (no checksum), PAN, IFSC, email, bank, DOB; no cards, phones, IBAN, SSN; no OCR | ✅ | bench/redact head-to-head, 2026-10-17 |
 | Compare PDFs | Exact line diff, flags changed lines | Synced viewers; "AI" downloads ~100 MB for a summary, no diff | ✅ | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
 | Extract text | Keeps line breaks and CJK spacing; OCR for scanned pages (language picker) and image input; copy button and preview | Collapses lines, spaces inside CJK; OCR toggle | ✅ | branch wave2-a, browser-proved on synthetic files (bench/wave2-a); rival features from `.scratch/head-to-head-wave2.md`, 2026-10-17 |
@@ -91,8 +91,8 @@ Biggest gaps: 20 shared tools behind on options (see section 2 ⚠️ rows), PDF
 | Page numbers / Bates | Formats, ranges, Bates (prefix, suffix, digits, positions, across files, skip first page, page range, live preview, production log CSV) | Page numbers; Bates without page range | ✅ | Same Bates output across 2 files; Bates 358 ms vs 402 ms on 300 pages. bench/pdf-tools/h2h.mjs, 2026-10-17 |
 | Watermark | Opacity, size, angle, colour, single or tiled, page range, live preview; text stays selectable | Opacity, size, angle, colour, tiling, live preview | 🟰 | Feature parity; page range is ours only. `.scratch/head-to-head-2026-10-17.md` + lead check, 2026-10-17 |
 | Pages per sheet (N-up) | 2/4/6/9/16/custom, A4/Letter/Legal/A3, orientation, margin, gap, border, fill order; pages stay vector | 2/4/6/9/16/custom, paper, orientation, margin, gap, border, order | 🟰 | merged from wave2 branches, agent browser-proved + lead render check; rival features from `.scratch/head-to-head-wave2.md`; no fresh side-by-side, 2026-10-17 |
-| Invert / grayscale | Raster only, text lost | Dark, invert, sepia, grayscale; text-preserving mode; DPI | ⚠️ | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
-| Flatten PDF | Form flatten | Same + raster full flatten (96–400 DPI), strip options | ⚠️ | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
+| Invert / grayscale | Dark (optional hue keep), invert, sepia, grayscale; text-keeping mode (blend overlays, text selectable, pictures recoloured) or raster with DPI; before/after preview | Dark, invert, sepia, grayscale; text-preserving mode (pictures not recoloured); raster | 🟰 | colour.pdf: text-keeping 84 KB vs 83 KB, raster 129 KB vs 136 KB; ours recolours pictures, dark+hue keep is 3x larger and red text turns cyan in plain dark. bench/page-tools, 2026-10-19 |
+| Flatten PDF | Form flatten; full raster flatten 96–400 DPI; strip annotations, forms, metadata, JavaScript, attachments (also without rasterising) | Standard (keeps metadata), full raster, strip + flatten (rasterises) | ✅ | form.pdf: form flatten 3.3 KB, text kept, 0 fields; raster 8 KB @96, 38 KB @300 vs their full 18.7 KB. bench/page-tools, 2026-10-19 |
 | OCR PDF | Tesseract 7, 11 languages, skips pages that already have text, .txt output | Tesseract 5, ~22 languages, auto-detect, page range | 🟰 | 42/42 words both, ~2.4 s vs 2.6 s. head-to-head, synthetic files, `.scratch/head-to-head-2026-10-17.md`, 2026-10-17 |
 | Metadata | Edit all Info fields, dates, custom keys and XMP (kept in step), Copy from another PDF, Revert; Strip wipes custom keys, dates and XMP | Edit Info fields and dates; custom keys hidden; leaves stale XMP | ✅ | bench/pdf-tools h2h metadata-xmp, 2026-10-17 |
 | Word to PDF | Follows the docx: theme fonts (Calibri→Carlito, Cambria→Caladea), heading colours, spacing, table width/grid/shading, image size; lists, links, page breaks; selectable text; ~0.07 s | Same fidelity on the test file, selectable text; ~0.8 s; smaller files | 🟰 | Same synthetic docx rendered side by side: same line breaks, colours, table and image. Ours faster, theirs smaller (108 KB vs 226 KB, we embed fonts whole). Lead check, 2026-10-17 |
