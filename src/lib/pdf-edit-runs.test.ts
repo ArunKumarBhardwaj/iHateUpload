@@ -19,7 +19,7 @@ test("pdf.js items become page-ratio runs", () => {
     (x, y) => ({ x, y: 100 - y }),
   );
   expect(runs).toEqual([
-    { text: "ATHARV", x: 20 / 200, y: 10 / 100, w: 60 / 200, h: 10 / 100 },
+    { text: "ATHARV", x: 20 / 200, y: 10 / 100, w: 60 / 200, h: 10 / 100, size: 10 / 100 },
   ]);
 });
 
@@ -68,4 +68,31 @@ test("OCR word boxes become page-ratio runs", () => {
   expect(runs).toEqual([
     { text: "ATHARV", x: 0.1, y: 0.4, w: 0.3, h: 0.16 },
   ]);
+});
+
+test("text turned 90 degrees keeps a box that wraps the turned glyphs", () => {
+  // Baseline runs up the page (0,1); glyph "up" points left (-1,0).
+  const runs = pdfJsItemsToRuns(
+    [{ str: "Turned", transform: [0, 10, -10, 0, 50, 20], width: 60, height: 10 }],
+    200,
+    100,
+    (x, y) => ({ x, y: 100 - y }),
+  );
+  expect(runs).toHaveLength(1);
+  expect(runs[0].x).toBeCloseTo(40 / 200);
+  expect(runs[0].w).toBeCloseTo(10 / 200);
+  expect(runs[0].y).toBeCloseTo(20 / 100);
+  expect(runs[0].h).toBeCloseTo(60 / 100);
+});
+
+test("a replacement is set at the size of the text it replaces", () => {
+  const [run] = pdfJsItemsToRuns(
+    [{ str: "Bill to", transform: [14, 0, 0, 14, 60, 100], width: 50, height: 14 }],
+    612,
+    792,
+    (x, y) => ({ x, y: 792 - y }),
+  );
+  expect(textMarkBox(run).fontSize).toBeCloseTo(14 / 792);
+  // OCR boxes include the descender, so those are scaled down instead.
+  expect(textMarkBox({ text: "x", x: 0.1, y: 0.1, w: 0.1, h: 0.02 }).fontSize).toBeCloseTo(0.018);
 });

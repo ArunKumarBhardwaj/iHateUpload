@@ -1,12 +1,38 @@
+/** What the original line looks like, so a replacement can match it. */
+export type RunFont = {
+  family: "helvetica" | "times" | "courier";
+  bold: boolean;
+  italic: boolean;
+};
+
+/** Reads a PDF font name such as "ABCDEF+Arial-BoldMT" into a standard family. */
+export function fontFromName(name: string | undefined, css?: string): RunFont {
+  const n = `${name ?? ""} ${css ?? ""}`.replace(/[A-Z]{6}\+/, "").toLowerCase();
+  const family: RunFont["family"] = /courier|mono|consolas/.test(n)
+    ? "courier"
+    : /times|serif|georgia|garamond|palatino|minion|cambria/.test(n) && !/sans/.test(n)
+      ? "times"
+      : "helvetica";
+  return {
+    family,
+    bold: /bold|black|heavy|demi/.test(n),
+    italic: /italic|oblique/.test(n),
+  };
+}
+
 export type PageTextRun = {
+  font?: RunFont;
   text: string;
   x: number;
   y: number;
   w: number;
   h: number;
+  /** Font size as a fraction of page height, when the source knows it. */
+  size?: number;
 };
 
 export type PdfJsLikeItem = {
+  fontName?: string;
   str?: string;
   transform?: number[];
   width?: number;
@@ -18,6 +44,7 @@ export function pdfJsItemsToRuns(
   pageWidth: number,
   pageHeight: number,
   toViewport: (x: number, y: number) => { x: number; y: number },
+  fontOf?: (fontName: string | undefined) => RunFont | undefined,
 ): PageTextRun[] {
   const width = Math.max(1, pageWidth);
   const height = Math.max(1, pageHeight);
@@ -29,9 +56,12 @@ export function pdfJsItemsToRuns(
     if (!tm || tm.length < 6) continue;
     const itemWidth = Number(item.width) || 0;
     const itemHeight = Number(item.height) || Math.abs(Number(tm[3]) || 0);
+    // Follow the glyph axes so text turned on the page still gets a tight box.
+    const along = Math.hypot(tm[0], tm[1]) || 1;
+    const up = Math.hypot(tm[2], tm[3]) || 1;
     const a = toViewport(tm[4], tm[5]);
-    const b = toViewport(tm[4] + itemWidth, tm[5]);
-    const c = toViewport(tm[4], tm[5] + itemHeight);
+    const b = toViewport(tm[4] + (tm[0] / along) * itemWidth, tm[5] + (tm[1] / along) * itemWidth);
+    const c = toViewport(tm[4] + (tm[2] / up) * itemHeight, tm[5] + (tm[3] / up) * itemHeight);
     const left = Math.min(a.x, b.x, c.x);
     const right = Math.max(a.x, b.x, c.x);
     const top = Math.min(a.y, b.y, c.y);
@@ -45,6 +75,8 @@ export function pdfJsItemsToRuns(
       y: top / height,
       w,
       h,
+      font: fontOf?.(item.fontName),
+      size: Math.hypot(c.x - a.x, c.y - a.y) / height || undefined,
     });
   }
   return runs;
@@ -78,6 +110,7 @@ export function mergeTextRuns(items: PageTextRun[]): PageTextRun[] {
     last.y = y;
     last.w = x2 - x;
     last.h = y2 - y;
+    last.size = Math.max(last.size ?? 0, item.size ?? 0) || undefined;
   }
   return lines;
 }
@@ -110,7 +143,7 @@ export function textMarkBox(run: PageTextRun) {
     y,
     w: clamp(run.w + 0.01, 0.05, 1 - x),
     h: clamp(run.h + 0.008, 0.016, 1 - y),
-    fontSize: clamp(run.h * 0.9, 0.01, 0.08),
+    fontSize: clamp(run.size ?? run.h * 0.9, 0.01, 0.08),
   };
 }
 

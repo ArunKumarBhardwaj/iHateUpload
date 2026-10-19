@@ -2,9 +2,17 @@
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
+  Bold,
   Highlighter,
   ImageIcon,
+  Italic,
   MousePointer2,
+  Redo2,
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Minus,
+  Plus,
   Square,
   Trash2,
   Type,
@@ -13,8 +21,11 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EditFindPanel } from "@/components/workbench/edit-find-panel";
+import { PageStrip } from "@/components/workbench/page-strip";
 import { loadPdfJs } from "@/lib/pdfjs";
 import {
+  fontFromName,
   hitTextRun,
   mergeTextRuns,
   ocrWordsToRuns,
@@ -25,15 +36,14 @@ import {
 } from "@/lib/pdf-edit-runs";
 import { recognizePageWords } from "@/lib/edit-ocr";
 import {
-  EDIT_FONT_LG,
-  EDIT_FONT_MD,
-  EDIT_FONT_SM,
   EDIT_HIGHLIGHT,
   EDIT_INK,
   newHighlightMark,
   newImageMark,
   newRectMark,
   newTextMark,
+  type EditAlign,
+  type EditFontFamily,
   type EditMark,
   type EditMarkKind,
   type PageBox,
@@ -76,6 +86,7 @@ export function PdfEditCanvas({
   const hostRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const history = useRef<EditMark[][]>([]);
+  const future = useRef<EditMark[][]>([]);
   const drag = useRef<DragState | null>(null);
   const draftRef = useRef<PageBox | null>(null);
   const moved = useRef(false);
@@ -91,6 +102,8 @@ export function PdfEditCanvas({
   const [scan, setScan] = useState<"text" | "ocr" | "reading" | "empty">("empty");
   const [seenFile, setSeenFile] = useState(file);
   const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const [pageHeightPt, setPageHeightPt] = useState(792);
 
   if (file !== seenFile) {
     setSeenFile(file);
@@ -101,6 +114,7 @@ export function PdfEditCanvas({
     setHoverRun(null);
     setScan("empty");
     setCanUndo(false);
+    setCanRedo(false);
   }
   if (pageCount > 0 && pageIndex >= pageCount) {
     setPageIndex(pageCount - 1);
@@ -120,6 +134,7 @@ export function PdfEditCanvas({
         const safeIndex = Math.min(pageIndex, Math.max(0, doc.numPages - 1));
         const page = await doc.getPage(safeIndex + 1);
         const viewport = page.getViewport({ scale: 1.35 });
+        setPageHeightPt(viewport.height / 1.35);
         const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.floor(viewport.width));
         canvas.height = Math.max(1, Math.floor(viewport.height));
@@ -136,6 +151,16 @@ export function PdfEditCanvas({
             viewport.width,
             viewport.height,
             (x, y) => toViewportPoint(viewport, x, y),
+            (fontName) => {
+              if (!fontName) return undefined;
+              let real: string | undefined;
+              try {
+                real = (page.commonObjs.get(fontName) as { name?: string } | undefined)?.name;
+              } catch {
+                real = undefined;
+              }
+              return fontFromName(real, content.styles[fontName]?.fontFamily);
+            },
           ),
         );
         page.cleanup();
@@ -205,12 +230,15 @@ export function PdfEditCanvas({
   useEffect(() => {
     draftRef.current = null;
     history.current = [];
+    future.current = [];
   }, [file]);
 
   const remember = (snapshot: EditMark[]) => {
     history.current.push(snapshot);
-    if (history.current.length > 40) history.current.shift();
+    if (history.current.length > 80) history.current.shift();
+    future.current = [];
     setCanUndo(true);
+    setCanRedo(false);
   };
 
   const commit = (next: EditMark[]) => {
@@ -230,7 +258,19 @@ export function PdfEditCanvas({
     const previous = history.current.pop();
     setCanUndo(history.current.length > 0);
     if (!previous) return;
+    future.current.push(marks);
+    setCanRedo(true);
     onMarks(previous);
+    setSelectedId(null);
+  };
+
+  const redo = () => {
+    const next = future.current.pop();
+    setCanRedo(future.current.length > 0);
+    if (!next) return;
+    history.current.push(marks);
+    setCanUndo(true);
+    onMarks(next);
     setSelectedId(null);
   };
 
@@ -247,8 +287,16 @@ export function PdfEditCanvas({
       (event.target.tagName === "TEXTAREA" ||
         event.target.tagName === "INPUT");
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+      if (typing) return;
       event.preventDefault();
-      undo();
+      if (event.shiftKey) redo();
+      else undo();
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "y") {
+      if (typing) return;
+      event.preventDefault();
+      redo();
       return;
     }
     if (typing) return;
@@ -309,6 +357,7 @@ export function PdfEditCanvas({
           fontSize: box.fontSize,
           cover: true,
         });
+        if (run.font) Object.assign(mark, run.font);
         commit([...marks, mark]);
         setSelectedId(mark.id);
         setTool("select");
@@ -485,6 +534,14 @@ export function PdfEditCanvas({
           <Undo2 />
         </ToolButton>
         <ToolButton
+          label="Redo"
+          pressed={false}
+          disabled={disabled || !canRedo}
+          onClick={redo}
+        >
+          <Redo2 />
+        </ToolButton>
+        <ToolButton
           label="Delete"
           pressed={false}
           disabled={disabled || !selectedId}
@@ -532,7 +589,18 @@ export function PdfEditCanvas({
       </div>
 
       {selected && !disabled ? (
-        <MarkProps mark={selected} onPatch={(partial) => patch(selected.id, partial)} />
+        <MarkProps
+          mark={selected}
+          pageHeightPt={pageHeightPt}
+          onPatch={(partial) => patch(selected.id, partial)}
+          onCommit={(partial) =>
+            commit(
+              marks.map((mark) =>
+                mark.id === selected.id ? ({ ...mark, ...partial } as EditMark) : mark,
+              ),
+            )
+          }
+        />
       ) : (
         <p className="text-sm text-muted-foreground">
           {tool === "highlight"
@@ -542,17 +610,43 @@ export function PdfEditCanvas({
               : scan === "reading"
                 ? "Reading the words on this scan…"
                 : scan === "ocr"
-                  ? "Click a line to change it. These words came from OCR. Save covers them."
+                  ? "Click a line to change it. These words came from OCR; a scan has no letters to delete, so Save covers them with the new text."
                   : scan === "text"
                     ? "Click a line to change it. Click empty space to add text."
                     : "No words found. Click the page to type on it."}
         </p>
       )}
 
+      <EditFindPanel
+        file={file}
+        pageCount={pageCount}
+        marks={marks}
+        disabled={disabled}
+        onApply={(next) => {
+          commit(next);
+          setSelectedId(null);
+        }}
+        onJump={(index) => {
+          setPageIndex(index);
+          setSelectedId(null);
+        }}
+      />
+      <div className="flex flex-col gap-3 lg:flex-row">
+      <PageStrip
+        file={file}
+        pageCount={pageCount}
+        current={pageIndex}
+        badges={pageBadges(marks)}
+        disabled={disabled}
+        onSelect={(index) => {
+          setPageIndex(index);
+          setSelectedId(null);
+        }}
+      />
       <div
         ref={hostRef}
         className={cn(
-          "relative overflow-hidden rounded-xl border border-ink/10 bg-muted/40 shadow-[0_12px_28px_-22px_rgba(20,22,28,0.45)]",
+          "relative min-w-0 flex-1 overflow-hidden rounded-xl border border-ink/10 bg-muted/40 shadow-[0_12px_28px_-22px_rgba(20,22,28,0.45)]",
           disabled
             ? "cursor-default"
             : DRAW_TOOLS.includes(tool)
@@ -594,7 +688,11 @@ export function PdfEditCanvas({
             disabled={disabled}
             hostH={hostH}
             onPointerDown={onMarkPointerDown}
-            onText={(text) => patch(mark.id, { text })}
+            onSelect={() => {
+              setSelectedId(mark.id);
+              setTool("select");
+            }}
+            onText={(text, w) => patch(mark.id, w === undefined ? { text } : { text, w })}
           />
         ))}
         {draft && draft.w > 0 && draft.h > 0 ? (
@@ -612,8 +710,15 @@ export function PdfEditCanvas({
           />
         ) : null}
       </div>
+      </div>
     </div>
   );
+}
+
+function pageBadges(marks: EditMark[]) {
+  const out: Record<number, number> = {};
+  for (const mark of marks) out[mark.pageIndex] = (out[mark.pageIndex] ?? 0) + 1;
+  return out;
 }
 
 function MarkLayer({
@@ -622,6 +727,7 @@ function MarkLayer({
   disabled,
   hostH,
   onPointerDown,
+  onSelect,
   onText,
 }: {
   mark: EditMark;
@@ -633,7 +739,10 @@ function MarkLayer({
     mark: EditMark,
     kind: DragKind,
   ) => void;
-  onText: (text: string) => void;
+  /** Focusing the text selects the mark, so its style controls show. */
+  onSelect: () => void;
+  /** `w` is a wider box when a replaced line no longer fits its old width. */
+  onText: (text: string, w?: number) => void;
 }) {
   const z =
     mark.kind === "highlight"
@@ -704,7 +813,20 @@ function MarkLayer({
           disabled={disabled}
           aria-label="Text on the page"
           onPointerDown={(event) => event.stopPropagation()}
-          onChange={(event) => onText(event.target.value)}
+          wrap={mark.cover ? "off" : undefined}
+          onFocus={onSelect}
+          onChange={(event) => {
+            const el = event.currentTarget;
+            let wider: number | undefined;
+            if (mark.cover && el.scrollWidth > el.clientWidth) {
+              // A replaced line grows to the right instead of wrapping under itself.
+              const hostW = (el.offsetParent as HTMLElement | null)?.offsetParent?.clientWidth ?? 0;
+              if (hostW > 0) {
+                wider = Math.min(1 - mark.x, mark.w + (el.scrollWidth - el.clientWidth + 2) / hostW);
+              }
+            }
+            onText(el.value, wider);
+          }}
           className={cn(
             "h-full w-full resize-none overflow-hidden px-0.5 py-0 leading-none outline-none",
             mark.cover ? "bg-white" : "bg-transparent",
@@ -712,7 +834,15 @@ function MarkLayer({
           style={{
             fontSize: Math.max(10, mark.fontSize * hostH),
             color: mark.color,
-            fontFamily: "Helvetica, Arial, sans-serif",
+            fontFamily:
+              mark.family === "times"
+                ? 'Times, "Times New Roman", serif'
+                : mark.family === "courier"
+                  ? '"Courier New", Courier, monospace'
+                  : "Helvetica, Arial, sans-serif",
+            fontWeight: mark.bold ? 700 : 400,
+            fontStyle: mark.italic ? "italic" : "normal",
+            textAlign: mark.align ?? "left",
           }}
         />
       ) : null}
@@ -730,35 +860,93 @@ function MarkLayer({
 
 function MarkProps({
   mark,
+  pageHeightPt,
   onPatch,
+  onCommit,
 }: {
   mark: EditMark;
+  pageHeightPt: number;
   onPatch: (partial: Partial<EditMark>) => void;
+  onCommit: (partial: Partial<EditMark>) => void;
 }) {
   if (mark.kind === "image") {
     return <p className="text-sm text-muted-foreground">Drag to move. Corner to resize.</p>;
   }
   const colors = mark.kind === "highlight" ? EDIT_HIGHLIGHT : EDIT_INK;
+  const pt = mark.kind === "text" ? Math.round(mark.fontSize * pageHeightPt * 2) / 2 : 0;
+  const setPt = (next: number) => {
+    const clamped = Math.min(144, Math.max(4, next));
+    onCommit({ fontSize: clamped / pageHeightPt });
+  };
+  const toggle = "size-10 sm:size-8";
   return (
     <div className="flex flex-wrap items-center gap-3">
       {mark.kind === "text" ? (
-        <div className="flex items-center gap-1">
-          <SizeChip
-            label="S"
-            active={mark.fontSize === EDIT_FONT_SM}
-            onClick={() => onPatch({ fontSize: EDIT_FONT_SM })}
-          />
-          <SizeChip
-            label="M"
-            active={mark.fontSize === EDIT_FONT_MD}
-            onClick={() => onPatch({ fontSize: EDIT_FONT_MD })}
-          />
-          <SizeChip
-            label="L"
-            active={mark.fontSize === EDIT_FONT_LG}
-            onClick={() => onPatch({ fontSize: EDIT_FONT_LG })}
-          />
-        </div>
+        <>
+          <select
+            aria-label="Font"
+            value={mark.family ?? "helvetica"}
+            className="h-10 rounded-lg border border-ink/15 bg-card px-2 text-sm text-ink sm:h-8"
+            onChange={(event) => onCommit({ family: event.target.value as EditFontFamily })}
+          >
+            <option value="helvetica">Helvetica</option>
+            <option value="times">Times</option>
+            <option value="courier">Courier</option>
+          </select>
+          <div className="flex items-center gap-1" role="group" aria-label="Size">
+            <button
+              type="button"
+              aria-label="Smaller"
+              className={cn(toggle, "flex items-center justify-center rounded-lg border border-ink/15 bg-card")}
+              onClick={() => setPt(pt - 1)}
+            >
+              <Minus className="size-4" />
+            </button>
+            <input
+              aria-label="Font size in points"
+              type="number"
+              min={4}
+              max={144}
+              step={0.5}
+              value={pt}
+              className="h-10 w-14 rounded-lg border border-ink/15 bg-card text-center text-sm sm:h-8"
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                if (Number.isFinite(next) && next > 0) setPt(next);
+              }}
+            />
+            <button
+              type="button"
+              aria-label="Larger"
+              className={cn(toggle, "flex items-center justify-center rounded-lg border border-ink/15 bg-card")}
+              onClick={() => setPt(pt + 1)}
+            >
+              <Plus className="size-4" />
+            </button>
+            <span className="text-xs text-muted-foreground">pt</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <SizeChip label={<Bold className="size-4" />} name="Bold" active={Boolean(mark.bold)} onClick={() => onCommit({ bold: !mark.bold })} />
+            <SizeChip label={<Italic className="size-4" />} name="Italic" active={Boolean(mark.italic)} onClick={() => onCommit({ italic: !mark.italic })} />
+          </div>
+          <div className="flex items-center gap-1">
+            {(
+              [
+                ["left", <AlignLeft key="l" className="size-4" />],
+                ["center", <AlignCenter key="c" className="size-4" />],
+                ["right", <AlignRight key="r" className="size-4" />],
+              ] as Array<[EditAlign, React.ReactNode]>
+            ).map(([id, icon]) => (
+              <SizeChip
+                key={id}
+                label={icon}
+                name={`Align ${id}`}
+                active={(mark.align ?? "left") === id}
+                onClick={() => onCommit({ align: id })}
+              />
+            ))}
+          </div>
+        </>
       ) : null}
       <div className="flex items-center gap-1.5">
         {colors.map((color) => (
@@ -774,6 +962,13 @@ function MarkProps({
             onClick={() => onPatch({ color })}
           />
         ))}
+        <input
+          type="color"
+          aria-label="Custom colour"
+          value={/^#[0-9a-f]{6}$/i.test(mark.color) ? mark.color : "#14161c"}
+          className="size-7 cursor-pointer rounded-full border border-ink/20 bg-transparent p-0 sm:size-6"
+          onChange={(event) => onPatch({ color: event.target.value })}
+        />
       </div>
       {mark.kind === "rect" ? (
         <label className="flex items-center gap-2 text-sm text-ink">
@@ -820,18 +1015,22 @@ function ToolButton({
 
 function SizeChip({
   label,
+  name,
   active,
   onClick,
 }: {
-  label: string;
+  label: React.ReactNode;
+  name: string;
   active: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
+      aria-label={name}
+      aria-pressed={active}
       className={cn(
-        "size-10 rounded-lg border text-sm font-semibold sm:size-8",
+        "flex size-10 items-center justify-center rounded-lg border text-sm font-semibold sm:size-8",
         active ? "border-ink bg-ink text-card" : "border-ink/15 bg-card text-ink",
       )}
       onClick={onClick}

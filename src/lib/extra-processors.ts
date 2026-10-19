@@ -54,6 +54,13 @@ import {
   signPlacementReady,
 } from "@/lib/tool-options";
 import { boxToPlacement, pageFrame } from "@/lib/page-geometry";
+import {
+  dataUrlBytes,
+  drawEditMark,
+  hexRgb,
+  stripCoveredText,
+  type FontCache,
+} from "@/lib/edit-draw";
 import { batesLabel, batesPlacement, batesReady } from "@/lib/bates";
 import { parseHexColor, watermarkStamps } from "@/lib/watermark";
 
@@ -169,15 +176,14 @@ export async function processEditPdf(
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to edit.");
   const doc = await loadPdf(item.file);
-  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const fonts: FontCache = new Map();
+  const removed = await stripCoveredText(doc, marks);
   onProgress(0.15);
   for (let index = 0; index < marks.length; index++) {
     const mark = marks[index];
     const page = doc.getPage(mark.pageIndex);
     if (!page) continue;
-    const size = page.getSize();
-    const box = pageBoxToPdf(mark, size.width, size.height);
-    await drawEditMark(doc, page, font, mark, box, size.height);
+    await drawEditMark(doc, page, fonts, mark, removed.get(mark.id) ?? 0);
     onProgress(0.15 + (0.75 * (index + 1)) / marks.length);
   }
   stripPdfMetadata(doc);
@@ -196,100 +202,6 @@ export async function processEditPdf(
 function editDrawOrder(a: EditMark, b: EditMark) {
   const rank = { highlight: 0, rect: 1, image: 2, text: 3 };
   return rank[a.kind] - rank[b.kind];
-}
-
-function hexRgb(hex: string) {
-  const raw = hex.replace("#", "");
-  const full =
-    raw.length === 3
-      ? raw
-          .split("")
-          .map((bit) => bit + bit)
-          .join("")
-      : raw;
-  const value = Number.parseInt(full, 16);
-  if (!Number.isFinite(value)) return rgb(0.08, 0.09, 0.11);
-  return rgb(
-    ((value >> 16) & 255) / 255,
-    ((value >> 8) & 255) / 255,
-    (value & 255) / 255,
-  );
-}
-
-function dataUrlBytes(raw: string) {
-  const comma = raw.indexOf(",");
-  const binary = atob(comma >= 0 ? raw.slice(comma + 1) : raw);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-async function drawEditMark(
-  doc: PDFDocument,
-  page: ReturnType<PDFDocument["getPage"]>,
-  font: Awaited<ReturnType<PDFDocument["embedFont"]>>,
-  mark: EditMark,
-  box: { x: number; y: number; width: number; height: number },
-  pageHeight: number,
-) {
-  switch (mark.kind) {
-    case "highlight":
-      page.drawRectangle({
-        ...box,
-        color: hexRgb(mark.color),
-        opacity: 0.38,
-        borderWidth: 0,
-      });
-      return;
-    case "rect":
-      if (mark.fill) {
-        page.drawRectangle({
-          ...box,
-          color: hexRgb(mark.color),
-          opacity: 0.22,
-          borderColor: hexRgb(mark.color),
-          borderWidth: 1.2,
-        });
-        return;
-      }
-      page.drawRectangle({
-        ...box,
-        borderColor: hexRgb(mark.color),
-        borderWidth: 1.5,
-      });
-      return;
-    case "image": {
-      const bytes = dataUrlBytes(mark.dataUrl);
-      const image = mark.dataUrl.includes("image/png")
-        ? await doc.embedPng(bytes)
-        : await doc.embedJpg(bytes);
-      page.drawImage(image, box);
-      return;
-    }
-    case "text": {
-      if (mark.cover) {
-        page.drawRectangle({
-          x: box.x - 0.6,
-          y: box.y - 0.6,
-          width: box.width + 1.2,
-          height: box.height + 1.2,
-          color: hexRgb("#ffffff"),
-          borderWidth: 0,
-        });
-      }
-      const text = keepHelveticaWinAnsi(mark.text).trim();
-      if (!text) return;
-      const fontSize = Math.max(6, Math.min(mark.fontSize * pageHeight, 72));
-      page.drawText(text, {
-        x: box.x + 0.4,
-        y: box.y + Math.max(0, (box.height - fontSize) / 2),
-        size: fontSize,
-        font,
-        color: hexRgb(mark.color),
-        maxWidth: Math.max(8, box.width),
-      });
-    }
-  }
 }
 
 /** Hand-drawn boxes plus every finding the reader kept. */
