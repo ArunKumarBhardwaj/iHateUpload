@@ -89,7 +89,7 @@ import {
 } from "@/lib/processors";
 import type { FileFacts } from "@/lib/preview";
 import { TOOL_GROUPS } from "@/lib/tool-groups";
-import { useFilePreviews, usePagePreviews } from "@/lib/use-previews";
+import { useFilePreviews } from "@/lib/use-previews";
 import { cn, downloadBlob, formatBytes } from "@/lib/utils";
 
 async function runTool(
@@ -301,8 +301,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       : undefined;
   const pagedFacts = pagedFile ? previews.get(pagedFile.id)?.facts : undefined;
   const pageCount = pagedFacts?.kind === "pdf" ? pagedFacts.pages : 0;
-  const organizeFile = options.kind === "organize" ? pagedFile : undefined;
-  const pagePreviews = usePagePreviews(organizeFile, pageCount);
 
   const setFiles = useCallback((next: FileItem[]) => {
     setJob(next.length === 0 ? idleJob() : { status: "ready", files: next });
@@ -338,7 +336,11 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     setOrderedKey(pageKey);
     setOptions({
       kind: "organize",
-      pageOrder: Array.from({ length: pageCount }, (_, index) => index),
+      entries: Array.from({ length: pageCount }, (_, index) => ({
+        id: `p${index}`,
+        src: index,
+        turn: 0 as const,
+      })),
     });
   }
   if (options.kind === "extract" && orderedKey !== pageKey) {
@@ -467,7 +469,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       onOptions={setOptions}
       confirmPassword={confirmPassword}
       onConfirmPassword={setConfirmPassword}
-      pagePreviews={pagePreviews}
       pageCount={pageCount}
       firstPage={files[0] ? previews.get(files[0].id)?.thumbnail : undefined}
       files={files}

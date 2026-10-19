@@ -1,5 +1,6 @@
 import { batesReady } from "@/lib/bates";
 import type { FlipMode } from "@/lib/page-ops";
+import type { OrganizeEntry } from "@/lib/page-tools/types";
 import { DEFAULT_RESIZE, type ResizeSettings } from "@/lib/page-tools/resize";
 import { DEFAULT_NUP, type NupSettings } from "@/lib/page-tools/nup";
 import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
@@ -134,6 +135,8 @@ export type ToolOptions =
       flip: FlipMode;
       /** Empty or "all" turns every page. */
       range: string;
+      /** Extra clockwise turn for single pages (zero-based), on top of `degrees`. */
+      perPage: Record<number, 0 | 90 | 180 | 270>;
     }
   | {
       kind: "split";
@@ -180,7 +183,7 @@ export type ToolOptions =
       /** Empty or "all" reads every page. */
       range: string;
     }
-  | { kind: "organize"; pageOrder: number[] }
+  | { kind: "organize"; entries: OrganizeEntry[] }
   | { kind: "resize"; maxEdge: number }
   | { kind: "compress"; level: CompressLevel; targetKb: number | null }
   | { kind: "extract"; range: string; pageCount: number }
@@ -622,7 +625,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "password-confirm":
       return { kind: "password-confirm", password: "" };
     case "rotate":
-      return { kind: "rotate", degrees: 90, flip: "none", range: "" };
+      return { kind: "rotate", degrees: 0, flip: "none", range: "", perPage: {} };
     case "split":
       return {
         kind: "split",
@@ -668,7 +671,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         range: "",
       };
     case "organize":
-      return { kind: "organize", pageOrder: [] };
+      return { kind: "organize", entries: [] };
     case "resize":
       return { kind: "resize", maxEdge: 1280 };
     case "compress":
@@ -859,7 +862,11 @@ export function optionsReady(
         options.cols * options.rows >= 2
       );
     case "rotate":
-      return options.degrees !== 0 || options.flip !== "none";
+      return (
+        options.degrees !== 0 ||
+        options.flip !== "none" ||
+        Object.values(options.perPage ?? {}).some((turn) => turn !== 0)
+      );
     case "split":
       return options.mode === "ranges"
         ? options.ranges.trim().length > 0
@@ -920,7 +927,7 @@ export function optionsReady(
         options.password === confirmPassword
       );
     case "organize":
-      return options.pageOrder.length >= 1;
+      return options.entries.some((entry) => entry.src >= 0);
     case "resize":
       return (
         Number.isFinite(options.maxEdge) &&
