@@ -13,7 +13,6 @@ import {
 } from "@/components/workbench/options-panel";
 import { ExtractImagesGrid } from "@/components/workbench/extract-images-grid";
 import { ImageCropOverlay } from "@/components/workbench/image-crop-overlay";
-import { PageOverlay } from "@/components/workbench/page-overlay";
 import { SignCanvas } from "@/components/workbench/sign-canvas";
 import { PdfEditCanvas } from "@/components/workbench/pdf-edit-canvas";
 import { ComparePreview } from "@/components/workbench/compare-preview";

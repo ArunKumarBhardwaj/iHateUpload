@@ -1,4 +1,4 @@
-export default async function (page) {
+export default async function crop(page) {
   await page.getByRole("button", { name: "Each page its own crop" }).click();
   await page.locator("#crop-top").fill("40");
   await page.getByRole("button", { name: /^Page 3/ }).click();

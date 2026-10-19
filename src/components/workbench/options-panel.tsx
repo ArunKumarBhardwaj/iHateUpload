@@ -1048,13 +1048,6 @@ export function OptionsPanel({
     case "edit":
       return null;
 
-    case "crop":
-      return (
-        <p className="text-sm text-muted-foreground">
-          The same crop applies to every page. Drag the box on the page.
-        </p>
-      );
-
     case "redact": {
       const kept = options.findings.filter((f) => f.accepted).length;
       const total = options.boxes.length + kept;
