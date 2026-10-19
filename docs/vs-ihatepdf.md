@@ -25,9 +25,9 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 
 | | Count |
 |---|---|
-| ✅ We are better (measured) | 27 rows |
+| ✅ We are better (measured) | 28 rows |
 | 🟰 Equal (measured) | 20 rows |
-| ⚠️ They are better | 4 rows |
+| ⚠️ They are better | 3 rows |
 | ❔ Shared, not compared yet | 1 rows |
 | ➕ Only we have | 15 tools (section 3) |
 | ❌ Only they have | 19 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
@@ -81,7 +81,7 @@ Biggest gaps: 20 shared tools behind on options (see section 2 ⚠️ rows), PDF
 | Rotate / flip PDF | Thumbnail grid: per-page left/right/180, select-and-turn, rotate all, reset; page range; mirror | Same grid actions; no page range, no mirror | ✅ | Synthetic six.pdf (mixed sizes/rotations) driven in our page, renders checked; rival run same file. bench/page-tools (drive.mjs, steps/rotate.mjs), 2026-10-19 |
 | Organize pages | Drag and drop + Alt+Arrow keyboard reorder, per-page rotate, duplicate, insert blank, delete, multi-select | Drag and drop, rotate, delete | ✅ | Synthetic six.pdf, output order/rotation checked by render; bench/page-tools steps, 2026-10-19 |
 | Sign PDF | Any page via page strip, ink colour and width, draw/type/photo with background removal, date stamps, multiple placements, undo/redo | Multi-page viewer, ink colour, photo, undo, resize, zoom | 🟰 | merged from wave2 branches, agent browser-proved + lead render check; rival features from `.scratch/head-to-head-wave2.md`; no fresh side-by-side, 2026-10-17 |
-| Edit PDF text | Click a line to edit; OCR for scans | Font, size, B/I, colour, align, find-replace, undo; no OCR | ⚠️ | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
+| Edit PDF text | Click a line to edit, old glyphs removed from the content stream (standard, TrueType, Type0, TJ kerning, rotated pages); font family, size, B/I, colour, align, add text box, undo/redo; find & replace across all pages (match case, whole word, count, next/prev, one/all); OCR for scans | Font ("Original"), size, B/I, colour, align, undo/redo; find & replace on the current page only; old text stays in the file; no OCR | ✅ | Synthetic invoice.pdf: after edit, old string gone from our extracted text but still in theirs ("Bill to: Acme Corp"); our replace-all hit page 2, theirs did not. Lead re-extracted all outputs. bench/wave2-d, 2026-10-19 |
 | Crop / page size | Per-page or all-pages crop, 8 drag handles, margins in mm or %, untouched pages kept; page size A3/A4/A5/Letter/Legal/Tabloid + custom (mm/in/pt), fit/fill/stretch, keeps orientation, vector | Per-page crop, 4 sliders, 6 paper sizes + custom, scale to fit; their A3 forced a landscape page to portrait | ✅ | six.pdf: lead re-ran per-page crop, crop boxes exact (p1 top 40 mm, p3 left 100 mm, others untouched); 52 ms vs 189 ms. bench/page-tools, 2026-10-19 |
 | Redact PDF | Manual boxes + automatic PII finder (11 types, checksum-validated, OCR for scans, per-item review), pixels burned out | Automatic finder: Aadhaar (no checksum), PAN, IFSC, email, bank, DOB; no cards, phones, IBAN, SSN; no OCR | ✅ | bench/redact head-to-head, 2026-10-17 |
 | Compare PDFs | Exact line diff, flags changed lines | Synced viewers; "AI" downloads ~100 MB for a summary, no diff | ✅ | vs production; `.scratch/head-to-head-wave2.md`, 2026-10-17 |
