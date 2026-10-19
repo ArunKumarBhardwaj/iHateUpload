@@ -4,6 +4,7 @@
 import { ConvertOptions, convertDocHint } from "@/components/workbench/convert-options";
 import { BatesControls } from "@/components/workbench/bates-controls";
 import { CropPanel } from "@/components/workbench/page-tools/crop-panel";
+import { InvertPanel } from "@/components/workbench/page-tools/invert-panel";
 import { RotatePanel } from "@/components/workbench/page-tools/rotate-panel";
 import { OrganizePanel } from "@/components/workbench/page-tools/organize-panel";
 import { PageSizePanel } from "@/components/workbench/page-tools/page-size-panel";
@@ -121,6 +122,7 @@ export function optionsNeedCanvas(options: ToolOptions): boolean {
   return (
     options.kind === "organize" ||
     options.kind === "rotate" ||
+    options.kind === "invert" ||
     options.kind === "sign" ||
     options.kind === "edit" ||
     options.kind === "crop" ||
@@ -198,7 +200,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "insert-blank":
       return "Insert one blank page after the page number you type. 0 puts it first.";
     case "invert":
-      return "Invert flips every pixel. Grayscale keeps the layout, drops the color.";
+      return "Pick a look. Text-keeping mode recolours without redrawing, so text stays selectable and the file stays small.";
     case "nup":
       return "Pick a grid, a paper size and how pages flow. Pages stay vector, so text stays selectable.";
     case "page-size":
@@ -966,29 +968,12 @@ export function OptionsPanel({
 
     case "invert":
       return (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-ink">Mode</p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["invert", "Invert"],
-                ["grayscale", "Grayscale"],
-              ] as const
-            ).map(([mode, title]) => (
-              <Button
-                key={mode}
-                type="button"
-                size="sm"
-                className={OPTION_BUTTON}
-                variant={options.mode === mode ? "default" : "outline"}
-                disabled={disabled}
-                onClick={() => onOptions({ kind: "invert", mode })}
-              >
-                {title}
-              </Button>
-            ))}
-          </div>
-        </div>
+        <InvertPanel
+          options={options}
+          onOptions={onOptions}
+          file={files?.[0]?.file}
+          disabled={disabled}
+        />
       );
 
     case "nup":

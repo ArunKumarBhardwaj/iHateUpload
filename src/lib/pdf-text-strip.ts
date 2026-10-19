@@ -353,7 +353,6 @@ async function stripStream(
   formHits: Array<{ ref: PDFRef; stream: PDFRawStream; matrix: Matrix; resources: PDFDict | undefined }>,
 ): Promise<{ bytes: Uint8Array; removed: number }> {
   const toks = lex(bytes);
-  console.log("DBG", toks.length, rects.length, new TextDecoder().decode(bytes.slice(0, 60)));
   const edits: Edit[] = [];
   let removed = 0;
 

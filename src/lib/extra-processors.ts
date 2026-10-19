@@ -9,6 +9,8 @@ import type { PDFPageProxy } from "pdfjs-dist";
 
 import type { FileItem, ResultItem } from "@/lib/job";
 import { stripInvisibleText } from "@/lib/page-ops";
+import { mapPixel } from "@/lib/page-tools/colour";
+import { recolourPages, withoutText } from "@/lib/page-tools/invert";
 import { cropPages } from "@/lib/page-tools/crop";
 import { resizePages } from "@/lib/page-tools/resize";
 import { buildNup } from "@/lib/page-tools/nup";
@@ -1728,62 +1730,65 @@ export async function processInvertPdf(
 ): Promise<ResultItem[]> {
   if (options.kind !== "invert") throw new Error("Invert needs a mode.");
   const item = files[0];
-  if (!item) throw new Error("Choose a PDF to invert.");
-  const source = await loadPdf(item.file);
+  if (!item) throw new Error("Choose a PDF to recolour.");
+  const suffix = {
+    invert: "-inverted.pdf",
+    dark: "-dark.pdf",
+    sepia: "-sepia.pdf",
+    grayscale: "-gray.pdf",
+  }[options.mode];
+  const name = replaceExt(item.name, "pdf").replace(/\.pdf$/i, suffix);
+
+  if (options.engine === "vector") {
+    const bytes = await item.file.arrayBuffer();
+    const doc = await loadPdf(item.file);
+    onProgress(0.2);
+    await recolourPages(
+      doc,
+      options.mode,
+      options.mode === "dark" && options.keepHues
+        ? await withoutText(bytes)
+        : undefined,
+    );
+    onProgress(0.9);
+    stripPdfMetadata(doc);
+    return [
+      resultFrom(item, pdfBlob(await doc.save({ useObjectStreams: true })), name, item.size),
+    ];
+  }
+
   const { getDocument } = await loadPdfJs();
   const data = new Uint8Array(await item.file.arrayBuffer());
   const src = await getDocument({ data }).promise;
   const out = await PDFDocument.create();
+  const scale = Math.min(6, Math.max(0.5, options.dpi / 72));
   try {
     for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
       const page = await src.getPage(pageNum);
-      const { canvas, ctx } = await renderPageCanvas(page, 1.6);
+      const { width, height } = page.getViewport({ scale: 1 });
+      const { canvas, ctx } = await renderPageCanvas(page, scale);
       const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const buf = pixels.data;
-      if (options.mode === "invert") {
-        for (let i = 0; i < buf.length; i += 4) {
-          buf[i] = 255 - (buf[i] ?? 0);
-          buf[i + 1] = 255 - (buf[i + 1] ?? 0);
-          buf[i + 2] = 255 - (buf[i + 2] ?? 0);
-        }
-      } else {
-        for (let i = 0; i < buf.length; i += 4) {
-          const gray = Math.round(
-            0.2126 * (buf[i] ?? 0) +
-              0.7152 * (buf[i + 1] ?? 0) +
-              0.0722 * (buf[i + 2] ?? 0),
-          );
-          buf[i] = gray;
-          buf[i + 1] = gray;
-          buf[i + 2] = gray;
-        }
+      for (let i = 0; i < buf.length; i += 4) {
+        const [r, g, b] = mapPixel(options.mode, buf[i], buf[i + 1], buf[i + 2]);
+        buf[i] = r;
+        buf[i + 1] = g;
+        buf[i + 2] = b;
       }
       ctx.putImageData(pixels, 0, 0);
       const jpeg = await canvasToJpeg(canvas, 0.86);
       page.cleanup();
       const image = await out.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
-      const size = source.getPage(pageNum - 1).getSize();
-      const pdfPage = out.addPage([size.width, size.height]);
-      pdfPage.drawImage(image, {
-        x: 0,
-        y: 0,
-        width: size.width,
-        height: size.height,
-      });
+      const pdfPage = out.addPage([width, height]);
+      pdfPage.drawImage(image, { x: 0, y: 0, width, height });
       onProgress(pageNum / src.numPages);
     }
   } finally {
     await src.loadingTask.destroy();
   }
   stripPdfMetadata(out);
-  const suffix = options.mode === "invert" ? "-inverted.pdf" : "-gray.pdf";
   return [
-    resultFrom(
-      item,
-      pdfBlob(await out.save({ useObjectStreams: true })),
-      replaceExt(item.name, "pdf").replace(/\.pdf$/i, suffix),
-      item.size,
-    ),
+    resultFrom(item, pdfBlob(await out.save({ useObjectStreams: true })), name, item.size),
   ];
 }
 

@@ -1,6 +1,6 @@
 import { batesReady } from "@/lib/bates";
 import type { FlipMode } from "@/lib/page-ops";
-import type { OrganizeEntry } from "@/lib/page-tools/types";
+import type { InvertEngine, InvertMode, OrganizeEntry } from "@/lib/page-tools/types";
 import { DEFAULT_RESIZE, type ResizeSettings } from "@/lib/page-tools/resize";
 import { DEFAULT_NUP, type NupSettings } from "@/lib/page-tools/nup";
 import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
@@ -227,7 +227,7 @@ export type ToolOptions =
       skipFirst: boolean;
     }
   | { kind: "insert-blank"; afterPage: number }
-  | { kind: "invert"; mode: "invert" | "grayscale" }
+  | { kind: "invert"; mode: InvertMode; engine: InvertEngine; dpi: number; keepHues: boolean }
   | ({ kind: "nup" } & NupSettings)
   | ({ kind: "page-size" } & ResizeSettings)
   | {
@@ -733,7 +733,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "insert-blank":
       return { kind: "insert-blank", afterPage: 1 };
     case "invert":
-      return { kind: "invert", mode: "invert" };
+      return { kind: "invert", mode: "invert", engine: "vector", dpi: 150, keepHues: true };
     case "nup":
       return { kind: "nup", ...DEFAULT_NUP };
     case "page-size":

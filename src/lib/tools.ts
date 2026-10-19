@@ -698,18 +698,18 @@ export const TOOLS: ToolDefinition[] = [
     title: "Invert / Grayscale",
     shortTitle: "Invert",
     description:
-      "Invert colors or convert pages to grayscale. Pages are redrawn in this tab.",
+      "Dark mode, invert, sepia or grayscale. Text can stay selectable. Runs in this tab.",
     accept: "application/pdf,.pdf",
     multiple: false,
     ordered: false,
     actionLabel: "Apply",
     seoTitle: "Invert or Grayscale PDF Free — No Upload",
     seoDescription:
-      "Invert a PDF or convert it to grayscale online free. Pages are redrawn in your browser — no upload.",
+      "Dark mode, invert, sepia or grayscale a PDF online free. Text stays selectable. Runs in your browser — no upload.",
     seoHowTo: [
       "Choose the PDF.",
-      "Pick invert or grayscale.",
-      "Download the redrawn PDF.",
+      "Pick dark mode, invert, sepia or grayscale.",
+      "Download the recoloured PDF.",
     ],
     showInNav: true,
     kind: "pdf",
