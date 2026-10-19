@@ -43,8 +43,8 @@ Biggest gaps: PDF to PowerPoint, Repair, Fill form, workflows, on-device AI, blo
 |---|---|---|---|---|
 | Files processed in the browser, never uploaded | Yes (all tools except Ask PDF text) | Yes (REA network capture of Compress: only their workers loaded) | 🟰 | REA capture, 2026-10-12 |
 | Session recording / heavy analytics on tool pages | None (Vercel Analytics page views only) | Microsoft Clarity session recorder (`_cltk` key during a compress run) | ✅ | REA storage capture, 2026-10-12 |
-| PDF libraries | pdf.js 6.2 and maintained `@cantoo/pdf-lib`, bundled | pdf.js 3.11.174 and pdf-lib 1.17.1 loaded from public CDNs, no SRI | ✅ | Bundle teardown, 2026-10-12 |
-| Works offline | Yes (service worker caches code and WASM codecs) | Yes (service worker) | 🟰 | Both service workers read, 2026-10-12 |
+| PDF libraries | pdf.js 6.2 and maintained `@cantoo/pdf-lib`, bundled; Tesseract worker, core and language data, and pdf.js WASM decoders served from our own origin | pdf.js 3.11.174 and pdf-lib 1.17.1 loaded from public CDNs, no SRI | ✅ | Bundle teardown, 2026-10-12; Playwright on a production build: zero non-origin requests during OCR, 2026-10-20 |
+| Works offline | Yes (service worker caches code, WASM codecs, and OCR worker, core and language data on first use) | Yes (service worker) | 🟰 | Both service workers read, 2026-10-12; offline OCR re-run after one online run, 2026-10-20 |
 | Page speed (Lighthouse mobile) | Home 98, tool page 85–100 | Home 93, Compress 81 | ✅ | Lighthouse 12, 2026-10-12 / 2026-10-13 |
 | Accessibility (Lighthouse) | 100 on home and tool pages | 93–95 | ✅ | Lighthouse 12, 2026-10-13 |
 | Best practices (Lighthouse) | 96–100 | 79 | ✅ | Lighthouse 12, 2026-10-12 |

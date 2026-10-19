@@ -1,3 +1,4 @@
+import { createOcrWorker } from "../tesseract";
 import { ocrBlocksToItems } from "../pdf-to-word/ocr";
 import type { PageReader } from "../pdf-to-word/ocr";
 
@@ -64,8 +65,8 @@ type TessWorker = Awaited<ReturnType<(typeof import("tesseract.js"))["createWork
  * into columns and loses whole ones; reading across the rows keeps each row's cells together.
  */
 export async function createTableReader(language: string, onPage: (ratio: number) => void): Promise<PageReader> {
-  const { createWorker, PSM } = await import("tesseract.js");
-  const worker: TessWorker = await createWorker(language, 1, {
+  const { PSM } = await import("tesseract.js");
+  const worker: TessWorker = await createOcrWorker(language, {
     logger: (message) => {
       if (message.status === "recognizing text") onPage(message.progress);
     },

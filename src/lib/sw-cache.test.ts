@@ -91,3 +91,17 @@ test("leaves HTML tool routes uncached", () => {
     }),
   ).toBe("skip");
 });
+
+test("cache-first for the version-pinned OCR and pdf.js engine files", () => {
+  for (const path of [
+    "/tesseract/7.0.0/worker.min.js",
+    "/tesseract/7.0.0/tesseract-core-simd-lstm.wasm.js",
+    "/tessdata/4.0.0_best_int/eng.traineddata.gz",
+    "/pdfjs/6.2.108/wasm/openjpeg.wasm",
+    "/pdfjs/6.2.108/cmaps/UniGB-UCS2-H.bcmap",
+  ]) {
+    expect(
+      cachePolicy({ method: "GET", mode: "cors", url: `${origin}${path}`, origin }),
+    ).toBe("cache-first");
+  }
+});

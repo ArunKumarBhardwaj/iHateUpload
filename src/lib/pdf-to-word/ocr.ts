@@ -1,3 +1,4 @@
+import { createOcrWorker } from "../tesseract";
 import type { TextItem } from "./lines";
 
 type Bbox = { x0: number; y0: number; x1: number; y1: number };
@@ -61,8 +62,8 @@ export async function createPageReader(
   language: string,
   onPage: (ratio: number) => void,
 ): Promise<PageReader> {
-  const { createWorker, PSM } = await import("tesseract.js");
-  const worker: TessWorker = await createWorker(language, 1, {
+  const { PSM } = await import("tesseract.js");
+  const worker: TessWorker = await createOcrWorker(language, {
     logger: (message) => {
       if (message.status === "recognizing text") onPage(message.progress);
     },

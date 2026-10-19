@@ -1,3 +1,5 @@
+import { VERSIONED_ASSET } from "./wasm-assets";
+
 export const CACHE = "ihateupload-static-v2";
 export const IMMUTABLE = /\.(?:woff2?|png|svg|ico|webmanifest)$/;
 export const CODE = /\.(?:js|css|mjs|wasm)$/;
@@ -14,6 +16,7 @@ export function cachePolicy(input: {
   const url = new URL(input.url);
   if (url.origin !== input.origin) return "skip";
   if (input.mode === "navigate") return "skip";
+  if (VERSIONED_ASSET.test(url.pathname)) return "cache-first";
   if (CODE.test(url.pathname)) return "network-first";
   if (IMMUTABLE.test(url.pathname)) return "cache-first";
   return "skip";
