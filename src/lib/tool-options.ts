@@ -496,7 +496,7 @@ export const TARGET_KB_PRESETS = [50, 100, 200, 500, 1024] as const;
 export const TARGET_KB_MIN = 20;
 export const TARGET_KB_MAX = 8192;
 
-export const PDF_TARGET_KB_PRESETS = [200, 500, 1024, 2048, 5120] as const;
+export const PDF_TARGET_KB_PRESETS = [100, 200, 500, 1024, 2048, 5120] as const;
 export const PDF_TARGET_KB_MAX = 102400;
 
 export const COMPRESS_LEVELS: {

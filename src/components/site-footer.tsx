@@ -76,6 +76,11 @@ export function SiteFooter() {
               All tools A to Z
             </Link>
           </li>
+          <li>
+            <Link href="/alternatives" className="hover:text-ink">
+              Compare alternatives
+            </Link>
+          </li>
         </FooterColumn>
       </div>
 

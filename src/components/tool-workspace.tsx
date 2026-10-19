@@ -277,13 +277,20 @@ function pdfPageCount(facts: FileFacts | null | undefined) {
   return facts?.kind === "pdf" ? facts.pages : 0;
 }
 
-export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
+export function ToolWorkspace({
+  tool,
+  preset,
+}: {
+  tool: ToolDefinition;
+  /** Landing pages start the tool with options already chosen. */
+  preset?: ToolOptions;
+}) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [job, setJob] = useState<JobState>(idleJob);
   const [dragging, setDragging] = useState(false);
-  const [options, setOptions] = useState<ToolOptions>(() =>
-    initialOptions(tool.ui),
+  const [options, setOptions] = useState<ToolOptions>(
+    () => preset ?? initialOptions(tool.ui),
   );
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -427,7 +434,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
 
   const reset = () => {
     setJob(idleJob());
-    setOptions(initialOptions(tool.ui));
+    setOptions(preset ?? initialOptions(tool.ui));
     setConfirmPassword("");
     if (inputRef.current) inputRef.current.value = "";
   };
