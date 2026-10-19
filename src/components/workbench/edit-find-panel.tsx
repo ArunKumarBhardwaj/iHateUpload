@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { ChevronDown, ChevronUp, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { planFindReplace, type PageRuns } from "@/lib/edit-find-replace";
+import { findMatches, mergePlanned, planFindReplace, type PageRuns } from "@/lib/edit-find-replace";
 import { loadPdfJs } from "@/lib/pdfjs";
 import { fontFromName, mergeTextRuns, pdfJsItemsToRuns, type PdfJsLikeItem } from "@/lib/pdf-edit-runs";
 import type { EditMark } from "@/lib/tool-options";
@@ -34,6 +34,7 @@ export function EditFindPanel({
   const [pages, setPages] = useState<PageRuns[] | null>(null);
   const [seenFile, setSeenFile] = useState(file);
   const [message, setMessage] = useState("");
+  const [current, setCurrent] = useState(0);
 
   if (seenFile !== file) {
     setSeenFile(file);
@@ -87,9 +88,28 @@ export function EditFindPanel({
     };
   }, [open, pages, file]);
 
-  const plan = pages
-    ? planFindReplace(pages, find, replace, { matchCase, wholeWord })
-    : null;
+  const options = { matchCase, wholeWord };
+  const matches = pages ? findMatches(pages, marks, find, options) : [];
+  const at = matches.length ? Math.min(current, matches.length - 1) : 0;
+  const pagesHit = [...new Set(matches.map((m) => m.pageIndex))];
+
+  const step = (delta: number) => {
+    if (matches.length === 0) return;
+    const next = (at + delta + matches.length) % matches.length;
+    setCurrent(next);
+    setMessage("");
+    onJump(matches[next].pageIndex);
+  };
+
+  const apply = (only?: (typeof matches)[number]) => {
+    if (!pages) return;
+    const plan = planFindReplace(pages, marks, find, replace, options, only);
+    if (plan.marks.length === 0) return;
+    onApply(mergePlanned(marks, plan.marks));
+    setMessage(
+      `Replaced ${plan.matches} ${plan.matches === 1 ? "match" : "matches"} on ${plan.pagesHit.length} ${plan.pagesHit.length === 1 ? "page" : "pages"}.`,
+    );
+  };
 
   if (!open) {
     return (
@@ -117,6 +137,7 @@ export function EditFindPanel({
           className="h-10 w-44 sm:h-8"
           onChange={(e) => {
             setFind(e.target.value);
+            setCurrent(0);
             setMessage("");
           }}
         />
@@ -138,48 +159,54 @@ export function EditFindPanel({
         </label>
         <Button
           type="button"
-          size="sm"
-          disabled={disabled || !plan || plan.marks.length === 0}
-          onClick={() => {
-            if (!plan) return;
-            // A line already being edited is replaced by the new plan for that line.
-            const kept = marks.filter(
-              (m) =>
-                !(
-                  m.kind === "text" &&
-                  m.cover &&
-                  plan.marks.some(
-                    (p) =>
-                      p.pageIndex === m.pageIndex &&
-                      Math.abs(p.x - m.x) < 0.01 &&
-                      Math.abs(p.y - m.y) < 0.01,
-                  )
-                ),
-            );
-            onApply([...kept, ...plan.marks]);
-            setMessage(
-              `Replaced ${plan.matches} ${plan.matches === 1 ? "match" : "matches"} on ${plan.pagesHit.length} ${plan.pagesHit.length === 1 ? "page" : "pages"}.`,
-            );
-          }}
+          size="icon"
+          variant="outline"
+          aria-label="Previous match"
+          className="size-10 sm:size-8"
+          disabled={disabled || matches.length === 0}
+          onClick={() => step(-1)}
         >
+          <ChevronUp />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          aria-label="Next match"
+          className="size-10 sm:size-8"
+          disabled={disabled || matches.length === 0}
+          onClick={() => step(1)}
+        >
+          <ChevronDown />
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={disabled || matches.length === 0}
+          onClick={() => apply(matches[at])}
+        >
+          Replace
+        </Button>
+        <Button type="button" size="sm" disabled={disabled || matches.length === 0} onClick={() => apply()}>
           Replace all
         </Button>
         <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
           Close
         </Button>
       </div>
-      <p className="text-sm text-muted-foreground" aria-live="polite">
+      <p className="text-sm text-muted-foreground" aria-live="polite" data-testid="find-status">
         {message ||
           (!pages
             ? `Reading ${pageCount || ""} pages…`
             : !find
               ? "Whole lines are rewritten in a matching standard font. Pages that are scans have no text to find."
-              : plan && plan.matches > 0
-                ? `${plan.matches} ${plan.matches === 1 ? "match" : "matches"} on ${plan.pagesHit.length} ${plan.pagesHit.length === 1 ? "page" : "pages"}.`
+              : matches.length > 0
+                ? `Match ${at + 1} of ${matches.length}, on ${pagesHit.length} ${pagesHit.length === 1 ? "page" : "pages"}.`
                 : "No matches.")}
-        {plan && plan.pagesHit.length > 0 && !message ? (
+        {pagesHit.length > 0 && !message ? (
           <span className="ml-2 inline-flex flex-wrap gap-1">
-            {plan.pagesHit.slice(0, 12).map((index) => (
+            {pagesHit.slice(0, 12).map((index) => (
               <button
                 key={index}
                 type="button"
