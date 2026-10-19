@@ -1,4 +1,5 @@
 /** Markdown -> blocks for the shared layout engine. A small GFM subset parser, no dependencies. */
+import { MATH_MIME, matchMath, mathKey, type MathArt } from "./math-art";
 import type { Align, Block, Family, Inline, InlineStyle, Para, Row, TableBlock } from "../word-to-pdf/model";
 
 export interface MarkdownOptions {
@@ -6,9 +7,13 @@ export interface MarkdownOptions {
   numberHeadings: boolean;
   font: "sans" | "serif" | "mono";
   fontSize: number;
+  /** multiple of the font's natural line height; 1 = as designed */
+  lineSpacing: number;
+  /** pre-rendered formulas (see renderMath); math is printed as typed when absent */
+  mathArt?: Map<string, MathArt>;
 }
 
-export const MD_DEFAULTS: MarkdownOptions = { toc: false, numberHeadings: false, font: "sans", fontSize: 11 };
+export const MD_DEFAULTS: MarkdownOptions = { toc: false, numberHeadings: false, font: "sans", fontSize: 11, lineSpacing: 1 };
 
 const LINK_OK = /^(https?:|mailto:|tel:)/i;
 const HEADING_SCALE = [1.85, 1.5, 1.25, 1.1, 1, 0.95];
@@ -68,10 +73,32 @@ export function parseInline(src: string, st: InlineStyle, ctx: Ctx, out: Inline[
       i++;
       continue;
     }
+    if (ch === "\\" && (s[i + 1] === "(" || s[i + 1] === "[") && ctx.opt.mathArt) {
+      const m = matchMath(s, i);
+      const art = m && ctx.opt.mathArt.get(mathKey(m.tex, m.display));
+      if (m && art) {
+        flush();
+        const size = st.size ?? ctx.opt.fontSize;
+        out.push({ kind: "image", data: art.key, mime: MATH_MIME, width: art.w * size, height: art.h * size, depth: art.depth * size, color: st.color });
+        i = m.end;
+        continue;
+      }
+    }
     if (ch === "\\" && i + 1 < s.length && PUNCT.test(s[i + 1])) {
       buf += s[i + 1];
       i += 2;
       continue;
+    }
+    if (ch === "$" && ctx.opt.mathArt) {
+      const m = matchMath(s, i);
+      const art = m && ctx.opt.mathArt.get(mathKey(m.tex, m.display));
+      if (m && art) {
+        flush();
+        const size = st.size ?? ctx.opt.fontSize;
+        out.push({ kind: "image", data: art.key, mime: MATH_MIME, width: art.w * size, height: art.h * size, depth: art.depth * size, color: st.color });
+        i = m.end;
+        continue;
+      }
     }
     if (ch === "`") {
       let n = 1;
@@ -211,7 +238,8 @@ function findClose(s: string, from: number, delim: string): number {
 
 function para(ctx: Ctx, text: string, over: Partial<Para> = {}, st: InlineStyle = base(ctx)): Para {
   const inlines = parseInline(text.replace(/( {2,}|\\)\n/g, BREAK).replace(/\n/g, " "), st, ctx);
-  return { kind: "para", inlines, align: "left", heading: 0, indent: 0, ...over };
+  const line = ctx.opt.lineSpacing !== 1 ? { line: { kind: "mult" as const, v: ctx.opt.lineSpacing } } : undefined;
+  return { kind: "para", inlines, align: "left", heading: 0, indent: 0, ...(line ? { spacing: line } : {}), ...over, ...(line && over.spacing ? { spacing: { ...line, ...over.spacing } } : {}) };
 }
 
 const isFence = (l: string) => /^\s{0,3}(`{3,}|~{3,})/.test(l);
@@ -268,6 +296,28 @@ function parseBlocks(lines: string[], ctx: Ctx, quoted: boolean): Block[] {
       i++;
       out.push(codeBlock(body, ctx));
       continue;
+    }
+    if (ctx.opt.mathArt && /^\s{0,3}(\$\$|\\\[)/.test(line)) {
+      // display math: $$ ... $$ on one or several lines, centred on a line of its own
+      const start = i;
+      let text = line.replace(/^\s*/, "");
+      let j = i;
+      while (!/^(\$\$[\s\S]*\S[\s\S]*\$\$|\\\[[\s\S]*\S[\s\S]*\\\])$/.test(text.trim()) && j + 1 < lines.length && lines[j + 1].trim() && j - start < 40) text += "\n" + lines[++j];
+      const m = matchMath(text.trim(), 0);
+      const art = m && m.end === text.trim().length ? ctx.opt.mathArt.get(mathKey(m.tex, m.display)) : undefined;
+      if (art) {
+        const size = ctx.opt.fontSize * 1.1;
+        out.push({
+          kind: "para",
+          inlines: [{ kind: "image", data: art.key, mime: MATH_MIME, width: art.w * size, height: art.h * size, depth: art.depth * size }],
+          align: "center",
+          heading: 0,
+          indent: 0,
+          spacing: { before: 4, after: 8 },
+        });
+        i = j + 1;
+        continue;
+      }
     }
     if (isHr(line)) {
       out.push({ kind: "para", inlines: [], align: "left", heading: 0, indent: 0, rule: true });

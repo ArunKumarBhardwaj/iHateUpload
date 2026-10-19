@@ -34,7 +34,7 @@ export type Cmd =
   | { t: "shape"; x: number; y: number; path: string; fill?: string; stroke?: string; strokeWidth?: number }
   /** invisible marker for a heading, so a table of contents can find its page */
   | { t: "anchor"; x: number; y: number; id: number }
-  | { t: "image"; x: number; y: number; w: number; h: number; data: Uint8Array; mime: string }
+  | { t: "image"; x: number; y: number; w: number; h: number; data: Uint8Array; mime: string; color?: string }
   | { t: "link"; x: number; y: number; w: number; h: number; href: string };
 
 export interface LaidOutPage {
@@ -87,7 +87,7 @@ interface Resolved {
 type Atom =
   | { k: "w"; text: string; w: number; r: Resolved }
   | { k: "s"; w: number; r: Resolved }
-  | { k: "i"; w: number; h: number; data: Uint8Array; mime: string; href?: string }
+  | { k: "i"; w: number; h: number; data: Uint8Array; mime: string; href?: string; depth?: number; color?: string }
   | { k: "br" };
 
 const clean = (s: string) => s.replace(/ /g, " ").replace(/[​­\r\n\t]/g, "");
@@ -130,7 +130,7 @@ function atomise(p: Para, ctx: Ctx, avail: number): Atom[] {
       const s = Math.min(1, avail / w, ctx.maxImgH / h);
       w *= s;
       h *= s;
-      atoms.push({ k: "i", w, h, data: inl.data, mime: inl.mime });
+      atoms.push({ k: "i", w, h, data: inl.data, mime: inl.mime, depth: inl.depth ? inl.depth * s : undefined, color: inl.color });
     } else {
       const r = resolve(inl.style, p, ctx);
       if (p.pre) {
@@ -249,16 +249,19 @@ function lineItem(
   let maxSize = 0;
   let natural = 0;
   let imgH = 0;
+  let imgDepth = 0;
   for (const a of atoms) {
-    if (a.k === "i") imgH = Math.max(imgH, a.h);
-    else if (a.k === "w" || a.k === "s") {
+    if (a.k === "i") {
+      imgH = Math.max(imgH, a.h - (a.depth ?? 0));
+      imgDepth = Math.max(imgDepth, a.depth ?? 0);
+    } else if (a.k === "w" || a.k === "s") {
       maxSize = Math.max(maxSize, a.r.size);
       natural = Math.max(natural, a.r.size * ctx.lineFactor(a.r.key));
     }
   }
   if (!maxSize) maxSize = fallbackSize;
   if (!natural) natural = maxSize * 1.22;
-  const descent = maxSize * 0.25;
+  const descent = Math.max(maxSize * 0.25, imgDepth);
   let textH = natural;
   if (spec?.kind === "mult") textH = natural * spec.v;
   else if (spec?.kind === "exact") textH = spec.v;
@@ -302,7 +305,7 @@ function lineItem(
   for (const a of atoms) {
     if (a.k === "i") {
       flush();
-      cmds.push({ t: "image", x, y: baseline - a.h, w: a.w, h: a.h, data: a.data, mime: a.mime });
+      cmds.push({ t: "image", x, y: baseline - a.h + (a.depth ?? 0), w: a.w, h: a.h, data: a.data, mime: a.mime, color: a.color });
       x += a.w;
     } else if (a.k === "w" || a.k === "s") {
       const w = a.w + (a.k === "s" ? extra : 0);

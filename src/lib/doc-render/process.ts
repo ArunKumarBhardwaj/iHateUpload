@@ -5,6 +5,7 @@ import type { ToolOptions } from "@/lib/tool-options";
 import { workbookGrids } from "./excel";
 import { pageSpec, renderFlow, type FlowOptions } from "./flow";
 import { markdownToDoc } from "./markdown";
+import { findMathSpans } from "./math-art";
 import { MARGIN_PT, type DocConvertOptions } from "./options";
 import { csvToGrid, gridToBlocks } from "./tables";
 import type { Block } from "../word-to-pdf/model";
@@ -38,7 +39,13 @@ export async function convertDoc(
   }
 
   if (o.src === "markdown") {
-    const doc = markdownToDoc(await data.text(), o);
+    const text = await data.text();
+    let mathArt: Awaited<ReturnType<typeof import("./math").renderMath>> | undefined;
+    if (o.math) {
+      const spans = findMathSpans(text);
+      if (spans.length) mathArt = await (await import("./math")).renderMath(spans);
+    }
+    const doc = markdownToDoc(text, { ...o, mathArt });
     blocks = doc.blocks;
     refine = doc.refine as typeof refine;
     footer = { pageNumbers: true };

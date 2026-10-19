@@ -14,7 +14,7 @@ const BTN = "h-10 sm:h-7";
 export function convertDocHint(o: Opts): string {
   switch (o.src) {
     case "markdown":
-      return "Headings, lists, code, quotes and tables are drawn as real, selectable text. Images embedded as data are kept.";
+      return "Headings, lists, code, quotes and tables are drawn as real, selectable text. LaTeX formulas become sharp vector shapes. Images embedded as data are kept.";
     case "excel":
       return "Every sheet you pick, with numbers right-aligned as Excel shows them and the header row repeated on each page.";
     case "csv":
@@ -209,6 +209,20 @@ export function ConvertOptions({
               ["15", "15 pt"],
             ]}
           />
+          <Group<string>
+            label="Line spacing"
+            value={String(options.lineSpacing)}
+            disabled={disabled}
+            onPick={(v) => set({ lineSpacing: Number(v) })}
+            items={[
+              ["1", "1.0"],
+              ["1.15", "1.15"],
+              ["1.4", "1.4"],
+              ["1.6", "1.6"],
+              ["2", "2.0"],
+            ]}
+          />
+          <Check label="LaTeX math: draw $x^2$ and $$...$$ as formulas" checked={options.math} disabled={disabled} onChange={(math) => set({ math })} />
           <Check label="Table of contents with page numbers" checked={options.toc} disabled={disabled} onChange={(toc) => set({ toc })} />
           <Check label="Number the headings (1, 1.1, 1.2)" checked={options.numberHeadings} disabled={disabled} onChange={(numberHeadings) => set({ numberHeadings })} />
         </>

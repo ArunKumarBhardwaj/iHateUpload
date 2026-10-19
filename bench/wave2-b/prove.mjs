@@ -34,7 +34,6 @@ async function run(label, name) {
   await dl.saveAs(out + name);
   console.log("saved", name, readFileSync(out + name).length, "bytes in", Date.now() - t0, "ms");
 }
-const pick = (name) => page.getByRole("button", { name, exact: true }).first().click();
 
 if (tool === "pptx") {
   await open("pptx-to-pdf", "deck.pptx");
@@ -45,6 +44,11 @@ if (tool === "markdown") {
   await open("markdown-to-pdf", "math.md");
   await page.screenshot({ path: out + "md-ui.png" });
   await run("Create PDF", "md-site.pdf");
+  await open("markdown-to-pdf", "math.md");
+  await page.getByRole("button", { name: "2.0", exact: true }).click();
+  await page.getByRole("button", { name: "A3", exact: true }).click();
+  await page.screenshot({ path: out + "md-options.png" });
+  await run("Create PDF", "md-site-double.pdf");
 }
 if (tool === "csv") {
   await open("csv-to-pdf", "people.csv");

@@ -14,6 +14,10 @@ export interface DocConvertOptions {
   fontSize: number;
   toc: boolean;
   numberHeadings: boolean;
+  /** Markdown: line height as a multiple of the normal one */
+  lineSpacing: number;
+  /** Markdown: draw $...$ and $$...$$ as LaTeX math */
+  math: boolean;
   /** Excel: sheet names to keep; empty = every sheet */
   sheets: string[];
   /** Excel and CSV: print the file or sheet name above the table */
@@ -41,6 +45,8 @@ export function defaultDocOptions(src: DocSource): DocConvertOptions {
     fontSize: 11,
     toc: false,
     numberHeadings: false,
+    lineSpacing: 1,
+    math: true,
     sheets: [],
     title: true,
     footer: true,
