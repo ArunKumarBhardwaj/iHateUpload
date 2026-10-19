@@ -54,9 +54,12 @@ export function pdfJsItemsToRuns(
     if (!tm || tm.length < 6) continue;
     const itemWidth = Number(item.width) || 0;
     const itemHeight = Number(item.height) || Math.abs(Number(tm[3]) || 0);
+    // Follow the glyph axes so text turned on the page still gets a tight box.
+    const along = Math.hypot(tm[0], tm[1]) || 1;
+    const up = Math.hypot(tm[2], tm[3]) || 1;
     const a = toViewport(tm[4], tm[5]);
-    const b = toViewport(tm[4] + itemWidth, tm[5]);
-    const c = toViewport(tm[4], tm[5] + itemHeight);
+    const b = toViewport(tm[4] + (tm[0] / along) * itemWidth, tm[5] + (tm[1] / along) * itemWidth);
+    const c = toViewport(tm[4] + (tm[2] / up) * itemHeight, tm[5] + (tm[3] / up) * itemHeight);
     const left = Math.min(a.x, b.x, c.x);
     const right = Math.max(a.x, b.x, c.x);
     const top = Math.min(a.y, b.y, c.y);

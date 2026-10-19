@@ -69,3 +69,18 @@ test("OCR word boxes become page-ratio runs", () => {
     { text: "ATHARV", x: 0.1, y: 0.4, w: 0.3, h: 0.16 },
   ]);
 });
+
+test("text turned 90 degrees keeps a box that wraps the turned glyphs", () => {
+  // Baseline runs up the page (0,1); glyph "up" points left (-1,0).
+  const runs = pdfJsItemsToRuns(
+    [{ str: "Turned", transform: [0, 10, -10, 0, 50, 20], width: 60, height: 10 }],
+    200,
+    100,
+    (x, y) => ({ x, y: 100 - y }),
+  );
+  expect(runs).toHaveLength(1);
+  expect(runs[0].x).toBeCloseTo(40 / 200);
+  expect(runs[0].w).toBeCloseTo(10 / 200);
+  expect(runs[0].y).toBeCloseTo(20 / 100);
+  expect(runs[0].h).toBeCloseTo(60 / 100);
+});
