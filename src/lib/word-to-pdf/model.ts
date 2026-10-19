@@ -48,7 +48,7 @@ export interface InlineStyle {
 
 export type Inline =
   | { kind: "text"; text: string; style: InlineStyle }
-  | { kind: "image"; data: Uint8Array; mime: string; width: number; height: number }
+  | { kind: "image"; data: Uint8Array; mime: string; width: number; height: number; /** part of the height below the baseline */ depth?: number; color?: string }
   | { kind: "br" };
 
 export interface Para {
@@ -60,11 +60,21 @@ export interface Para {
   title?: boolean;
   /** extra left indent in points (non-list paragraphs) */
   indent: number;
-  marker?: { label: string; level: number };
+  marker?: { label: string; level: number; base?: number; step?: number };
   spacing?: Spacing;
   base?: ParaBase;
   /** true when `base` and `spacing` came from the docx's own styles */
   docxStyled?: boolean;
+  /** preformatted text: spaces are kept and lines are never re-wrapped at spaces */
+  pre?: boolean;
+  /** a horizontal rule instead of text */
+  rule?: boolean;
+  /** vertical bar colour drawn left of the paragraph (block quotes) */
+  bar?: string;
+  /** shaded and/or outlined box behind the paragraph (code blocks, styled HTML) */
+  box?: { bg?: string; border?: { color: string; width: number }; bottomOnly?: boolean };
+  /** heading id, so a table of contents can look up its page */
+  anchor?: number;
 }
 
 export interface Cell {

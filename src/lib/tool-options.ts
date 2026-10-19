@@ -1,7 +1,10 @@
 import { batesReady } from "@/lib/bates";
 import type { FlipMode } from "@/lib/page-ops";
+import { DEFAULT_NUP, type NupSettings } from "@/lib/page-tools/nup";
 import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
 import type { PiiCategory } from "@/lib/pii-detect";
+import type { DocConvertOptions } from "@/lib/doc-render/options";
+import { defaultDocOptions } from "@/lib/doc-render/options";
 import type { ToolDefinition } from "@/lib/tools";
 
 export type CompressLevel = "light" | "medium" | "heavy";
@@ -102,8 +105,33 @@ export type WatermarkLayout = "single" | "tiled";
 
 export type ToolOptions =
   | { kind: "none" }
+  | ({ kind: "convert-doc" } & DocConvertOptions)
   | { kind: "password"; password: string }
   | { kind: "password-confirm"; password: string }
+  | {
+      kind: "protect";
+      password: string;
+      /** Empty: derived (same as the open password, or random when anything is locked). */
+      ownerPassword: string;
+      allowPrint: boolean;
+      allowCopy: boolean;
+      allowEdit: boolean;
+      allowAnnotate: boolean;
+    }
+  | {
+      kind: "unlock";
+      password: string;
+      /** What the file itself said when it was loaded; "unknown" until probed. */
+      lock: "unknown" | "open" | "restricted" | "password";
+    }
+  | {
+      kind: "extract-images";
+      /** Hide pictures whose shorter side is under this many pixels. */
+      minEdge: number;
+      /** Ids the person unticked. */
+      excluded: string[];
+    }
+  | { kind: "extract-text"; ocr: boolean; language: string }
   | {
       kind: "rotate";
       /** 0 only flips. */
@@ -185,10 +213,18 @@ export type ToolOptions =
       center: string;
       right: string;
       band: "header" | "footer" | "both";
+      fontSize: number;
+      color: string;
+      bold: boolean;
+      /** Points in from the page edge. */
+      margin: number;
+      /** Empty or "all" stamps every page. */
+      range: string;
+      skipFirst: boolean;
     }
   | { kind: "insert-blank"; afterPage: number }
   | { kind: "invert"; mode: "invert" | "grayscale" }
-  | { kind: "nup"; n: 2 | 4 | 9 }
+  | ({ kind: "nup" } & NupSettings)
   | { kind: "page-size"; size: "a4" | "letter"; fit: "fit" | "letterbox" }
   | {
       kind: "annotate";
@@ -572,6 +608,16 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
   switch (ui) {
     case "none":
       return { kind: "none" };
+    case "md-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("markdown") };
+    case "excel-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("excel") };
+    case "csv-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("csv") };
+    case "html-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("html") };
+    case "pptx-to-pdf":
+      return { kind: "convert-doc", ...defaultDocOptions("pptx") };
     case "password":
       return { kind: "password", password: "" };
     case "password-confirm":
@@ -654,13 +700,35 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         center: "{page} / {pages}",
         right: "",
         band: "both",
+        fontSize: 10,
+        color: "#333338",
+        bold: false,
+        margin: 24,
+        range: "",
+        skipFirst: false,
       };
+    case "protect":
+      return {
+        kind: "protect",
+        password: "",
+        ownerPassword: "",
+        allowPrint: true,
+        allowCopy: true,
+        allowEdit: true,
+        allowAnnotate: true,
+      };
+    case "unlock":
+      return { kind: "unlock", password: "", lock: "unknown" };
+    case "extract-images":
+      return { kind: "extract-images", minEdge: 0, excluded: [] };
+    case "extract-text":
+      return { kind: "extract-text", ocr: true, language: "eng" };
     case "insert-blank":
       return { kind: "insert-blank", afterPage: 1 };
     case "invert":
       return { kind: "invert", mode: "invert" };
     case "nup":
-      return { kind: "nup", n: 2 };
+      return { kind: "nup", ...DEFAULT_NUP };
     case "page-size":
       return { kind: "page-size", size: "a4", fit: "letterbox" };
     case "watermark":
@@ -769,17 +837,23 @@ export function optionsReady(
           options.targetKb <= PDF_TARGET_KB_MAX)
       );
     case "none":
+    case "convert-doc":
     case "crop":
     case "ocr":
     case "compare":
     case "invert":
-    case "nup":
     case "page-size":
     case "scan":
     case "pdf-image":
     case "pdf-to-word":
     case "pdf-to-excel":
       return true;
+    case "nup":
+      return (
+        options.cols >= 1 &&
+        options.rows >= 1 &&
+        options.cols * options.rows >= 2
+      );
     case "rotate":
       return options.degrees !== 0 || options.flip !== "none";
     case "split":
@@ -820,6 +894,22 @@ export function optionsReady(
       );
     case "password":
       return options.password.trim().length > 0;
+    case "unlock":
+      return options.lock === "restricted" || options.password.length > 0;
+    case "protect":
+      return (
+        options.password === confirmPassword &&
+        (options.password.length > 0 ||
+          !(
+            options.allowPrint &&
+            options.allowCopy &&
+            options.allowEdit &&
+            options.allowAnnotate
+          ))
+      );
+    case "extract-images":
+    case "extract-text":
+      return true;
     case "password-confirm":
       return (
         options.password.trim().length > 0 &&

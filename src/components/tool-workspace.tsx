@@ -11,6 +11,8 @@ import {
   optionsHint,
   optionsNeedCanvas,
 } from "@/components/workbench/options-panel";
+import { CsvPreview } from "@/components/workbench/csv-preview";
+import { ExtractImagesGrid } from "@/components/workbench/extract-images-grid";
 import { ImageCropOverlay } from "@/components/workbench/image-crop-overlay";
 import { PageOverlay } from "@/components/workbench/page-overlay";
 import { SignCanvas } from "@/components/workbench/sign-canvas";
@@ -42,11 +44,6 @@ import {
   processEditMetadata,
   processAskPdf,
   processCropPdf,
-  processCsvToPdf,
-  processExcelToPdf,
-  processHtmlToPdf,
-  processMarkdownToPdf,
-  processPptxToPdf,
   processScanToPdf,
   processFlattenPdf,
   processOcrPdf,
@@ -156,9 +153,9 @@ async function runTool(
     case "compare-pdfs":
       return processComparePdfs(files, onProgress, options);
     case "extract-text":
-      return processExtractText(files, onProgress);
+      return processExtractText(files, onProgress, options);
     case "extract-images":
-      return processExtractImages(files, onProgress);
+      return processExtractImages(files, onProgress, options);
     case "header-footer":
       return processHeaderFooter(files, onProgress, options);
     case "reverse-pages":
@@ -196,15 +193,15 @@ async function runTool(
     case "word-to-pdf":
       return processWordToPdf(files, onProgress);
     case "excel-to-pdf":
-      return processExcelToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "pptx-to-pdf":
-      return processPptxToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "markdown-to-pdf":
-      return processMarkdownToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "csv-to-pdf":
-      return processCsvToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "html-to-pdf":
-      return processHtmlToPdf(files, onProgress);
+      return import("@/lib/doc-render/process").then((m) => m.processDocToPdf(files, onProgress, options));
     case "scan-to-pdf":
       return processScanToPdf(files, onProgress);
     case "strip-metadata":
@@ -663,6 +660,23 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   label="Keep this area"
                 />
               ) : null}
+              {options.kind === "extract-images" && files[0] ? (
+                <ExtractImagesGrid
+                  file={files[0].file}
+                  baseName={files[0].name.replace(/\.[^.]+$/, "")}
+                  options={options}
+                  onOptions={setOptions}
+                  disabled={locked}
+                />
+              ) : null}
+              {options.kind === "convert-doc" && options.src === "csv" && files[0] ? (
+                <CsvPreview
+                  file={files[0].file}
+                  options={options}
+                  onOptions={(patch) => setOptions({ ...options, ...patch })}
+                  disabled={locked}
+                />
+              ) : null}
               {optionsInCanvas && options.kind !== "edit" && options.kind !== "sign" && optionsPanel}
             </div>
 
@@ -772,7 +786,9 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   disabled={!canProcess}
                   onClick={process}
                 >
-                  {tool.actionLabel}
+                  {options.kind === "unlock" && options.lock === "restricted"
+                    ? "Remove restrictions"
+                    : tool.actionLabel}
                 </Button>
               )}
             </div>

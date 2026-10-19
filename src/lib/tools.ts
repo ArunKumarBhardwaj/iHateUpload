@@ -74,6 +74,11 @@ export type ToolDefinition = {
   kind: "image" | "pdf";
   ui:
     | "none"
+    | "md-to-pdf"
+    | "excel-to-pdf"
+    | "csv-to-pdf"
+    | "html-to-pdf"
+    | "pptx-to-pdf"
     | "password"
     | "password-confirm"
     | "rotate"
@@ -92,6 +97,10 @@ export type ToolDefinition = {
     | "redact"
     | "compare"
     | "header-footer"
+    | "protect"
+    | "unlock"
+    | "extract-images"
+    | "extract-text"
     | "insert-blank"
     | "invert"
     | "nup"
@@ -360,7 +369,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "password-confirm",
+    ui: "protect",
   },
   {
     id: "unlock-pdf",
@@ -383,7 +392,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: false,
     kind: "pdf",
-    ui: "password",
+    ui: "unlock",
   },
   {
     id: "rotate-pdf",
@@ -552,8 +561,8 @@ export const TOOLS: ToolDefinition[] = [
     title: "Extract Text",
     shortTitle: "Extract text",
     description:
-      "Copy the selectable text out of a PDF into a .txt file. Stays in this tab.",
-    accept: "application/pdf,.pdf",
+      "Copy the text out of a PDF into a .txt file. Scans and photos can be read with OCR. Stays in this tab.",
+    accept: "application/pdf,.pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp",
     multiple: true,
     ordered: false,
     actionLabel: "Extract text",
@@ -567,7 +576,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "extract-text",
   },
   {
     id: "extract-images",
@@ -590,7 +599,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "extract-images",
   },
   {
     id: "header-footer",
@@ -983,7 +992,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: false,
     kind: "pdf",
-    ui: "none",
+    ui: "excel-to-pdf",
   },
   {
     id: "pptx-to-pdf",
@@ -991,7 +1000,7 @@ export const TOOLS: ToolDefinition[] = [
     title: "PowerPoint to PDF",
     shortTitle: "PPTX → PDF",
     description:
-      "Turn slides into a PDF. Text is kept. Fancy layout is not. Stays in this tab.",
+      "Turn slides into a PDF, one page per slide. Shapes, pictures and backgrounds are drawn; text stays selectable. Stays in this tab.",
     accept:
       ".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation",
     multiple: true,
@@ -1002,12 +1011,12 @@ export const TOOLS: ToolDefinition[] = [
       "Convert PPTX to PDF online free. Slides stay in your browser — no upload.",
     seoHowTo: [
       "Choose one or more .pptx files.",
-      "Click Create PDF. Each slide becomes a page.",
+      "Click Create PDF. Each slide becomes a page with its shapes, pictures and real text.",
       "Download the PDF.",
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "pptx-to-pdf",
   },
   {
     id: "markdown-to-pdf",
@@ -1030,7 +1039,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "md-to-pdf",
   },
   {
     id: "csv-to-pdf",
@@ -1038,7 +1047,7 @@ export const TOOLS: ToolDefinition[] = [
     title: "CSV to PDF",
     shortTitle: "CSV → PDF",
     description:
-      "Turn a CSV into a simple PDF table. Stays in this tab.",
+      "Turn a CSV into a PDF table. Sort, search and hide columns first. Stays in this tab.",
     accept: ".csv,text/csv,text/plain",
     multiple: true,
     ordered: true,
@@ -1048,12 +1057,12 @@ export const TOOLS: ToolDefinition[] = [
       "Convert a CSV to a PDF table online free. The file stays in your browser — no upload.",
     seoHowTo: [
       "Choose a CSV file.",
-      "Click Create PDF. Columns are drawn as a table.",
+      "Sort or search the preview, then click Create PDF.",
       "Download the PDF.",
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "csv-to-pdf",
   },
   {
     id: "html-to-pdf",
@@ -1076,7 +1085,7 @@ export const TOOLS: ToolDefinition[] = [
     ],
     showInNav: true,
     kind: "pdf",
-    ui: "none",
+    ui: "html-to-pdf",
   },
   {
     id: "scan-to-pdf",

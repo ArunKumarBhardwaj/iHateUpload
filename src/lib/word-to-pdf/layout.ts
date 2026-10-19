@@ -29,8 +29,12 @@ export type Cmd =
       strike: boolean;
     }
   | { t: "line"; x1: number; y1: number; x2: number; y2: number; width: number; color: string }
-  | { t: "rect"; x: number; y: number; w: number; h: number; fill: string }
-  | { t: "image"; x: number; y: number; w: number; h: number; data: Uint8Array; mime: string }
+  | { t: "rect"; x: number; y: number; w: number; h: number; fill?: string; stroke?: string; strokeWidth?: number }
+  /** an SVG path in page coordinates (top-down), used by the slide renderer */
+  | { t: "shape"; x: number; y: number; path: string; fill?: string; stroke?: string; strokeWidth?: number }
+  /** invisible marker for a heading, so a table of contents can find its page */
+  | { t: "anchor"; x: number; y: number; id: number }
+  | { t: "image"; x: number; y: number; w: number; h: number; data: Uint8Array; mime: string; color?: string }
   | { t: "link"; x: number; y: number; w: number; h: number; href: string };
 
 export interface LaidOutPage {
@@ -47,6 +51,7 @@ const CELL_PAD_X = 5;
 const CELL_PAD_Y = 3;
 const LIST_BASE = 24;
 const LIST_STEP = 24;
+const BOX_PAD = 6;
 
 interface Item {
   h: number;
@@ -82,7 +87,7 @@ interface Resolved {
 type Atom =
   | { k: "w"; text: string; w: number; r: Resolved }
   | { k: "s"; w: number; r: Resolved }
-  | { k: "i"; w: number; h: number; data: Uint8Array; mime: string; href?: string }
+  | { k: "i"; w: number; h: number; data: Uint8Array; mime: string; href?: string; depth?: number; color?: string }
   | { k: "br" };
 
 const clean = (s: string) => s.replace(/ /g, " ").replace(/[​­\r\n\t]/g, "");
@@ -125,9 +130,15 @@ function atomise(p: Para, ctx: Ctx, avail: number): Atom[] {
       const s = Math.min(1, avail / w, ctx.maxImgH / h);
       w *= s;
       h *= s;
-      atoms.push({ k: "i", w, h, data: inl.data, mime: inl.mime });
+      atoms.push({ k: "i", w, h, data: inl.data, mime: inl.mime, depth: inl.depth ? inl.depth * s : undefined, color: inl.color });
     } else {
       const r = resolve(inl.style, p, ctx);
+      if (p.pre) {
+        // code: keep every space, one unbreakable word per line (long lines split by character)
+        const text = inl.text.replace(/\t/g, "    ").replace(/\r/g, "");
+        if (text) atoms.push({ k: "w", text, w: ctx.measure(text, r.key, r.size), r });
+        continue;
+      }
       for (const tok of inl.text.split(/([ \t\r\n]+)/)) {
         if (!tok) continue;
         if (/^[ \t\r\n]+$/.test(tok)) {
@@ -238,16 +249,19 @@ function lineItem(
   let maxSize = 0;
   let natural = 0;
   let imgH = 0;
+  let imgDepth = 0;
   for (const a of atoms) {
-    if (a.k === "i") imgH = Math.max(imgH, a.h);
-    else if (a.k === "w" || a.k === "s") {
+    if (a.k === "i") {
+      imgH = Math.max(imgH, a.h - (a.depth ?? 0));
+      imgDepth = Math.max(imgDepth, a.depth ?? 0);
+    } else if (a.k === "w" || a.k === "s") {
       maxSize = Math.max(maxSize, a.r.size);
       natural = Math.max(natural, a.r.size * ctx.lineFactor(a.r.key));
     }
   }
   if (!maxSize) maxSize = fallbackSize;
   if (!natural) natural = maxSize * 1.22;
-  const descent = maxSize * 0.25;
+  const descent = Math.max(maxSize * 0.25, imgDepth);
   let textH = natural;
   if (spec?.kind === "mult") textH = natural * spec.v;
   else if (spec?.kind === "exact") textH = spec.v;
@@ -291,7 +305,7 @@ function lineItem(
   for (const a of atoms) {
     if (a.k === "i") {
       flush();
-      cmds.push({ t: "image", x, y: baseline - a.h, w: a.w, h: a.h, data: a.data, mime: a.mime });
+      cmds.push({ t: "image", x, y: baseline - a.h + (a.depth ?? 0), w: a.w, h: a.h, data: a.data, mime: a.mime, color: a.color });
       x += a.w;
     } else if (a.k === "w" || a.k === "s") {
       const w = a.w + (a.k === "s" ? extra : 0);
@@ -316,9 +330,19 @@ function lineItem(
 }
 
 function paraItems(p: Para, width: number, ctx: Ctx): Item[] {
+  if (p.rule) {
+    return [
+      {
+        h: 1,
+        before: ctx.compact ? 2 : 8,
+        after: ctx.compact ? 2 : 8,
+        cmds: [{ t: "line", x1: 0, y1: 0.5, x2: width, y2: 0.5, width: 1, color: "BFBFBF" }],
+      },
+    ];
+  }
   const level = p.marker?.level ?? 0;
-  const textX = p.marker ? LIST_BASE + LIST_STEP * level : p.indent;
-  const avail = Math.max(20, width - textX);
+  const textX = p.marker ? (p.marker.base ?? LIST_BASE) + (p.marker.step ?? LIST_STEP) * level : p.indent;
+  const avail = Math.max(20, width - textX - (p.box ? BOX_PAD : 0));
   const atoms = atomise(p, ctx, avail);
   const lines = breakLines(atoms, avail, ctx);
   const size = baseSizeOf(p);
@@ -352,6 +376,38 @@ function paraItems(p: Para, width: number, ctx: Ctx): Item[] {
     const lastItem = items[items.length - 1];
     lastItem.after = p.spacing?.after ?? (p.title ? 10 : h > 0 ? 6 : p.marker ? 3 : 7);
     if (h > 0 || p.title) lastItem.keepNext = true;
+    if (p.bar) {
+      const x = Math.max(0, textX - 9);
+      items.forEach((it, i) => {
+        const top = i === 0 ? -it.before : 0;
+        const bottom = it.h + (i === items.length - 1 ? it.after : 0);
+        it.cmds.unshift({ t: "line", x1: x, y1: top, x2: x, y2: bottom, width: 2.5, color: p.bar as string });
+      });
+    }
+    if (p.box) {
+      const bx = Math.max(0, textX - BOX_PAD);
+      const bw = width - bx;
+      const { bg, border } = p.box;
+      items.forEach((it, i) => {
+        const first = i === 0;
+        const last = i === items.length - 1;
+        const top = first ? -2 : 0;
+        const bottom = it.h + (last ? 2 : 0);
+        const pre: Cmd[] = [];
+        if (bg) pre.push({ t: "rect", x: bx, y: top, w: bw, h: bottom - top, fill: bg });
+        if (border) {
+          const b = { width: border.width, color: border.color };
+          if (!p.box?.bottomOnly) {
+            pre.push({ t: "line", x1: bx, y1: top, x2: bx, y2: bottom, ...b });
+            pre.push({ t: "line", x1: bx + bw, y1: top, x2: bx + bw, y2: bottom, ...b });
+            if (first) pre.push({ t: "line", x1: bx, y1: top, x2: bx + bw, y2: top, ...b });
+          }
+          if (last) pre.push({ t: "line", x1: bx, y1: bottom, x2: bx + bw, y2: bottom, ...b });
+        }
+        it.cmds.unshift(...pre);
+      });
+    }
+    if (p.anchor !== undefined) items[0].cmds.push({ t: "anchor", x: 0, y: 0, id: p.anchor });
   } else if (ctx.compact && items.length) {
     items[items.length - 1].after = p.marker ? 1 : 0;
   }
@@ -361,7 +417,7 @@ function paraItems(p: Para, width: number, ctx: Ctx): Item[] {
 // ---- tables ---------------------------------------------------------------------------------
 
 function paraWidths(p: Para, ctx: Ctx, avail: number): { min: number; max: number } {
-  const textX = p.marker ? LIST_BASE + LIST_STEP * p.marker.level : p.indent;
+  const textX = p.marker ? (p.marker.base ?? LIST_BASE) + (p.marker.step ?? LIST_STEP) * p.marker.level : p.indent;
   const atoms = atomise(p, ctx, avail);
   let min = 0;
   let max = 0;
