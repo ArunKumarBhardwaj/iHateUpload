@@ -1047,7 +1047,7 @@ export const TOOLS: ToolDefinition[] = [
     title: "CSV to PDF",
     shortTitle: "CSV → PDF",
     description:
-      "Turn a CSV into a simple PDF table. Stays in this tab.",
+      "Turn a CSV into a PDF table. Sort, search and hide columns first. Stays in this tab.",
     accept: ".csv,text/csv,text/plain",
     multiple: true,
     ordered: true,
@@ -1057,7 +1057,7 @@ export const TOOLS: ToolDefinition[] = [
       "Convert a CSV to a PDF table online free. The file stays in your browser — no upload.",
     seoHowTo: [
       "Choose a CSV file.",
-      "Click Create PDF. Columns are drawn as a table.",
+      "Sort or search the preview, then click Create PDF.",
       "Download the PDF.",
     ],
     showInNav: true,

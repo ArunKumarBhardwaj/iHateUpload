@@ -18,7 +18,7 @@ export function convertDocHint(o: Opts): string {
     case "excel":
       return "Every sheet you pick, with numbers right-aligned as Excel shows them and the header row repeated on each page.";
     case "csv":
-      return "A table with the header row repeated on every page. The text stays selectable.";
+      return "Sort, search and hide columns in the preview, then print exactly that. The header row repeats on every page and the text stays selectable.";
     case "pptx":
       return "One page per slide at the slide size. Shapes, fills, pictures and backgrounds are drawn, and the text stays selectable.";
     case "html":

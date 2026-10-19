@@ -7,7 +7,7 @@ import { pageSpec, renderFlow, type FlowOptions } from "./flow";
 import { markdownToDoc } from "./markdown";
 import { findMathSpans } from "./math-art";
 import { MARGIN_PT, type DocConvertOptions } from "./options";
-import { csvToGrid, gridToBlocks } from "./tables";
+import { csvToGridView, gridToBlocks } from "./tables";
 import type { Block } from "../word-to-pdf/model";
 import type { LaidOutPage } from "../word-to-pdf/layout";
 
@@ -50,7 +50,7 @@ export async function convertDoc(
     refine = doc.refine as typeof refine;
     footer = { pageNumbers: true };
   } else if (o.src === "csv") {
-    blocks = gridToBlocks(csvToGrid(await data.text()), {
+    blocks = gridToBlocks(csvToGridView(await data.text(), { sort: o.csvSort, filter: o.csvFilter, hidden: o.csvHidden }), {
       fontSize: 9,
       zebra: o.zebra,
       width,

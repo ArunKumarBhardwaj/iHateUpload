@@ -74,6 +74,48 @@ export function csvToGrid(text: string): Grid {
   return { rows, header: true };
 }
 
+export interface CsvView {
+  sort: { col: number; dir: "asc" | "desc" } | null;
+  filter: string;
+  hidden: number[];
+}
+
+const asNumber = (t: string): number | undefined => {
+  const s = t.trim();
+  if (!s || !looksNumeric(s)) return undefined;
+  const n = Number(s.replace(/[^0-9.+-eE]/g, "").replace(/^\+/, ""));
+  return Number.isFinite(n) ? n * (/^\(.*\)$/.test(s) ? -1 : 1) : undefined;
+};
+
+/** The rows a person sees after sorting, searching and hiding columns. Row 0 is the header and stays first. */
+export function applyCsvView(rows: string[][], view: CsvView): string[][] {
+  if (!rows.length) return rows;
+  const hidden = new Set(view.hidden);
+  const [head, ...body] = rows;
+  const needle = view.filter.trim().toLowerCase();
+  let out = needle ? body.filter((r) => r.some((c, i) => !hidden.has(i) && c.toLowerCase().includes(needle))) : body;
+  const s = view.sort;
+  if (s && s.col >= 0 && s.col < Math.max(...rows.map((r) => r.length))) {
+    const dir = s.dir === "asc" ? 1 : -1;
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+    out = [...out].sort((a, b) => {
+      const x = a[s.col] ?? "";
+      const y = b[s.col] ?? "";
+      if (!x.trim() || !y.trim()) return (x.trim() ? -1 : y.trim() ? 1 : 0); // empties last either way
+      const nx = asNumber(x);
+      const ny = asNumber(y);
+      return (nx !== undefined && ny !== undefined ? nx - ny : collator.compare(x, y)) * dir;
+    });
+  }
+  const keep = (r: string[]) => (hidden.size ? r.filter((_, i) => !hidden.has(i)) : r);
+  return [keep(head), ...out.map(keep)];
+}
+
+export function csvToGridView(text: string, view: CsvView): Grid {
+  const rows = applyCsvView(parseCsv(text), view).map((r) => r.map((t) => ({ text: t.trim(), num: looksNumeric(t) })));
+  return { rows, header: true };
+}
+
 export interface TableOptions {
   fontSize: number;
   zebra: boolean;

@@ -11,6 +11,7 @@ import {
   optionsHint,
   optionsNeedCanvas,
 } from "@/components/workbench/options-panel";
+import { CsvPreview } from "@/components/workbench/csv-preview";
 import { ExtractImagesGrid } from "@/components/workbench/extract-images-grid";
 import { ImageCropOverlay } from "@/components/workbench/image-crop-overlay";
 import { PageOverlay } from "@/components/workbench/page-overlay";
@@ -665,6 +666,14 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   baseName={files[0].name.replace(/\.[^.]+$/, "")}
                   options={options}
                   onOptions={setOptions}
+                  disabled={locked}
+                />
+              ) : null}
+              {options.kind === "convert-doc" && options.src === "csv" && files[0] ? (
+                <CsvPreview
+                  file={files[0].file}
+                  options={options}
+                  onOptions={(patch) => setOptions({ ...options, ...patch })}
                   disabled={locked}
                 />
               ) : null}

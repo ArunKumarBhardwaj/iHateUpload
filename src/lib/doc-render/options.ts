@@ -2,6 +2,10 @@
 export type DocSource = "markdown" | "excel" | "csv" | "html" | "pptx";
 export type DocPaper = "a4" | "letter" | "legal" | "a3";
 export type DocMargin = "narrow" | "normal" | "wide";
+export interface CsvSort {
+  col: number;
+  dir: "asc" | "desc";
+}
 export type DocFont = "sans" | "serif" | "mono";
 
 export interface DocConvertOptions {
@@ -28,6 +32,12 @@ export interface DocConvertOptions {
   fit: "shrink" | "wrap";
   /** Excel and CSV: shade every other row */
   zebra: boolean;
+  /** CSV: sort by this column before printing */
+  csvSort: CsvSort | null;
+  /** CSV: keep only rows that contain this text */
+  csvFilter: string;
+  /** CSV: columns (0-based) left out of the PDF */
+  csvHidden: number[];
   /** PowerPoint: also print slides marked hidden */
   hiddenSlides: boolean;
 }
@@ -52,6 +62,9 @@ export function defaultDocOptions(src: DocSource): DocConvertOptions {
     footer: true,
     fit: "shrink",
     zebra: true,
+    csvSort: null,
+    csvFilter: "",
+    csvHidden: [],
     hiddenSlides: false,
   };
 }

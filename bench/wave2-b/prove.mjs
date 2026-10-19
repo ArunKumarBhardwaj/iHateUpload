@@ -52,7 +52,19 @@ if (tool === "markdown") {
 }
 if (tool === "csv") {
   await open("csv-to-pdf", "people.csv");
+  await page.getByRole("table").waitFor();
   await page.screenshot({ path: out + "csv-ui.png" });
-  await run("Create PDF", "csv-site.pdf");
+  await run("Create PDF", "csv-site-plain.pdf");
+  // sort by amount (twice = descending), search "oslo", hide the note column
+  await open("csv-to-pdf", "people.csv");
+  await page.getByRole("table").waitFor();
+  await page.locator("th button", { hasText: "amount" }).click();
+  await page.locator("th button", { hasText: "amount" }).click();
+  await page.getByLabel("Search rows").fill("oslo");
+  await page.locator("[aria-label='Columns to print'] button", { hasText: "note" }).click();
+  console.log("count:", await page.getByTestId("csv-count").innerText());
+  console.log("first rows:", (await page.locator("tbody tr").allInnerTexts()).slice(0, 3).map((t) => t.replace(/\s+/g, " ")));
+  await page.screenshot({ path: out + "csv-ui-sorted.png" });
+  await run("Create PDF", "csv-site-view.pdf");
 }
 await browser.close();
