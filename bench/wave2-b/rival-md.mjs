@@ -1,11 +1,12 @@
 // Rival Markdown preview with the same synthetic input: node bench/wave2-b/rival-md.mjs
 import { createRequire } from "node:module";
-import { readFileSync, readdirSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 const npx = homedir() + "/.npm/_npx/";
 const dir = readdirSync(npx).find((d) => { try { return readdirSync(npx + d + "/node_modules").includes("playwright-core"); } catch { return false; } });
 const { chromium } = createRequire(npx + dir + "/node_modules/")("playwright-core");
 const out = new URL("./out/", import.meta.url).pathname;
+mkdirSync(out, { recursive: true });
 const md = readFileSync(new URL("./fx/math.md", import.meta.url), "utf8");
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const page = await (await browser.newContext({ acceptDownloads: true, viewport: { width: 1280, height: 1400 } })).newPage();
