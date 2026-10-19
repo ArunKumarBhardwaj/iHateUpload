@@ -17,6 +17,7 @@ import { cropPages } from "@/lib/page-tools/crop";
 import { resizePages } from "@/lib/page-tools/resize";
 import { buildNup } from "@/lib/page-tools/nup";
 import { loadPdfJs } from "@/lib/pdfjs";
+import { askViaServer } from "@/lib/ask/gemini";
 import { extractPdfText } from "@/lib/pdf-text";
 import {
   applyMetadata,
@@ -1511,25 +1512,15 @@ export async function processAskPdf(
   onProgress(0.2);
   const text = await extractPdfText(item.file);
   onProgress(0.55);
-  const response = await fetch("/api/ask", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, question: options.question.trim() }),
-  });
-  const payload = (await response.json()) as { answer?: string; error?: string };
-  if (response.status === 503) {
-    throw new Error(
-      "Ask PDF is not configured on this host. The PDF never left this tab.",
-    );
-  }
-  if (!response.ok || !payload.answer) {
-    throw new Error(payload.error ?? "The model could not answer.");
-  }
-  const blob = new Blob([payload.answer], { type: "text/plain" });
+  const answer = await askViaServer(
+    [{ name: item.name, text }],
+    [{ role: "user", content: options.question.trim() }],
+  );
+  const blob = new Blob([answer], { type: "text/plain" });
   onProgress(1);
   return [
     resultFrom(item, blob, "answer.txt", item.size, {
-      previewText: payload.answer,
+      previewText: answer,
     }),
   ];
 }
