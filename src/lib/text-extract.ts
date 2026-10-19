@@ -1,5 +1,6 @@
 import { itemsToLines } from "@/lib/pdf-text";
 import { loadPdfJs } from "@/lib/pdfjs";
+import { createOcrWorker } from "@/lib/tesseract";
 
 /** A page with fewer visible characters than this is treated as a scan. */
 export const SCANNED_PAGE_CHARS = 3;
@@ -26,9 +27,8 @@ type TessWorker = Awaited<
 >;
 
 async function makeWorker(language: string, onProgress: (r: number) => void) {
-  const { createWorker } = await import("tesseract.js");
   let page = { at: 0, of: 1 };
-  const worker = await createWorker(language, 1, {
+  const worker = await createOcrWorker(language, {
     logger: (m) => {
       if (m.status === "recognizing text") {
         onProgress(Math.min(0.98, (page.at + m.progress) / page.of));

@@ -64,6 +64,7 @@ import {
 } from "@/lib/edit-draw";
 import { batesLabel, batesPlacement, batesReady } from "@/lib/bates";
 import { parseHexColor, watermarkStamps } from "@/lib/watermark";
+import { createOcrWorker } from "@/lib/tesseract";
 
 type ProgressFn = (ratio: number) => void;
 
@@ -747,7 +748,7 @@ export async function processOcrPdf(
   const wantPdf = options.output !== "text";
   const wantText = options.output !== "pdf";
   const scale = 2;
-  const { createWorker, PSM } = await import("tesseract.js");
+  const { PSM } = await import("tesseract.js");
   const { getDocument } = await loadPdfJs();
   const data = new Uint8Array(await item.file.arrayBuffer());
   const src = await getDocument({ data: data.slice() }).promise;
@@ -756,7 +757,7 @@ export async function processOcrPdf(
   let ghostFont: Awaited<ReturnType<PDFDocument["embedFont"]>> | null = null;
   let pageCursor = 0;
   const texts: string[] = [];
-  const worker = await createWorker(options.language, 1, {
+  const worker = await createOcrWorker(options.language, {
     logger: (message) => {
       if (message.status !== "recognizing text") return;
       onProgress(
@@ -1014,8 +1015,8 @@ export async function processScanToPdf(
   let current = 0;
   try {
     if (options.searchable) {
-      const { createWorker, PSM } = await import("tesseract.js");
-      ocr = await createWorker(options.language, 1, {
+      const { PSM } = await import("tesseract.js");
+      ocr = await createOcrWorker(options.language, {
         logger: (message) => {
           if (message.status !== "recognizing text") return;
           onProgress(Math.min(0.97, (current + 0.5 + message.progress / 2) / files.length));

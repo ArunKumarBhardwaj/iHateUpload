@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "public/pdf.worker.min.mjs",
     "public/sw.js",
+    // Copied out of node_modules by `bun run sync-wasm-assets`.
+    "public/tesseract/**",
+    "public/tessdata/**",
+    "public/pdfjs/**",
     // Untracked design and prototype scratch, not app code.
     ".arena-pdf-edit/**",
     ".design/**",

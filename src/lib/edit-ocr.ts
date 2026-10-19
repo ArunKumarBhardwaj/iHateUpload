@@ -1,3 +1,4 @@
+import { createOcrWorker } from "@/lib/tesseract";
 import {
   OCR_RECOGNIZE_OUTPUT,
   wordsFromOcrBlocks,
@@ -10,9 +11,7 @@ let workerPromise: Promise<TessWorker> | null = null;
 
 export async function recognizePageWords(image: Blob): Promise<OcrWord[]> {
   if (!workerPromise) {
-    workerPromise = import("tesseract.js").then(({ createWorker }) =>
-      createWorker("eng"),
-    );
+    workerPromise = createOcrWorker("eng");
   }
   const worker = await workerPromise;
   const recognized = await worker.recognize(

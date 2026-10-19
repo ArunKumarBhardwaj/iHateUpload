@@ -54,3 +54,8 @@ internal/benchmarks/wave2-b/out/
 # OCR language data tesseract.js caches into the working dir when run in Node, and dev-server pid files
 *.traineddata
 *.pid
+
+# WASM engine files copied out of node_modules by `bun run sync-wasm-assets`
+/public/tesseract/
+/public/tessdata/
+/public/pdfjs/
