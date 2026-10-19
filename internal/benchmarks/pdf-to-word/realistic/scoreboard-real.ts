@@ -1,0 +1,155 @@
+/**
+ * Scores results/<side>/*.docx for the realistic corpus: structural (../score.ts + score-real.ts) and visual
+ * (docx -> PDF with LibreOffice headless -> PNG with PDFKit, compared with the original page PNG).
+ * Writes scoreboard-realistic.md and scoreboard-realistic.json. Reasons for the worst documents come from reasons.json.
+ *   bun internal/benchmarks/pdf-to-word/realistic/scoreboard-real.ts [--no-visual]
+ */
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+import sharp from "sharp";
+
+import type { RealTruth } from "./gen";
+import { scoreReal } from "./score-real";
+import { documentSimilarity, type Grey } from "./visual";
+
+const HERE = import.meta.dirname;
+const SIDES = ["ours", "ours-exact", "rival", "rival-exact"] as const;
+type Side = (typeof SIDES)[number];
+const LABEL: Record<Side, string> = { ours: "Ours (Editable)", "ours-exact": "Ours (Exact)", rival: "ihatepdf.cv (Editable)", "rival-exact": "ihatepdf.cv (Exact)" };
+const VISUAL = !process.argv.includes("--no-visual");
+const SOFFICE = "/opt/homebrew/bin/soffice";
+const WIDTH = 600;
+const RENDER = join(HERE, "results", ".render");
+const BIN = join(HERE, "results", ".pdf2png");
+
+const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
+const f2 = (n: number | undefined) => (n === undefined || Number.isNaN(n) ? "-" : n.toFixed(2));
+
+const names = readdirSync(join(HERE, "corpus")).filter((f) => f.endsWith(".truth.json")).map((f) => f.replace(".truth.json", "")).sort();
+const truths: Record<string, RealTruth> = {};
+for (const n of names) truths[n] = JSON.parse(readFileSync(join(HERE, "corpus", n + ".truth.json"), "utf8"));
+
+function rasterise(pdf: string, dir: string): Promise<Grey[]> {
+  mkdirSync(dir, { recursive: true });
+  const r = spawnSync(BIN, [pdf, dir, String(WIDTH)], { encoding: "utf8" });
+  if (r.status !== 0) throw new Error("pdf2png failed for " + pdf + ": " + r.stderr);
+  const pages = Number(/pages=(\d+)/.exec(r.stdout)?.[1] ?? 0);
+  return Promise.all(
+    Array.from({ length: pages }, async (_, i) => {
+      const { data, info } = await sharp(join(dir, `p${i + 1}.png`)).greyscale().raw().toBuffer({ resolveWithObject: true });
+      return { w: info.width, h: info.height, data: Float64Array.from(data) };
+    }),
+  );
+}
+
+type Cell = { overall?: number; features?: Record<string, number>; visual?: number; pageVisual?: number[]; pageDelta?: number; failed: boolean };
+const data: Record<string, Record<Side, Cell>> = {};
+
+if (VISUAL) {
+  if (!existsSync(BIN)) {
+    mkdirSync(join(HERE, "results"), { recursive: true });
+    const c = spawnSync("swiftc", ["-O", join(HERE, "pdf2png.swift"), "-o", BIN], { encoding: "utf8" });
+    if (c.status !== 0) throw new Error("swiftc failed: " + c.stderr);
+  }
+  for (const s of SIDES) {
+    const dir = join(HERE, "results", s);
+    const docx = names.map((n) => join(dir, n + ".docx")).filter(existsSync);
+    if (!docx.length) continue;
+    const out = join(RENDER, s, "pdf");
+    mkdirSync(out, { recursive: true });
+    // One soffice process per side; a private profile dir avoids clashing with an open LibreOffice.
+    const r = spawnSync(SOFFICE, [`-env:UserInstallation=file://${join(RENDER, "lo-profile")}`, "--headless", "--convert-to", "pdf", "--outdir", out, ...docx], { encoding: "utf8", timeout: 600000 });
+    if (r.status !== 0) console.error("soffice", s, r.stderr);
+  }
+}
+
+for (const n of names) {
+  data[n] = {} as Record<Side, Cell>;
+  const orig = VISUAL ? await rasterise(join(HERE, "corpus", n + ".pdf"), join(RENDER, "orig", n)) : [];
+  for (const s of SIDES) {
+    const docx = join(HERE, "results", s, n + ".docx");
+    if (!existsSync(docx)) {
+      data[n][s] = { failed: true };
+      continue;
+    }
+    const cell: Cell = { failed: false };
+    try {
+      const sc = await scoreReal(new Uint8Array(readFileSync(docx)), truths[n]);
+      cell.overall = sc.overall;
+      cell.features = sc.features;
+    } catch (e) {
+      console.error("score failed", n, s, e);
+      cell.failed = true;
+    }
+    if (VISUAL) {
+      const pdf = join(RENDER, s, "pdf", n + ".pdf");
+      if (existsSync(pdf)) {
+        try {
+          const conv = await rasterise(pdf, join(RENDER, s, n));
+          const v = documentSimilarity(orig, conv);
+          cell.visual = v.score;
+          cell.pageVisual = v.pages;
+          cell.pageDelta = v.pageDelta;
+        } catch (e) {
+          console.error("render failed", n, s, e);
+          cell.visual = 0;
+        }
+      } else cell.visual = 0; // LibreOffice could not open the file
+    }
+    data[n][s] = cell;
+  }
+}
+
+const reasons: Record<string, string> = existsSync(join(HERE, "reasons.json")) ? JSON.parse(readFileSync(join(HERE, "reasons.json"), "utf8")) : {};
+
+// ---- per-document table
+const L: string[] = [];
+L.push("# PDF to Word, realistic corpus", "");
+L.push(`Generated by internal/benchmarks/pdf-to-word/realistic/scoreboard-real.ts on ${new Date().toISOString().slice(0, 10)}. ${names.length} synthetic documents, one conversion each (no timing here; see ../scoreboard.md).`);
+L.push("Structural = mean of the feature scores the document has truth for (same scorer as ../scoreboard.md, plus character-F1 text for CJK/RTL and a comments score). Visual = mean over pages of ink-map SSIM between the original page and the .docx rendered by LibreOffice (see Method).", "");
+L.push("## Per document", "");
+L.push("| Document | Pages | Ours struct | Ours visual | Ours Exact struct | Ours Exact visual | iHP struct | iHP visual | iHP Exact struct | iHP Exact visual |", "|---|---|---|---|---|---|---|---|---|---|");
+for (const n of names) {
+  const d = data[n];
+  const c = (s: Side, k: "overall" | "visual") => (d[s].failed && d[s][k] === undefined ? "FAIL" : f2(d[s][k]));
+  L.push(`| ${n} | ${truths[n].pages} | ${c("ours", "overall")} | ${c("ours", "visual")} | ${c("ours-exact", "overall")} | ${c("ours-exact", "visual")} | ${c("rival", "overall")} | ${c("rival", "visual")} | ${c("rival-exact", "overall")} | ${c("rival-exact", "visual")} |`);
+}
+const avg = (s: Side, k: "overall" | "visual") => mean(names.map((n) => data[n][s][k] ?? 0));
+L.push(`| **mean** | | **${f2(avg("ours", "overall"))}** | **${f2(avg("ours", "visual"))}** | **${f2(avg("ours-exact", "overall"))}** | **${f2(avg("ours-exact", "visual"))}** | **${f2(avg("rival", "overall"))}** | **${f2(avg("rival", "visual"))}** | **${f2(avg("rival-exact", "overall"))}** | **${f2(avg("rival-exact", "visual"))}** |`, "");
+
+// ---- per-feature means
+const feats = [...new Set(names.flatMap((n) => Object.keys(data[n].ours.features ?? {})))];
+L.push("## Per-feature means", "", "Mean over the documents whose truth has that feature (n in brackets).", "");
+L.push("| Feature | n | Ours | Ours Exact | iHP Editable | iHP Exact |", "|---|---|---|---|---|---|");
+for (const f of feats) {
+  const has = names.filter((n) => data[n].ours.features && f in data[n].ours.features!);
+  const m = (s: Side) => mean(has.map((n) => data[n][s].features?.[f] ?? 0));
+  L.push(`| ${f} | ${has.length} | ${f2(m("ours"))} | ${f2(m("ours-exact"))} | ${f2(m("rival"))} | ${f2(m("rival-exact"))} |`);
+}
+L.push("");
+
+// ---- per category
+const cats = [...new Set(names.map((n) => truths[n].category))];
+L.push("## By document category (structural / visual, ours vs iHP Editable)", "", "| Category | Ours | iHP |", "|---|---|---|");
+for (const cat of cats) {
+  const ns = names.filter((n) => truths[n].category === cat);
+  const fmt = (s: Side) => `${f2(mean(ns.map((n) => data[n][s].overall ?? 0)))} / ${f2(mean(ns.map((n) => data[n][s].visual ?? 0)))}`;
+  L.push(`| ${cat} (${ns.join(", ")}) | ${fmt("ours")} | ${fmt("rival")} |`);
+}
+L.push("");
+
+// ---- worst
+const combined = (n: string, s: Side) => mean([data[n][s].overall ?? 0, data[n][s].visual ?? data[n][s].overall ?? 0]);
+const worst = (s: Side, k: number) => [...names].sort((a, b) => combined(a, s) - combined(b, s)).slice(0, k);
+L.push("## Worst 5 for us (mean of structural and visual)", "", "| Document | Ours | iHP Editable | Why |", "|---|---|---|---|");
+for (const n of worst("ours", 5)) L.push(`| ${n} | ${f2(data[n].ours.overall)} / ${f2(data[n].ours.visual)} | ${f2(data[n].rival.overall)} / ${f2(data[n].rival.visual)} | ${reasons[n] ?? ""} |`);
+L.push("", "## Worst 5 for ihatepdf.cv Editable", "", "| Document | iHP Editable | Ours | Why |", "|---|---|---|---|");
+for (const n of worst("rival", 5)) L.push(`| ${n} | ${f2(data[n].rival.overall)} / ${f2(data[n].rival.visual)} | ${f2(data[n].ours.overall)} / ${f2(data[n].ours.visual)} | ${reasons["rival:" + n] ?? ""} |`);
+L.push("", "Cells are structural / visual.", "");
+
+L.push(`## Method and blind spots`, "", readFileSync(join(HERE, "METHOD.md"), "utf8").trim(), "");
+writeFileSync(join(HERE, "scoreboard-realistic.md"), L.join("\n"));
+writeFileSync(join(HERE, "scoreboard-realistic.json"), JSON.stringify({ sides: LABEL, documents: data }, null, 1) + "\n");
+console.log(L.slice(0, 40).join("\n"));

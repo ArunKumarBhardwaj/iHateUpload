@@ -5,7 +5,7 @@ import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 import { buildCmap, embeddingFlags, mayEmbed, mergeSubsets, obfuscate, readCmap, readSfnt, retarget, unicodeMap, writeSfnt } from "./sfnt";
 
-const FIXTURES = join(import.meta.dir, "../../../bench/pdf-to-word/fixtures");
+const FIXTURES = join(import.meta.dir, "../../../internal/benchmarks/pdf-to-word/fixtures");
 const STD = `${process.cwd()}/node_modules/pdfjs-dist/standard_fonts/`;
 
 /** Every font pdf.js converted on page 1 of a fixture, keyed by the PDF's own font name. */

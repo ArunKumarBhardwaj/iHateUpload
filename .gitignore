@@ -40,16 +40,16 @@ bun-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-.scratch/
-bench/pdf-to-word/results/
-bench/pdf-to-word/fixtures/long.*
-bench/pdf-to-excel/results/
-bench/wave2-a/fx/
-bench/wave2-a/out/
-bench/page-tools/out/
-bench/wave2-d/out/
-bench/page-tools/png/
-bench/wave2-b/out/
+internal/notes/
+internal/benchmarks/pdf-to-word/results/
+internal/benchmarks/pdf-to-word/fixtures/long.*
+internal/benchmarks/pdf-to-excel/results/
+internal/benchmarks/wave2-a/fx/
+internal/benchmarks/wave2-a/out/
+internal/benchmarks/page-tools/out/
+internal/benchmarks/wave2-d/out/
+internal/benchmarks/page-tools/png/
+internal/benchmarks/wave2-b/out/
 
 # OCR language data tesseract.js caches into the working dir when run in Node, and dev-server pid files
 *.traineddata

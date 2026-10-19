@@ -23,7 +23,7 @@ async function fontsOf(data: Uint8Array): Promise<(FontInput & { id: string })[]
   });
 }
 
-const fixture = (name: string) => new Uint8Array(readFileSync(join(import.meta.dir, "../../../bench/pdf-to-word/fixtures", name + ".pdf")));
+const fixture = (name: string) => new Uint8Array(readFileSync(join(import.meta.dir, "../../../internal/benchmarks/pdf-to-word/fixtures", name + ".pdf")));
 
 test("subsets of one face become one embedded font under the family name", async () => {
   const collector = new FontCollector();

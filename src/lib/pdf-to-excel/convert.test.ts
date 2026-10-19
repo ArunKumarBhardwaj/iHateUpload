@@ -9,7 +9,7 @@ import { convertPdfToExcel, type ConvertDeps } from "./index";
 import { makeLedgerPdf } from "./testing";
 import { writeXlsx } from "./xlsx-writer";
 
-const CORPUS = `${process.cwd()}/bench/pdf-to-word/realistic/corpus`;
+const CORPUS = `${process.cwd()}/internal/benchmarks/pdf-to-word/realistic/corpus`;
 const FONTS = `${process.cwd()}/node_modules/pdfjs-dist/standard_fonts/`;
 const deps: ConvertDeps = { OPS: OPS as unknown as Record<string, number> };
 

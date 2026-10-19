@@ -2,7 +2,7 @@ import type { ToolId } from "@/lib/tools";
 
 /**
  * "Alternative to" comparison content. Every row here must be backed by a row
- * in docs/vs-ihatepdf.md with the same verdict and date; update both together.
+ * in internal/scoreboard/vs-ihatepdf.md with the same verdict and date; update both together.
  */
 export type Verdict = "better" | "equal" | "gap";
 

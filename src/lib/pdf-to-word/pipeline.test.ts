@@ -195,7 +195,7 @@ test("drawn shapes become native Word shapes; tables, bullets and underlines do 
 
 async function convertFixture(name: string, options: Partial<Parameters<typeof convertPdf>[2]> = {}) {
   const { readFileSync } = await import("node:fs");
-  const data = new Uint8Array(readFileSync(`${process.cwd()}/bench/pdf-to-word/fixtures/${name}.pdf`));
+  const data = new Uint8Array(readFileSync(`${process.cwd()}/internal/benchmarks/pdf-to-word/fixtures/${name}.pdf`));
   const pdf = await getDocument({ data, fontExtraProperties: true, standardFontDataUrl: FONTS }).promise;
   const result = await convertPdf(pdf as never, name, { mode: "editable", language: "eng", ...options }, deps, () => {});
   const zip = await JSZip.loadAsync(result.bytes);
@@ -223,7 +223,7 @@ test("a PDF without embedded fonts gets no font parts", async () => {
 });
 
 test("the CJK sample keeps unified ideographs and names an East Asian font", async () => {
-  const data = new Uint8Array(await Bun.file(`${process.cwd()}/bench/pdf-to-word/realistic/corpus/cjk.pdf`).arrayBuffer());
+  const data = new Uint8Array(await Bun.file(`${process.cwd()}/internal/benchmarks/pdf-to-word/realistic/corpus/cjk.pdf`).arrayBuffer());
   const { xml } = await convert(data);
   const text = textOf(xml).join("");
   expect(text).toContain("市中心图书馆");
