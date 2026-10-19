@@ -11,6 +11,7 @@ import type { FileItem, ResultItem } from "@/lib/job";
 import { stripInvisibleText } from "@/lib/page-ops";
 import { mapPixel } from "@/lib/page-tools/colour";
 import { recolourPages, withoutText } from "@/lib/page-tools/invert";
+import { flattenAndStrip } from "@/lib/page-tools/flatten";
 import { cropPages } from "@/lib/page-tools/crop";
 import { resizePages } from "@/lib/page-tools/resize";
 import { buildNup } from "@/lib/page-tools/nup";
@@ -704,27 +705,58 @@ export async function processAnnotatePdf(
 export async function processFlattenPdf(
   files: FileItem[],
   onProgress: ProgressFn,
+  options: ToolOptions,
 ): Promise<ResultItem[]> {
+  if (options.kind !== "flatten") throw new Error("Flatten needs its options.");
   const results: ResultItem[] = [];
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
     const doc = await loadPdf(item.file);
-    try {
-      doc.getForm().flatten();
-    } catch {
-      // A PDF with no AcroForm still gets a clean rewrite.
+    const name = replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-flat.pdf");
+    const done = (n: number) => onProgress((i + n) / files.length);
+    if (options.mode === "form") {
+      flattenAndStrip(doc, options.strip);
+      if (!options.strip.metadata) {
+        // Keep the author's own metadata; only the producer changes.
+        doc.setProducer("iHateUpload");
+      } else {
+        stripPdfMetadata(doc);
+      }
+      results.push(
+        resultFrom(item, pdfBlob(await doc.save({ useObjectStreams: true })), name, item.size),
+      );
+      done(1);
+      continue;
     }
-    stripPdfMetadata(doc);
-    const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
+    // Full flatten: apply the strips to the source, then draw each page as a picture.
+        // Burn fields in first so ticked boxes and typed values are drawn; "strip forms" removes them instead.
+    flattenAndStrip(doc, options.strip, { flattenForm: !options.strip.forms });
+    const { getDocument } = await loadPdfJs();
+    const src = await getDocument({
+      data: new Uint8Array(await doc.save()),
+    }).promise;
+    const out = await PDFDocument.create();
+    const scale = Math.min(400, Math.max(96, options.dpi)) / 72;
+    try {
+      for (let n = 1; n <= src.numPages; n++) {
+        const page = await src.getPage(n);
+        const { width, height } = page.getViewport({ scale: 1 });
+        const { canvas } = await renderPageCanvas(page, scale);
+        const jpeg = await canvasToJpeg(canvas, 0.85);
+        canvas.width = 0;
+        canvas.height = 0;
+        page.cleanup();
+        const image = await out.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
+        out.addPage([width, height]).drawImage(image, { x: 0, y: 0, width, height });
+        done(n / src.numPages);
+      }
+    } finally {
+      await src.loadingTask.destroy();
+    }
+    stripPdfMetadata(out);
     results.push(
-      resultFrom(
-        item,
-        blob,
-        replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-flat.pdf"),
-        item.size,
-      ),
+      resultFrom(item, pdfBlob(await out.save({ useObjectStreams: true })), name, item.size),
     );
-    onProgress((i + 1) / files.length);
   }
   return results;
 }

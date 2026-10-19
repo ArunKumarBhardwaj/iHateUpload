@@ -1,6 +1,7 @@
 import { batesReady } from "@/lib/bates";
 import type { FlipMode } from "@/lib/page-ops";
 import type { InvertEngine, InvertMode, OrganizeEntry } from "@/lib/page-tools/types";
+import { DEFAULT_FLATTEN, DEFAULT_STRIP, type FlattenSettings } from "@/lib/page-tools/flatten";
 import { DEFAULT_RESIZE, type ResizeSettings } from "@/lib/page-tools/resize";
 import { DEFAULT_NUP, type NupSettings } from "@/lib/page-tools/nup";
 import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
@@ -227,6 +228,7 @@ export type ToolOptions =
       skipFirst: boolean;
     }
   | { kind: "insert-blank"; afterPage: number }
+  | ({ kind: "flatten" } & FlattenSettings)
   | { kind: "invert"; mode: InvertMode; engine: InvertEngine; dpi: number; keepHues: boolean }
   | ({ kind: "nup" } & NupSettings)
   | ({ kind: "page-size" } & ResizeSettings)
@@ -736,6 +738,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "invert", mode: "invert", engine: "vector", dpi: 150, keepHues: true };
     case "nup":
       return { kind: "nup", ...DEFAULT_NUP };
+    case "flatten":
+      return { kind: "flatten", ...DEFAULT_FLATTEN, strip: { ...DEFAULT_STRIP } };
     case "page-size":
       return { kind: "page-size", ...DEFAULT_RESIZE };
     case "watermark":
@@ -855,6 +859,11 @@ export function optionsReady(
     case "pdf-to-word":
     case "pdf-to-excel":
       return true;
+    case "flatten":
+      return (
+        options.mode === "form" ||
+        (Number.isFinite(options.dpi) && options.dpi >= 96 && options.dpi <= 400)
+      );
     case "nup":
       return (
         options.cols >= 1 &&

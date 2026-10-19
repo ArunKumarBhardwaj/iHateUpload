@@ -18,7 +18,7 @@ const steps = seq.split("|");
 let t0 = Date.now();
 for (let i = 0; i < steps.length; i++) {
   const last = i === steps.length - 1;
-  const click = page.locator("button", { hasText: steps[i] }).first().click();
+  const click = (last ? page.locator("button", { hasText: steps[i] }).last() : page.locator("button", { hasText: steps[i] }).first()).click();
   if (last) {
     const [d] = await Promise.all([page.waitForEvent("download", { timeout: 60000 }), click]);
     await d.saveAs(resolve(out));

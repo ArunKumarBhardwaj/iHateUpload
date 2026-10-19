@@ -184,7 +184,7 @@ async function runTool(
     case "bates-numbering":
       return processAnnotatePdf(files, onProgress, options);
     case "flatten-pdf":
-      return processFlattenPdf(files, onProgress);
+      return processFlattenPdf(files, onProgress, options);
     case "png-to-pdf":
       return processPngToPdf(files, onProgress);
     case "ocr-pdf":

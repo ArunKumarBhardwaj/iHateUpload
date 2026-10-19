@@ -4,6 +4,7 @@
 import { ConvertOptions, convertDocHint } from "@/components/workbench/convert-options";
 import { BatesControls } from "@/components/workbench/bates-controls";
 import { CropPanel } from "@/components/workbench/page-tools/crop-panel";
+import { FlattenPanel } from "@/components/workbench/page-tools/flatten-panel";
 import { InvertPanel } from "@/components/workbench/page-tools/invert-panel";
 import { RotatePanel } from "@/components/workbench/page-tools/rotate-panel";
 import { OrganizePanel } from "@/components/workbench/page-tools/organize-panel";
@@ -199,6 +200,10 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Left, center, and right. {page} {pages} {date} expand on each page.";
     case "insert-blank":
       return "Insert one blank page after the page number you type. 0 puts it first.";
+    case "flatten":
+      return options.mode === "form"
+        ? "Fields become part of the page. Text stays selectable. Choose what else to strip."
+        : "Every page becomes a picture, so nothing underneath can be copied, edited or clicked.";
     case "invert":
       return "Pick a look. Text-keeping mode recolours without redrawing, so text stays selectable and the file stays small.";
     case "nup":
@@ -964,6 +969,11 @@ export function OptionsPanel({
               : "0 inserts at the start."}
           </p>
         </Field>
+      );
+
+    case "flatten":
+      return (
+        <FlattenPanel options={options} onOptions={onOptions} disabled={disabled} />
       );
 
     case "invert":
