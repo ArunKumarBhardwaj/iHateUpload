@@ -43,7 +43,6 @@ import {
 } from "@/lib/ocr-words";
 import {
   NUMBER_SIZES,
-  pageBoxToPdf,
   resolvePageRange,
   type AnnotatePosition,
   type NumberFormat,
