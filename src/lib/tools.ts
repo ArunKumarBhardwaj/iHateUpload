@@ -103,6 +103,7 @@ export type ToolDefinition = {
     | "extract-text"
     | "insert-blank"
     | "invert"
+    | "flatten"
     | "nup"
     | "page-size"
     | "watermark"
@@ -699,18 +700,18 @@ export const TOOLS: ToolDefinition[] = [
     title: "Invert / Grayscale",
     shortTitle: "Invert",
     description:
-      "Invert colors or convert pages to grayscale. Pages are redrawn in this tab.",
+      "Dark mode, invert, sepia or grayscale. Text can stay selectable. Runs in this tab.",
     accept: "application/pdf,.pdf",
     multiple: false,
     ordered: false,
     actionLabel: "Apply",
     seoTitle: "Invert or Grayscale PDF Free — No Upload",
     seoDescription:
-      "Invert a PDF or convert it to grayscale online free. Pages are redrawn in your browser — no upload.",
+      "Dark mode, invert, sepia or grayscale a PDF online free. Text stays selectable. Runs in your browser — no upload.",
     seoHowTo: [
       "Choose the PDF.",
-      "Pick invert or grayscale.",
-      "Download the redrawn PDF.",
+      "Pick dark mode, invert, sepia or grayscale.",
+      "Download the recoloured PDF.",
     ],
     showInNav: true,
     kind: "pdf",
@@ -837,22 +838,22 @@ export const TOOLS: ToolDefinition[] = [
     title: "Flatten PDF",
     shortTitle: "Flatten",
     description:
-      "Burn form fields and annotations into the page so they cannot be peeled off.",
+      "Burn form fields into the page, or turn every page into a picture. Strip scripts, attachments and metadata. Runs in this tab.",
     accept: "application/pdf,.pdf",
     multiple: true,
     ordered: false,
     actionLabel: "Flatten PDF",
     seoTitle: "Flatten PDF Online Free — No Upload",
     seoDescription:
-      "Flatten a PDF online free. Lock form fields and annotations in your browser — no upload.",
+      "Flatten a PDF online free: lock form fields, or rasterise pages at 96 to 400 DPI and strip metadata, scripts and attachments. In your browser — no upload.",
     seoHowTo: [
       "Choose the PDF to flatten.",
-      "Click Flatten PDF. Fields become part of the page.",
+      "Pick form flatten or a full rasterise, and what to strip. Click Flatten PDF.",
       "Download the flattened PDF.",
     ],
     showInNav: false,
     kind: "pdf",
-    ui: "none",
+    ui: "flatten",
   },
   {
     id: "ocr-pdf",

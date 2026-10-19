@@ -1,5 +1,8 @@
 import { batesReady } from "@/lib/bates";
 import type { FlipMode } from "@/lib/page-ops";
+import type { InvertEngine, InvertMode, OrganizeEntry } from "@/lib/page-tools/types";
+import { DEFAULT_FLATTEN, DEFAULT_STRIP, type FlattenSettings } from "@/lib/page-tools/flatten";
+import { DEFAULT_RESIZE, type ResizeSettings } from "@/lib/page-tools/resize";
 import { DEFAULT_NUP, type NupSettings } from "@/lib/page-tools/nup";
 import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
 import type { PiiCategory } from "@/lib/pii-detect";
@@ -133,6 +136,8 @@ export type ToolOptions =
       flip: FlipMode;
       /** Empty or "all" turns every page. */
       range: string;
+      /** Extra clockwise turn for single pages (zero-based), on top of `degrees`. */
+      perPage: Record<number, 0 | 90 | 180 | 270>;
     }
   | {
       kind: "split";
@@ -179,13 +184,20 @@ export type ToolOptions =
       /** Empty or "all" reads every page. */
       range: string;
     }
-  | { kind: "organize"; pageOrder: number[] }
+  | { kind: "organize"; entries: OrganizeEntry[] }
   | { kind: "resize"; maxEdge: number }
   | { kind: "compress"; level: CompressLevel; targetKb: number | null }
   | { kind: "extract"; range: string; pageCount: number }
   | { kind: "sign"; placements: SignPlacement[] }
   | { kind: "edit"; marks: EditMark[] }
-  | { kind: "crop"; box: PageBox }
+  | {
+      kind: "crop";
+      /** Shared box, ratios of the page as shown. */
+      box: PageBox;
+      /** Own box per page, used when `applyAll` is off. */
+      perPage: Record<number, RatioBox>;
+      applyAll: boolean;
+    }
   | {
       kind: "redact";
       /** Boxes drawn by hand. */
@@ -216,9 +228,10 @@ export type ToolOptions =
       skipFirst: boolean;
     }
   | { kind: "insert-blank"; afterPage: number }
-  | { kind: "invert"; mode: "invert" | "grayscale" }
+  | ({ kind: "flatten" } & FlattenSettings)
+  | { kind: "invert"; mode: InvertMode; engine: InvertEngine; dpi: number; keepHues: boolean }
   | ({ kind: "nup" } & NupSettings)
-  | { kind: "page-size"; size: "a4" | "letter"; fit: "fit" | "letterbox" }
+  | ({ kind: "page-size" } & ResizeSettings)
   | {
       kind: "annotate";
       variant: "watermark" | "numbers";
@@ -302,9 +315,13 @@ export const DEFAULT_RATIO_BOX: RatioBox = {
   h: 0.84,
 };
 
+/** The whole page: a fresh crop starts with zero margins. */
 export const DEFAULT_CROP_BOX: PageBox = {
   pageIndex: 0,
-  ...DEFAULT_RATIO_BOX,
+  x: 0,
+  y: 0,
+  w: 1,
+  h: 1,
 };
 
 export const DEFAULT_EDIT_BOX: PageBox = {
@@ -616,7 +633,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "password-confirm":
       return { kind: "password-confirm", password: "" };
     case "rotate":
-      return { kind: "rotate", degrees: 90, flip: "none", range: "" };
+      return { kind: "rotate", degrees: 0, flip: "none", range: "", perPage: {} };
     case "split":
       return {
         kind: "split",
@@ -662,7 +679,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         range: "",
       };
     case "organize":
-      return { kind: "organize", pageOrder: [] };
+      return { kind: "organize", entries: [] };
     case "resize":
       return { kind: "resize", maxEdge: 1280 };
     case "compress":
@@ -674,7 +691,12 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "edit":
       return { kind: "edit", marks: [] };
     case "crop":
-      return { kind: "crop", box: { ...DEFAULT_CROP_BOX } };
+      return {
+        kind: "crop",
+        box: { ...DEFAULT_CROP_BOX },
+        perPage: {},
+        applyAll: true,
+      };
     case "redact":
       return {
         kind: "redact",
@@ -719,11 +741,13 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "insert-blank":
       return { kind: "insert-blank", afterPage: 1 };
     case "invert":
-      return { kind: "invert", mode: "invert" };
+      return { kind: "invert", mode: "invert", engine: "vector", dpi: 150, keepHues: true };
     case "nup":
       return { kind: "nup", ...DEFAULT_NUP };
+    case "flatten":
+      return { kind: "flatten", ...DEFAULT_FLATTEN, strip: { ...DEFAULT_STRIP } };
     case "page-size":
-      return { kind: "page-size", size: "a4", fit: "letterbox" };
+      return { kind: "page-size", ...DEFAULT_RESIZE };
     case "watermark":
       return {
         kind: "annotate",
@@ -841,6 +865,11 @@ export function optionsReady(
     case "pdf-to-word":
     case "pdf-to-excel":
       return true;
+    case "flatten":
+      return (
+        options.mode === "form" ||
+        (Number.isFinite(options.dpi) && options.dpi >= 96 && options.dpi <= 400)
+      );
     case "nup":
       return (
         options.cols >= 1 &&
@@ -848,7 +877,11 @@ export function optionsReady(
         options.cols * options.rows >= 2
       );
     case "rotate":
-      return options.degrees !== 0 || options.flip !== "none";
+      return (
+        options.degrees !== 0 ||
+        options.flip !== "none" ||
+        Object.values(options.perPage ?? {}).some((turn) => turn !== 0)
+      );
     case "split":
       return options.mode === "ranges"
         ? options.ranges.trim().length > 0
@@ -909,7 +942,7 @@ export function optionsReady(
         options.password === confirmPassword
       );
     case "organize":
-      return options.pageOrder.length >= 1;
+      return options.entries.some((entry) => entry.src >= 0);
     case "resize":
       return (
         Number.isFinite(options.maxEdge) &&

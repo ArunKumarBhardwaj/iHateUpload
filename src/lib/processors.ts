@@ -1,6 +1,7 @@
 import { encryptionFor } from "@/lib/protect";
 import { unlockPdfBytes, WrongPasswordError } from "@/lib/unlock";
 import imageCompression from "browser-image-compression";
+import { buildOrganized } from "@/lib/page-tools/organize";
 import { PDFDocument, degrees, toDegrees } from "@cantoo/pdf-lib";
 import type { PDFPageProxy } from "pdfjs-dist";
 
@@ -1250,10 +1251,21 @@ export async function processRotatePdf(
       ignoreEncryption: true,
     });
     const pages = doc.getPages();
-    for (const index of resolvePageRange(options.range, pages.length)) {
-      const current = toDegrees(pages[index].getRotation());
-      pages[index].setRotation(degrees((current + delta) % 360));
-      flipPage(doc, pages[index], options.flip ?? "none");
+    const perPage = options.perPage ?? {};
+    const inRange = new Set(resolvePageRange(options.range, pages.length));
+    let changed = false;
+    pages.forEach((page, index) => {
+      const turn =
+        ((inRange.has(index) ? delta : 0) + (perPage[index] ?? 0)) % 360;
+      if (turn !== 0) {
+        const current = toDegrees(page.getRotation());
+        page.setRotation(degrees((current + turn) % 360));
+        changed = true;
+      }
+      if (inRange.has(index)) flipPage(doc, page, options.flip ?? "none");
+    });
+    if (!changed && (options.flip ?? "none") === "none") {
+      throw new Error("Pick a page to turn first.");
     }
     const pdfBytes = await doc.save({ useObjectStreams: true });
     const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {
@@ -1285,7 +1297,7 @@ export async function processOrganizePdf(
   if (options.kind !== "organize") {
     throw new Error("Organize PDF requires a page order.");
   }
-  if (options.pageOrder.length < 1) {
+  if (!options.entries.some((entry) => entry.src >= 0)) {
     throw new Error("Keep at least one page.");
   }
 
@@ -1295,17 +1307,10 @@ export async function processOrganizePdf(
   const donor = await PDFDocument.load(await item.file.arrayBuffer(), {
     ignoreEncryption: true,
   });
-  const pageCount = donor.getPageCount();
-  for (const index of options.pageOrder) {
-    if (index < 0 || index >= pageCount) {
-      throw new Error("Page order includes an invalid page.");
-    }
-  }
-
   onProgress(0.2);
-  const out = await PDFDocument.create();
-  const copied = await out.copyPages(donor, options.pageOrder);
-  for (const page of copied) out.addPage(page);
+  const out = await buildOrganized(donor, options.entries, (r) =>
+    onProgress(0.2 + r * 0.6),
+  );
   onProgress(0.8);
 
   const pdfBytes = await out.save({ useObjectStreams: true });

@@ -19,7 +19,7 @@ async function rotations(patch: Record<string, unknown>, pages = 4) {
   const [result] = await processRotatePdf(
     [await pdfItem(pages)],
     () => {},
-    { ...initialOptions("rotate"), ...patch } as never,
+    { ...initialOptions("rotate"), degrees: 90, ...patch } as never,
   );
   const doc = await PDFDocument.load(await result.blob.arrayBuffer());
   return doc.getPages().map((page) => page.getRotation().angle);
@@ -28,6 +28,15 @@ async function rotations(patch: Record<string, unknown>, pages = 4) {
 test("rotate turns every page by default", async () => {
   expect(await rotations({})).toEqual([180, 90, 90, 90]);
   expect(await rotations({ range: "all" })).toEqual([180, 90, 90, 90]);
+});
+
+test("per-page turns add to the page range turn", async () => {
+  expect(await rotations({ degrees: 0, perPage: { 1: 90, 3: 270 } })).toEqual([90, 90, 0, 270]);
+  expect(await rotations({ range: "1", perPage: { 0: 180, 2: 90 } })).toEqual([0, 0, 90, 0]);
+});
+
+test("rotate with nothing to turn says so", async () => {
+  await expect(rotations({ degrees: 0 })).rejects.toThrow(/turn/i);
 });
 
 test("rotate only turns the listed pages", async () => {
@@ -72,4 +81,33 @@ test("mirror alone keeps the turn and flips only the listed pages", async () => 
     true,
     false,
   ]);
+});
+
+import { processCropPdf } from "./extra-processors";
+
+async function cropBoxes(patch: Record<string, unknown>) {
+  const [result] = await processCropPdf(
+    [await pdfItem(3)],
+    () => {},
+    { ...initialOptions("crop"), ...patch } as never,
+  );
+  const doc = await PDFDocument.load(await result.blob.arrayBuffer());
+  return doc.getPages().map((p) => p.getCropBox().width);
+}
+
+test("crop with nothing changed refuses instead of trimming", async () => {
+  await expect(cropBoxes({})).rejects.toThrow(/nothing/i);
+  await expect(cropBoxes({ applyAll: false })).rejects.toThrow(/nothing/i);
+});
+
+test("per-page crop leaves untouched pages alone", async () => {
+  const widths = await cropBoxes({
+    applyAll: false,
+    perPage: { 1: { x: 0.1, y: 0, w: 0.5, h: 1 } },
+  });
+  expect(widths).toEqual([400, 200, 400]);
+});
+
+test("a shared crop applies to every page", async () => {
+  expect(await cropBoxes({ box: { x: 0, y: 0, w: 0.5, h: 1 } })).toEqual([400, 200, 200]);
 });

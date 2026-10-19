@@ -14,7 +14,6 @@ import {
 import { CsvPreview } from "@/components/workbench/csv-preview";
 import { ExtractImagesGrid } from "@/components/workbench/extract-images-grid";
 import { ImageCropOverlay } from "@/components/workbench/image-crop-overlay";
-import { PageOverlay } from "@/components/workbench/page-overlay";
 import { SignCanvas } from "@/components/workbench/sign-canvas";
 import { PdfEditCanvas } from "@/components/workbench/pdf-edit-canvas";
 import { ComparePreview } from "@/components/workbench/compare-preview";
@@ -90,7 +89,7 @@ import {
 } from "@/lib/processors";
 import type { FileFacts } from "@/lib/preview";
 import { TOOL_GROUPS } from "@/lib/tool-groups";
-import { useFilePreviews, usePagePreviews } from "@/lib/use-previews";
+import { useFilePreviews } from "@/lib/use-previews";
 import { cn, downloadBlob, formatBytes } from "@/lib/utils";
 
 async function runTool(
@@ -185,7 +184,7 @@ async function runTool(
     case "bates-numbering":
       return processAnnotatePdf(files, onProgress, options);
     case "flatten-pdf":
-      return processFlattenPdf(files, onProgress);
+      return processFlattenPdf(files, onProgress, options);
     case "png-to-pdf":
       return processPngToPdf(files, onProgress);
     case "ocr-pdf":
@@ -302,8 +301,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       : undefined;
   const pagedFacts = pagedFile ? previews.get(pagedFile.id)?.facts : undefined;
   const pageCount = pagedFacts?.kind === "pdf" ? pagedFacts.pages : 0;
-  const organizeFile = options.kind === "organize" ? pagedFile : undefined;
-  const pagePreviews = usePagePreviews(organizeFile, pageCount);
 
   const setFiles = useCallback((next: FileItem[]) => {
     setJob(next.length === 0 ? idleJob() : { status: "ready", files: next });
@@ -339,7 +336,11 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     setOrderedKey(pageKey);
     setOptions({
       kind: "organize",
-      pageOrder: Array.from({ length: pageCount }, (_, index) => index),
+      entries: Array.from({ length: pageCount }, (_, index) => ({
+        id: `p${index}`,
+        src: index,
+        turn: 0 as const,
+      })),
     });
   }
   if (options.kind === "extract" && orderedKey !== pageKey) {
@@ -457,7 +458,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const overlayFile =
     (options.kind === "sign" ||
       options.kind === "edit" ||
-      options.kind === "crop" ||
       options.kind === "redact") &&
     pagedFile
       ? pagedFile.file
@@ -469,7 +469,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
       onOptions={setOptions}
       confirmPassword={confirmPassword}
       onConfirmPassword={setConfirmPassword}
-      pagePreviews={pagePreviews}
       pageCount={pageCount}
       firstPage={files[0] ? previews.get(files[0].id)?.thumbnail : undefined}
       files={files}
@@ -631,15 +630,6 @@ export function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
                   onMarks={(marks) => setOptions({ kind: "edit", marks })}
                   pageCount={pageCount}
                   disabled={locked}
-                />
-              ) : null}
-              {overlayFile && options.kind === "crop" ? (
-                <PageOverlay
-                  file={overlayFile}
-                  box={options.box}
-                  onBox={(box) => setOptions({ ...options, box })}
-                  disabled={locked}
-                  label="Keep this area"
                 />
               ) : null}
               {overlayFile && options.kind === "redact" ? (

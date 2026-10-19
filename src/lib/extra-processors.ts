@@ -1,6 +1,5 @@
 import {
   PDFDocument,
-  PageSizes,
   StandardFonts,
   degrees,
   rgb,
@@ -10,6 +9,11 @@ import type { PDFPageProxy } from "pdfjs-dist";
 
 import type { FileItem, ResultItem } from "@/lib/job";
 import { stripInvisibleText } from "@/lib/page-ops";
+import { mapPixel } from "@/lib/page-tools/colour";
+import { recolourPages, withoutText } from "@/lib/page-tools/invert";
+import { flattenAndStrip } from "@/lib/page-tools/flatten";
+import { cropPages } from "@/lib/page-tools/crop";
+import { resizePages } from "@/lib/page-tools/resize";
 import { buildNup } from "@/lib/page-tools/nup";
 import { loadPdfJs } from "@/lib/pdfjs";
 import { extractPdfText } from "@/lib/pdf-text";
@@ -412,14 +416,22 @@ export async function processCropPdf(
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to crop.");
   const doc = await loadPdf(item.file);
-  const pages = doc.getPages();
-  pages.forEach((page, index) => {
-    const size = page.getSize();
-    const box = pageBoxToPdf(options.box, size.width, size.height);
-    page.setCropBox(box.x, box.y, box.width, box.height);
-    page.setMediaBox(box.x, box.y, box.width, box.height);
-    onProgress((index + 1) / (pages.length + 1));
+  const whole = (r: { x: number; y: number; w: number; h: number }) =>
+    r.x <= 0.0005 && r.y <= 0.0005 && r.w >= 0.999 && r.h >= 0.999;
+  const rectFor = (index: number) =>
+    options.applyAll ? options.box : (options.perPage[index] ?? null);
+  const changed = doc.getPages().some((_, i) => {
+    const r = rectFor(i);
+    return r !== null && !whole(r);
   });
+  if (!changed) {
+    throw new Error("Nothing to crop yet. Drag the box or type margins first.");
+  }
+  cropPages(doc, (index) => {
+    const r = rectFor(index);
+    return r && !whole(r) ? r : null;
+  });
+  onProgress(0.7);
   stripPdfMetadata(doc);
   const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
   onProgress(1);
@@ -705,27 +717,58 @@ export async function processAnnotatePdf(
 export async function processFlattenPdf(
   files: FileItem[],
   onProgress: ProgressFn,
+  options: ToolOptions,
 ): Promise<ResultItem[]> {
+  if (options.kind !== "flatten") throw new Error("Flatten needs its options.");
   const results: ResultItem[] = [];
   for (let i = 0; i < files.length; i++) {
     const item = files[i];
     const doc = await loadPdf(item.file);
-    try {
-      doc.getForm().flatten();
-    } catch {
-      // A PDF with no AcroForm still gets a clean rewrite.
+    const name = replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-flat.pdf");
+    const done = (n: number) => onProgress((i + n) / files.length);
+    if (options.mode === "form") {
+      flattenAndStrip(doc, options.strip);
+      if (!options.strip.metadata) {
+        // Keep the author's own metadata; only the producer changes.
+        doc.setProducer("iHateUpload");
+      } else {
+        stripPdfMetadata(doc);
+      }
+      results.push(
+        resultFrom(item, pdfBlob(await doc.save({ useObjectStreams: true })), name, item.size),
+      );
+      done(1);
+      continue;
     }
-    stripPdfMetadata(doc);
-    const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
+    // Full flatten: apply the strips to the source, then draw each page as a picture.
+        // Burn fields in first so ticked boxes and typed values are drawn; "strip forms" removes them instead.
+    flattenAndStrip(doc, options.strip, { flattenForm: !options.strip.forms });
+    const { getDocument } = await loadPdfJs();
+    const src = await getDocument({
+      data: new Uint8Array(await doc.save()),
+    }).promise;
+    const out = await PDFDocument.create();
+    const scale = Math.min(400, Math.max(96, options.dpi)) / 72;
+    try {
+      for (let n = 1; n <= src.numPages; n++) {
+        const page = await src.getPage(n);
+        const { width, height } = page.getViewport({ scale: 1 });
+        const { canvas } = await renderPageCanvas(page, scale);
+        const jpeg = await canvasToJpeg(canvas, 0.85);
+        canvas.width = 0;
+        canvas.height = 0;
+        page.cleanup();
+        const image = await out.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
+        out.addPage([width, height]).drawImage(image, { x: 0, y: 0, width, height });
+        done(n / src.numPages);
+      }
+    } finally {
+      await src.loadingTask.destroy();
+    }
+    stripPdfMetadata(out);
     results.push(
-      resultFrom(
-        item,
-        blob,
-        replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-flat.pdf"),
-        item.size,
-      ),
+      resultFrom(item, pdfBlob(await out.save({ useObjectStreams: true })), name, item.size),
     );
-    onProgress((i + 1) / files.length);
   }
   return results;
 }
@@ -1608,62 +1651,65 @@ export async function processInvertPdf(
 ): Promise<ResultItem[]> {
   if (options.kind !== "invert") throw new Error("Invert needs a mode.");
   const item = files[0];
-  if (!item) throw new Error("Choose a PDF to invert.");
-  const source = await loadPdf(item.file);
+  if (!item) throw new Error("Choose a PDF to recolour.");
+  const suffix = {
+    invert: "-inverted.pdf",
+    dark: "-dark.pdf",
+    sepia: "-sepia.pdf",
+    grayscale: "-gray.pdf",
+  }[options.mode];
+  const name = replaceExt(item.name, "pdf").replace(/\.pdf$/i, suffix);
+
+  if (options.engine === "vector") {
+    const bytes = await item.file.arrayBuffer();
+    const doc = await loadPdf(item.file);
+    onProgress(0.2);
+    await recolourPages(
+      doc,
+      options.mode,
+      options.mode === "dark" && options.keepHues
+        ? await withoutText(bytes)
+        : undefined,
+    );
+    onProgress(0.9);
+    stripPdfMetadata(doc);
+    return [
+      resultFrom(item, pdfBlob(await doc.save({ useObjectStreams: true })), name, item.size),
+    ];
+  }
+
   const { getDocument } = await loadPdfJs();
   const data = new Uint8Array(await item.file.arrayBuffer());
   const src = await getDocument({ data }).promise;
   const out = await PDFDocument.create();
+  const scale = Math.min(6, Math.max(0.5, options.dpi / 72));
   try {
     for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
       const page = await src.getPage(pageNum);
-      const { canvas, ctx } = await renderPageCanvas(page, 1.6);
+      const { width, height } = page.getViewport({ scale: 1 });
+      const { canvas, ctx } = await renderPageCanvas(page, scale);
       const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const buf = pixels.data;
-      if (options.mode === "invert") {
-        for (let i = 0; i < buf.length; i += 4) {
-          buf[i] = 255 - (buf[i] ?? 0);
-          buf[i + 1] = 255 - (buf[i + 1] ?? 0);
-          buf[i + 2] = 255 - (buf[i + 2] ?? 0);
-        }
-      } else {
-        for (let i = 0; i < buf.length; i += 4) {
-          const gray = Math.round(
-            0.2126 * (buf[i] ?? 0) +
-              0.7152 * (buf[i + 1] ?? 0) +
-              0.0722 * (buf[i + 2] ?? 0),
-          );
-          buf[i] = gray;
-          buf[i + 1] = gray;
-          buf[i + 2] = gray;
-        }
+      for (let i = 0; i < buf.length; i += 4) {
+        const [r, g, b] = mapPixel(options.mode, buf[i], buf[i + 1], buf[i + 2]);
+        buf[i] = r;
+        buf[i + 1] = g;
+        buf[i + 2] = b;
       }
       ctx.putImageData(pixels, 0, 0);
       const jpeg = await canvasToJpeg(canvas, 0.86);
       page.cleanup();
       const image = await out.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
-      const size = source.getPage(pageNum - 1).getSize();
-      const pdfPage = out.addPage([size.width, size.height]);
-      pdfPage.drawImage(image, {
-        x: 0,
-        y: 0,
-        width: size.width,
-        height: size.height,
-      });
+      const pdfPage = out.addPage([width, height]);
+      pdfPage.drawImage(image, { x: 0, y: 0, width, height });
       onProgress(pageNum / src.numPages);
     }
   } finally {
     await src.loadingTask.destroy();
   }
   stripPdfMetadata(out);
-  const suffix = options.mode === "invert" ? "-inverted.pdf" : "-gray.pdf";
   return [
-    resultFrom(
-      item,
-      pdfBlob(await out.save({ useObjectStreams: true })),
-      replaceExt(item.name, "pdf").replace(/\.pdf$/i, suffix),
-      item.size,
-    ),
+    resultFrom(item, pdfBlob(await out.save({ useObjectStreams: true })), name, item.size),
   ];
 }
 
@@ -1700,29 +1746,9 @@ export async function processPageSize(
   const item = files[0];
   if (!item) throw new Error("Choose a PDF to resize.");
   const source = await loadPdf(item.file);
-  ensurePageContents(source);
-  const target = options.size === "a4" ? PageSizes.A4 : PageSizes.Letter;
-  const out = await PDFDocument.create();
-  const count = source.getPageCount();
-  for (let index = 0; index < count; index++) {
-    const embedded = await out.embedPage(source.getPage(index));
-    const page = out.addPage(target);
-    const scale =
-      options.fit === "fit"
-        ? Math.max(target[0] / embedded.width, target[1] / embedded.height)
-        : Math.min(target[0] / embedded.width, target[1] / embedded.height);
-    const width = embedded.width * scale;
-    const height = embedded.height * scale;
-    page.drawPage(embedded, {
-      x: (target[0] - width) / 2,
-      y: (target[1] - height) / 2,
-      width,
-      height,
-    });
-    onProgress((index + 1) / count);
-  }
+  const out = await resizePages(source, options, onProgress);
   stripPdfMetadata(out);
-  const tag = options.size === "a4" ? "a4" : "letter";
+  const tag = options.size === "custom" ? "resized" : options.size;
   return [
     resultFrom(
       item,
@@ -1731,19 +1757,6 @@ export async function processPageSize(
       item.size,
     ),
   ];
-}
-
-function ensurePageContents(doc: PDFDocument) {
-  for (const page of doc.getPages()) {
-    page.drawRectangle({
-      x: 0,
-      y: 0,
-      width: 0.01,
-      height: 0.01,
-      opacity: 0,
-      borderOpacity: 0,
-    });
-  }
 }
 
 async function renderPageCanvas(page: PDFPageProxy, scale: number) {
