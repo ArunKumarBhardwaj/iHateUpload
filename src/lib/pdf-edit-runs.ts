@@ -27,6 +27,8 @@ export type PageTextRun = {
   y: number;
   w: number;
   h: number;
+  /** Font size as a fraction of page height, when the source knows it. */
+  size?: number;
 };
 
 export type PdfJsLikeItem = {
@@ -74,6 +76,7 @@ export function pdfJsItemsToRuns(
       w,
       h,
       font: fontOf?.(item.fontName),
+      size: Math.hypot(c.x - a.x, c.y - a.y) / height || undefined,
     });
   }
   return runs;
@@ -107,6 +110,7 @@ export function mergeTextRuns(items: PageTextRun[]): PageTextRun[] {
     last.y = y;
     last.w = x2 - x;
     last.h = y2 - y;
+    last.size = Math.max(last.size ?? 0, item.size ?? 0) || undefined;
   }
   return lines;
 }
@@ -139,7 +143,7 @@ export function textMarkBox(run: PageTextRun) {
     y,
     w: clamp(run.w + 0.01, 0.05, 1 - x),
     h: clamp(run.h + 0.008, 0.016, 1 - y),
-    fontSize: clamp(run.h * 0.9, 0.01, 0.08),
+    fontSize: clamp(run.size ?? run.h * 0.9, 0.01, 0.08),
   };
 }
 

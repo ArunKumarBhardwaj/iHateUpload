@@ -159,3 +159,11 @@ for (const kind of ["std", "type0", "tj", "truetype", "rotated"] as const) {
     expect(text).toContain("Second line stays");
   });
 }
+
+test("a replacement longer than the old line stays on one line", async () => {
+  const input = await twoColumn("std");
+  const out = await replaceLine(input, "Acme", "Invoice for Globex International Holdings");
+  const pdf = await open(out);
+  const items = (await (await pdf.getPage(1)).getTextContent()).items.flatMap((i) => ("str" in i && i.str.trim() ? [i.str] : []));
+  expect(items).toContain("Invoice for Globex International Holdings");
+});

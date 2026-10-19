@@ -610,7 +610,7 @@ export function PdfEditCanvas({
               : scan === "reading"
                 ? "Reading the words on this scan…"
                 : scan === "ocr"
-                  ? "Click a line to change it. These words came from OCR. Save covers them."
+                  ? "Click a line to change it. These words came from OCR; a scan has no letters to delete, so Save covers them with the new text."
                   : scan === "text"
                     ? "Click a line to change it. Click empty space to add text."
                     : "No words found. Click the page to type on it."}
@@ -688,7 +688,11 @@ export function PdfEditCanvas({
             disabled={disabled}
             hostH={hostH}
             onPointerDown={onMarkPointerDown}
-            onText={(text) => patch(mark.id, { text })}
+            onSelect={() => {
+              setSelectedId(mark.id);
+              setTool("select");
+            }}
+            onText={(text, w) => patch(mark.id, w === undefined ? { text } : { text, w })}
           />
         ))}
         {draft && draft.w > 0 && draft.h > 0 ? (
@@ -723,6 +727,7 @@ function MarkLayer({
   disabled,
   hostH,
   onPointerDown,
+  onSelect,
   onText,
 }: {
   mark: EditMark;
@@ -734,7 +739,10 @@ function MarkLayer({
     mark: EditMark,
     kind: DragKind,
   ) => void;
-  onText: (text: string) => void;
+  /** Focusing the text selects the mark, so its style controls show. */
+  onSelect: () => void;
+  /** `w` is a wider box when a replaced line no longer fits its old width. */
+  onText: (text: string, w?: number) => void;
 }) {
   const z =
     mark.kind === "highlight"
@@ -805,7 +813,20 @@ function MarkLayer({
           disabled={disabled}
           aria-label="Text on the page"
           onPointerDown={(event) => event.stopPropagation()}
-          onChange={(event) => onText(event.target.value)}
+          wrap={mark.cover ? "off" : undefined}
+          onFocus={onSelect}
+          onChange={(event) => {
+            const el = event.currentTarget;
+            let wider: number | undefined;
+            if (mark.cover && el.scrollWidth > el.clientWidth) {
+              // A replaced line grows to the right instead of wrapping under itself.
+              const hostW = (el.offsetParent as HTMLElement | null)?.offsetParent?.clientWidth ?? 0;
+              if (hostW > 0) {
+                wider = Math.min(1 - mark.x, mark.w + (el.scrollWidth - el.clientWidth + 2) / hostW);
+              }
+            }
+            onText(el.value, wider);
+          }}
           className={cn(
             "h-full w-full resize-none overflow-hidden px-0.5 py-0 leading-none outline-none",
             mark.cover ? "bg-white" : "bg-transparent",

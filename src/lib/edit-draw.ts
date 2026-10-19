@@ -191,7 +191,10 @@ export async function drawEditMark(
       const font = await fontFrom(doc, fonts, standardFontFor(mark));
       const pageH = at.rotate === 90 || at.rotate === 270 ? frame.width : frame.height;
       const size = Math.max(4, Math.min(mark.fontSize * pageH, 200));
-      const lines = wrapLines(text, Math.max(8, at.width), (s) => font.widthOfTextAtSize(s, size));
+      const viewW = at.rotate === 90 || at.rotate === 270 ? frame.height : frame.width;
+      // A replaced line grows toward the page edge instead of wrapping under itself.
+      const room = mark.cover ? Math.max(at.width, viewW * (1 - mark.x) - 4) : at.width;
+      const lines = wrapLines(text, Math.max(8, room), (s) => font.widthOfTextAtSize(s, size));
       const lead = size * 1.15;
       const a = (at.rotate * Math.PI) / 180;
       const cos = Math.cos(a);
@@ -203,7 +206,7 @@ export async function drawEditMark(
             ? Math.max(0, (at.width - w) / 2)
             : mark.align === "right"
               ? Math.max(0, at.width - w)
-              : 0.4;
+              : 0.4 + (mark.cover ? 0.004 * viewW : 0);
         const ly =
           lines.length === 1
             ? Math.max(0, (at.height - size) / 2)

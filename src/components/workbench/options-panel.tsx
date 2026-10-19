@@ -188,7 +188,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "sign":
       return "Draw, type, or stamp a signature, then drag it onto the page.";
     case "edit":
-      return "Click a line to change it. Scans are read with OCR. Old letters are covered, not rewritten.";
+      return "Click a line to change it. Scans are read with OCR. Find and replace works across pages. Replaced letters are deleted from the file.";
     case "crop":
       return "Drag the box to the area every page should keep.";
     case "redact":
