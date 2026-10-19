@@ -13,7 +13,9 @@ export async function createOcrWorker(
   options: Partial<WorkerOptions> = {},
 ) {
   const { createWorker, OEM } = await import("tesseract.js");
-  const origin = self.location.origin;
+  // Outside a browser (bun scripts and tests) there is no origin; use tesseract.js defaults.
+  if (typeof location === "undefined") return createWorker(language, OEM.LSTM_ONLY, options);
+  const origin = location.origin;
   return createWorker(language, OEM.LSTM_ONLY, {
     workerPath: `${origin}${TESSERACT_DIR}/worker.min.js`,
     corePath: `${origin}${TESSERACT_DIR}/`,

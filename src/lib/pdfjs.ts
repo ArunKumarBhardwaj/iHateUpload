@@ -8,7 +8,9 @@ import { PDFJS_DIR } from "@/lib/wasm-assets";
  * them it falls back to the slow JS decoders and skips ICC colour.
  */
 function assetParams(): DocumentInitParameters {
-  const base = `${self.location.origin}${PDFJS_DIR}/`;
+  // Outside a browser (bun scripts and tests) there is no origin to fetch from.
+  if (typeof location === "undefined") return {};
+  const base = `${location.origin}${PDFJS_DIR}/`;
   return {
     wasmUrl: `${base}wasm/`,
     cMapUrl: `${base}cmaps/`,
