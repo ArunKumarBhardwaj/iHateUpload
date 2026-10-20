@@ -129,3 +129,35 @@ test("slide size stays inside PowerPoint's 1 to 56 inch limits", () => {
   expect(slideSize("match", { width: 30, height: 30 }).width).toBe(72);
   expect(slideSize("4:3", { width: 612, height: 792 })).toEqual({ width: 720, height: 540 });
 });
+
+test("a one-line tabbed paragraph becomes one text box per tab stop (Google Slides ignores tab stops)", async () => {
+  const { writePptx } = await import("./pptx-writer");
+  const run = (text: string) => ({ text, size: 16 });
+  const tab = { text: "", tab: true };
+  const bytes = await writePptx(
+    [{
+      kind: "exact",
+      page: {
+        width: 960,
+        height: 540,
+        shapes: [],
+        items: [{
+          kind: "text",
+          box: { x: 190, y: 450, w: 550, h: 19 },
+          block: {
+            type: "p",
+            align: "right",
+            runs: [run("North"), tab, run("East"), tab, run("South"), tab, run("West")],
+            tabs: [{ pos: 170, kind: "left" }, { pos: 340, kind: "left" }, { pos: 510, kind: "left" }],
+          },
+        }],
+      },
+    }],
+    {},
+    { size: "match", title: "t" },
+  );
+  const xml = await (await JSZip.loadAsync(bytes)).file("ppt/slides/slide1.xml")!.async("string");
+  const boxes = [...xml.matchAll(/<p:sp>.*?<a:off x="(\d+)"[^]*?<a:t>([^<]*)<\/a:t>[^]*?<\/p:sp>/g)].map((m) => [Math.round(Number(m[1]) / 12700), m[2]]);
+  expect(boxes).toEqual([[189, "North"], [359, "East"], [529, "South"], [699, "West"]]);
+  expect(xml).not.toContain("<a:t>\t</a:t>");
+});

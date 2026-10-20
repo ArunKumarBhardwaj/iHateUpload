@@ -212,13 +212,48 @@ function paragraphXml(ctx: Ctx, block: ParagraphBlock): string {
 const bodyPr = (wrap: "square" | "none") =>
   `<a:bodyPr wrap="${wrap}" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="t"><a:noAutofit/></a:bodyPr>`;
 
+/**
+ * One line laid out with tab stops, as one text box per stop. Google Slides
+ * ignores custom tab stops and bunches the pieces together; separate boxes land
+ * where the PDF had them in every viewer.
+ */
+function splitAtTabs(item: ExactItem, block: ParagraphBlock): ExactItem[] {
+  const pieces: Run[][] = [[]];
+  for (const run of block.runs) {
+    if (run.tab) pieces.push([]);
+    else pieces[pieces.length - 1].push(run);
+  }
+  const tabs = block.tabs ?? [];
+  // Where each piece's tab stop is, in points from the box's left edge; past the defined stops, every half inch.
+  const stops = pieces.map((_, i) => (i === 0 ? 0 : (tabs[i - 1]?.pos ?? (tabs.at(-1)?.pos ?? 0) + 36 * (i - tabs.length))));
+  const out: ExactItem[] = [];
+  pieces.forEach((runs, i) => {
+    if (!runs.some((run) => run.text.trim())) return;
+    const kind = i === 0 ? "left" : (tabs[i - 1]?.kind ?? "left");
+    const next = stops[i + 1] ?? item.box.w;
+    const prev = i === 0 ? 0 : stops[i - 1];
+    // A right tab ends the text at its stop; a centre tab centres on it; a left tab starts there.
+    const [from, to] =
+      kind === "right" ? [prev, stops[i]] : kind === "center" ? [stops[i] - (stops[i] - prev) / 2, stops[i] + (next - stops[i]) / 2] : [stops[i], next];
+    out.push({
+      kind: "text",
+      box: { x: item.box.x + from, y: item.box.y, w: Math.max(1, to - from), h: item.box.h },
+      block: { ...block, runs, tabs: undefined, indentLeft: undefined, firstLine: undefined, align: kind === "left" ? undefined : kind },
+    });
+  });
+  return out;
+}
+
 /** A text box sized to the block; a little slack keeps PowerPoint from re-wrapping lines. */
 function textBoxXml(ctx: Ctx, item: ExactItem): string {
-  const id = ctx.nextId();
   const block = item.block as ParagraphBlock;
   // One line on the page stays one line: a substitute font a little wider than the PDF's must not wrap it.
   const tallest = Math.max(1, ...block.runs.map((run) => run.size ?? 12));
   const wrap = item.box.h < tallest * 1.6 ? "none" : "square";
+  if (wrap === "none" && !block.list && block.runs.some((run) => run.tab)) {
+    return splitAtTabs(item, block).map((piece) => textBoxXml(ctx, piece)).join("");
+  }
+  const id = ctx.nextId();
   const box = { x: item.box.x - 1, y: item.box.y - 1, w: item.box.w + 4, h: item.box.h + 3 };
   return (
     `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="Text ${id}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>` +

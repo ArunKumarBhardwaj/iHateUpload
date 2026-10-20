@@ -26,3 +26,7 @@ Not tested: Microsoft PowerPoint (not installed). Apple Quick Look renders our f
 
 - Keynote 15.4 (`keynote-export.applescript`): all 4 outputs open and export; text complete; renders match the PDFs, including the "1. / 2." list and a centred 16:9 page.
 - Microsoft PowerPoint 16.114 (`powerpoint-export.applescript`, `powerpoint-read.applescript`): opens all 4 without a repair prompt; its own PDF export keeps every word and all 20 table cells and looks like the PDFs. Saving as PDF works only after its first-launch screen is dismissed.
+
+## Google Slides (2026-10-20)
+
+Uploaded through the person's own Drive (synthetic files only, trashed afterwards). Slides 1, 2 and 4 of the deck and the report matched; slide 3's axis labels, one line laid out with tab stops, were bunched under the wrong bars because Google Slides ignores custom tab stops. Fix: a one-line tabbed paragraph is written as one text box per tab stop. Rechecked in Google Slides, LibreOffice and Keynote: labels under their bars in all three.
