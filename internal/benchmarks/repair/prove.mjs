@@ -23,7 +23,8 @@ page.on("request", (r) => { if (["POST", "PUT"].includes(r.method())) posts.push
 const log = [];
 const check = (name, ok, detail = "") => { log.push(`${ok ? "PASS" : "FAIL"} ${name}${detail ? " — " + detail : ""}`); console.log(log.at(-1)); };
 
-await page.goto(`http://localhost:${port}/tools/repair-pdf`, { waitUntil: "networkidle" });
+const origin = port.startsWith("http") ? port : `http://localhost:${port}`;
+await page.goto(`${origin}/tools/repair-pdf`, { waitUntil: "networkidle" });
 await page.setInputFiles('input[aria-label="Choose files"]', files.map((f) => fx + f));
 const start = Date.now();
 await page.getByRole("button", { name: "Repair PDF", exact: true }).click();

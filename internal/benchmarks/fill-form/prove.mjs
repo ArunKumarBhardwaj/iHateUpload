@@ -12,7 +12,8 @@ const port = process.argv[2] ?? "43127";
 const fx = new URL("./fx/", import.meta.url).pathname;
 const out = new URL("./out/", import.meta.url).pathname;
 mkdirSync(out, { recursive: true });
-const url = `http://localhost:${port}/tools/fill-pdf-form`;
+const origin = port.startsWith("http") ? port : `http://localhost:${port}`;
+const url = `${origin}/tools/fill-pdf-form`;
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1280, height: 1100 } });
