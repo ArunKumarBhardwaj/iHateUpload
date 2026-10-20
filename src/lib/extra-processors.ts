@@ -100,6 +100,30 @@ export async function processPngToPdf(
   return processImageToPdf(files, onProgress);
 }
 
+export async function processFillForm(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "fill-form") throw new Error("Fill form needs its values.");
+  const item = files[0];
+  if (!item) throw new Error("Choose a PDF form to fill.");
+  const { fillForm } = await import("@/lib/fill-form");
+  onProgress(0.2);
+  const bytes = await fillForm(new Uint8Array(await item.file.arrayBuffer()), {
+    values: options.values,
+    flatten: options.output === "flatten",
+    loadUnicodeFont: async () => {
+      const response = await fetch("/fonts/LiberationSans-Regular.ttf");
+      if (!response.ok) throw new Error("The Unicode font could not be loaded.");
+      return new Uint8Array(await response.arrayBuffer());
+    },
+  });
+  onProgress(1);
+  const suffix = options.output === "flatten" ? "-filled-flat.pdf" : "-filled.pdf";
+  return [resultFrom(item, pdfBlob(bytes), item.name.replace(/\.pdf$/i, "") + suffix, item.size)];
+}
+
 export async function processSignPdf(
   files: FileItem[],
   onProgress: ProgressFn,

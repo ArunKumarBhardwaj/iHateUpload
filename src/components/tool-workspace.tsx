@@ -17,6 +17,7 @@ import { CsvPreview } from "@/components/workbench/csv-preview";
 import { ExtractImagesGrid } from "@/components/workbench/extract-images-grid";
 import { ImageCropOverlay } from "@/components/workbench/image-crop-overlay";
 import { SignCanvas } from "@/components/workbench/sign-canvas";
+import { FillFormCanvas } from "@/components/workbench/fill-form-canvas";
 import { PdfEditCanvas } from "@/components/workbench/pdf-edit-canvas";
 import { ComparePreview } from "@/components/workbench/compare-preview";
 import { RedactOverlay } from "@/components/workbench/redact-overlay";
@@ -61,6 +62,7 @@ import {
   processRedactPdf,
   processReversePages,
   processSignPdf,
+  processFillForm,
   processEditPdf,
   processStripMetadata,
   processWordToPdf,
@@ -145,6 +147,8 @@ async function runTool(
       return processOrganizePdf(files, onProgress, options);
     case "sign-pdf":
       return processSignPdf(files, onProgress, options);
+    case "fill-pdf-form":
+      return processFillForm(files, onProgress, options);
     case "edit-pdf":
       return processEditPdf(files, onProgress, options);
     case "crop-pdf":
@@ -301,6 +305,7 @@ export function ToolWorkspace({
     options.kind === "organize" ||
     options.kind === "extract" ||
     options.kind === "sign" ||
+    options.kind === "fill-form" ||
     options.kind === "edit" ||
     options.kind === "crop" ||
     options.kind === "redact" ||
@@ -466,6 +471,7 @@ export function ToolWorkspace({
 
   const overlayFile =
     (options.kind === "sign" ||
+      options.kind === "fill-form" ||
       options.kind === "edit" ||
       options.kind === "redact") &&
     pagedFile
@@ -649,6 +655,14 @@ export function ToolWorkspace({
                   disabled={locked}
                 />
               ) : null}
+              {overlayFile && options.kind === "fill-form" ? (
+                <FillFormCanvas
+                  file={overlayFile}
+                  options={options}
+                  onOptions={setOptions}
+                  disabled={locked}
+                />
+              ) : null}
               {overlayFile && options.kind === "edit" ? (
                 <PdfEditCanvas
                   file={overlayFile}
@@ -693,7 +707,7 @@ export function ToolWorkspace({
                   disabled={locked}
                 />
               ) : null}
-              {optionsInCanvas && options.kind !== "edit" && options.kind !== "sign" && optionsPanel}
+              {optionsInCanvas && options.kind !== "edit" && options.kind !== "sign" && options.kind !== "fill-form" && optionsPanel}
             </div>
 
             <aside className="space-y-4 lg:border-l lg:border-ink/10 lg:pl-6">
@@ -720,7 +734,7 @@ export function ToolWorkspace({
                 </div>
               </div>
 
-              {!optionsInCanvas && optionsPanel}
+              {(!optionsInCanvas || options.kind === "fill-form") && optionsPanel}
 
               {job.status === "error" && (
                 <div

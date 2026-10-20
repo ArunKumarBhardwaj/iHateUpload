@@ -70,6 +70,7 @@ export const TOOL_GROUPS: { id: string; title: string; tools: ToolId[] }[] = [
     title: "Sign and mark up",
     tools: [
       "sign-pdf",
+      "fill-pdf-form",
       "edit-pdf",
       "watermark-pdf",
       "page-numbers",

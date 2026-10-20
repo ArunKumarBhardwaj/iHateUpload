@@ -10,6 +10,7 @@ export type ToolId =
   | "rotate-pdf"
   | "organize-pdf"
   | "sign-pdf"
+  | "fill-pdf-form"
   | "edit-pdf"
   | "crop-pdf"
   | "redact-pdf"
@@ -92,6 +93,7 @@ export type ToolDefinition = {
     | "compress"
     | "extract"
     | "sign"
+    | "fill-form"
     | "edit"
     | "crop"
     | "redact"
@@ -463,6 +465,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "sign",
+  },
+  {
+    id: "fill-pdf-form",
+    slug: "fill-pdf-form",
+    title: "Fill PDF form",
+    shortTitle: "Fill form",
+    description:
+      "Type into the boxes, tick, pick and date a PDF form, then keep it editable or flatten it. The form stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Save filled PDF",
+    seoTitle: "Fill PDF Form Online Free — No Upload",
+    seoDescription:
+      "Fill a PDF form online free. Text boxes, checkboxes, radio buttons, dropdowns and dates, filled in your browser. Keep it editable or flatten it. No upload.",
+    seoHowTo: [
+      "Choose a PDF form with fillable fields.",
+      "Type, tick and pick right on the page. Required fields are marked.",
+      "Keep the fields editable or flatten them, then download the filled PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "fill-form",
   },
   {
     id: "edit-pdf",

@@ -234,6 +234,28 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
       a: "No. It places your signature image or text on the page like a stamp. It does not add a cryptographic certificate signature.",
     },
   ],
+  "fill-pdf-form": [
+    {
+      q: "Is my form uploaded while I fill it?",
+      a: "No. The PDF is read and filled in your browser tab, and the filled copy is made on your device. Nothing is sent anywhere.",
+    },
+    {
+      q: "Which fields can I fill?",
+      a: "Text boxes, multi-line boxes, checkboxes, radio buttons, dropdowns, list boxes and date fields. Read-only fields stay locked, character limits are kept, and required fields are marked until you fill them.",
+    },
+    {
+      q: "Will the values show up in Acrobat, Chrome and Preview?",
+      a: "Yes. Every filled field gets a fresh appearance, so the values show in Adobe Acrobat, Chrome, Edge, Firefox and macOS Preview without the viewer having to redraw anything.",
+    },
+    {
+      q: "What does Flatten do?",
+      a: "It turns the values into part of the page, so the form can no longer be changed. The text stays selectable and searchable. Choose Keep editable if someone still needs to change it.",
+    },
+    {
+      q: "My PDF has no boxes to fill. What now?",
+      a: "If a PDF has no form fields, use Edit PDF to add text anywhere on the page, or Sign PDF to add a signature.",
+    },
+  ],
   "edit-pdf": [
     {
       q: "Is my PDF uploaded while I edit it?",

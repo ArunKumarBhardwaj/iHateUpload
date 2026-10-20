@@ -50,6 +50,8 @@ internal/benchmarks/page-tools/out/
 internal/benchmarks/wave2-d/out/
 internal/benchmarks/page-tools/png/
 internal/benchmarks/wave2-b/out/
+internal/benchmarks/fill-form/out/
+internal/benchmarks/fill-form/fx/
 
 # OCR language data tesseract.js caches into the working dir when run in Node, and dev-server pid files
 *.traineddata

@@ -149,6 +149,16 @@ export const COMPARE_ROWS: CompareRow[] = [
     checked: "2026-10-19",
   },
   {
+    slug: "fill-pdf-form",
+    tool: "fill-pdf-form",
+    feature: "Fill PDF form",
+    ours: "Controls drawn on the page itself: multi-line boxes, date pickers, multi-select lists; read-only, character limits and required fields respected; Polish, Greek and Cyrillic letters; keep editable or flatten",
+    theirs: "A list of plain one-line boxes beside the page; read-only fields can be overwritten, required fields are not checked, list boxes take one pick, over-long or non-Latin values are dropped without a message",
+    verdict: "better",
+    evidence: "Same synthetic 10-field form on both: our output read back all 10 values in pdf-lib and pdf.js; theirs lost the PIN (6 digits typed into a 4-character field were dropped), the address line break and the second list pick, saved with the required name empty, and made no file for a Polish/Greek/Russian name.",
+    checked: "2026-10-20",
+  },
+  {
     slug: "split-pdf",
     tool: "split-pdf",
     feature: "Split PDF",
@@ -295,7 +305,7 @@ export const COMPARE_ROWS: CompareRow[] = [
   },
   // Their lead
   {
-    feature: "PDF to PowerPoint, Repair PDF, Fill PDF form",
+    feature: "PDF to PowerPoint, Repair PDF",
     ours: "Not available yet",
     theirs: "Available",
     verdict: "gap",

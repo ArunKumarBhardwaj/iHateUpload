@@ -10,6 +10,7 @@ import type { PiiCategory } from "@/lib/pii-detect";
 import type { DocConvertOptions } from "@/lib/doc-render/options";
 import { defaultDocOptions } from "@/lib/doc-render/options";
 import type { ToolDefinition } from "@/lib/tools";
+import type { FieldValue } from "@/lib/fill-form";
 
 export type CompressLevel = "light" | "medium" | "heavy";
 
@@ -197,6 +198,16 @@ export type ToolOptions =
   | { kind: "compress"; level: CompressLevel; targetKb: number | null }
   | { kind: "extract"; range: string; pageCount: number }
   | { kind: "sign"; placements: SignPlacement[] }
+  | {
+      kind: "fill-form";
+      /** Field name -> what the person typed or picked. Untouched fields are absent. */
+      values: Record<string, FieldValue>;
+      output: "editable" | "flatten";
+      /** Fillable fields found; null while the PDF is still being read. */
+      fieldCount: number | null;
+      /** Labels of required fields that are still empty. */
+      missing: string[];
+    }
   | { kind: "edit"; marks: EditMark[] }
   | {
       kind: "crop";
@@ -706,6 +717,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "extract", range: "", pageCount: 0 };
     case "sign":
       return { kind: "sign", placements: [] };
+    case "fill-form":
+      return { kind: "fill-form", values: {}, output: "editable", fieldCount: null, missing: [] };
     case "edit":
       return { kind: "edit", marks: [] };
     case "crop":
@@ -980,6 +993,8 @@ export function optionsReady(
       return parsePageRange(options.range, options.pageCount).length >= 1;
     case "sign":
       return options.placements.some(signPlacementReady);
+    case "fill-form":
+      return (options.fieldCount ?? 0) > 0 && options.missing.length === 0;
     case "edit":
       return options.marks.some(editMarkReady);
     case "redact":

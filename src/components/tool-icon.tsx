@@ -38,6 +38,7 @@ import {
   Tags,
   Type,
   Unlock,
+  TextCursorInput,
 } from "lucide-react";
 
 import { TOOL_GROUPS } from "@/lib/tool-groups";
@@ -119,6 +120,7 @@ const ACTION: Partial<Record<ToolId, LucideIcon>> = {
   "n-up": LayoutGrid,
   "invert-pdf": Contrast,
   "sign-pdf": PenLine,
+  "fill-pdf-form": TextCursorInput,
   "edit-pdf": Type,
   "watermark-pdf": Stamp,
   "page-numbers": Hash,

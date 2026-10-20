@@ -17,6 +17,7 @@ const CONTINUE_MAP: Partial<Record<ToolId, ToolId[]>> = {
   "image-to-pdf": ["compress-pdf", "protect-pdf", "merge-pdf"],
   "png-to-pdf": ["compress-pdf", "protect-pdf", "merge-pdf"],
   "sign-pdf": ["flatten-pdf", "protect-pdf", "compress-pdf"],
+  "fill-pdf-form": ["sign-pdf", "protect-pdf", "compress-pdf"],
   "edit-pdf": ["compress-pdf", "protect-pdf", "edit-pdf"],
   "crop-pdf": ["compress-pdf", "protect-pdf"],
   "redact-pdf": ["strip-metadata", "protect-pdf", "compress-pdf"],

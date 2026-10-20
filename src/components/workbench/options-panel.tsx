@@ -126,6 +126,7 @@ export function optionsNeedCanvas(options: ToolOptions): boolean {
     options.kind === "rotate" ||
     options.kind === "invert" ||
     options.kind === "sign" ||
+    options.kind === "fill-form" ||
     options.kind === "edit" ||
     options.kind === "crop" ||
     options.kind === "page-size" ||
@@ -189,6 +190,12 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return "Type the pages to keep. The new file is only those pages, in that order.";
     case "sign":
       return "Draw, type, or stamp a signature, then drag it onto the page.";
+    case "fill-form":
+      return options.fieldCount === null
+        ? "Reading the form fields…"
+        : options.fieldCount === 0
+          ? "No fillable fields in this PDF."
+          : "Type, tick and pick right on the page. Fields marked in red are required.";
     case "edit":
       return "Click a line to change it. Scans are read with OCR. Find and replace works across pages. Replaced letters are deleted from the file.";
     case "crop":
@@ -885,6 +892,9 @@ export function OptionsPanel({
     case "sign":
       return null;
 
+    case "fill-form":
+      return <FillFormPanel options={options} onOptions={onOptions} disabled={disabled} />;
+
     case "edit":
       return null;
 
@@ -1553,4 +1563,76 @@ export function OptionsPanel({
         </div>
       );
   }
+}
+
+function FillFormPanel({
+  options,
+  onOptions,
+  disabled,
+}: {
+  options: Extract<ToolOptions, { kind: "fill-form" }>;
+  onOptions: (next: ToolOptions) => void;
+  disabled: boolean;
+}) {
+  if (!options.fieldCount) return null;
+  const filled = Object.keys(options.values).length;
+  const choices = [
+    {
+      id: "editable" as const,
+      label: "Keep editable",
+      note: "Fields stay fields. Anyone can still change them in Acrobat, Chrome or Preview.",
+    },
+    {
+      id: "flatten" as const,
+      label: "Flatten",
+      note: "Values become part of the page. Nothing can be changed; text stays selectable.",
+    },
+  ];
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground" data-testid="fill-form-status">
+        {options.fieldCount} field{options.fieldCount === 1 ? "" : "s"} found
+        {filled > 0 ? `, ${filled} changed` : ""}.
+      </p>
+      {options.missing.length > 0 && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          <p className="font-medium">Still required:</p>
+          <ul className="mt-1 list-disc pl-5">
+            {options.missing.slice(0, 6).map((label) => (
+              <li key={label}>{label}</li>
+            ))}
+            {options.missing.length > 6 && <li>and {options.missing.length - 6} more</li>}
+          </ul>
+        </div>
+      )}
+      <fieldset className="space-y-2" disabled={disabled}>
+        <legend className="mb-1 text-sm font-medium text-ink">Save as</legend>
+        {choices.map((choice) => (
+          <label key={choice.id} className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="radio"
+              name="fill-form-output"
+              className="mt-0.5 size-4"
+              checked={options.output === choice.id}
+              onChange={() => onOptions({ ...options, output: choice.id })}
+            />
+            <span>
+              <span className="font-medium">{choice.label}</span>
+              <span className="block text-muted-foreground">{choice.note}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      {filled > 0 && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          onClick={() => onOptions({ ...options, values: {} })}
+        >
+          Undo all changes
+        </Button>
+      )}
+    </div>
+  );
 }
