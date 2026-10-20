@@ -22,3 +22,13 @@ bytes from `window._lastDownloadedFile`, which their tool sets right before savi
 | read-only Case ID | locked | editable |
 | "Łukasz Ωmega Дмитрий" | drawn (embedded Liberation Sans) | no file |
 | time to file | ~110 ms | ~65 ms |
+
+## Adobe Acrobat (2026-10-20, Acrobat 26.0, free mode)
+
+Opened the live-site outputs in Acrobat and asked its own JavaScript (`acrobat-read.applescript`, `acrobat-words.applescript`):
+
+- `filled-editable.pdf`: 10 fields, every value as typed (two-line address, radio "plus", checkbox on, both list picks); Case ID read-only, Full name required.
+- `filled-flat.pdf`: 0 fields; every value is page text (Ada Example, Sampletown, 4 8 2 1, 11 05 2026, Kenya, Second page note).
+- `filled-unicode.pdf`: 0 fields; "Łukasz Ωmega Дмитрий" read back exactly.
+
+Not done: a visual look inside Acrobat's window (no screen-recording permission here); the text checks above come from Acrobat's own page content.

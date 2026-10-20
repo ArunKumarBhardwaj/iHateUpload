@@ -21,3 +21,8 @@ bun internal/benchmarks/pdf-to-pptx/direct.ts            # quick conversion in b
 | slide size | matches the page | 16:9 forced | 16:9 forced |
 
 Not tested: Microsoft PowerPoint (not installed). Apple Quick Look renders our files but ignores list `startAt` and `wrap="none"`; LibreOffice honours both.
+
+## Keynote and PowerPoint (2026-10-20)
+
+- Keynote 15.4 (`keynote-export.applescript`): all 4 outputs open and export; text complete; renders match the PDFs, including the "1. / 2." list and a centred 16:9 page.
+- Microsoft PowerPoint 16.114 (`powerpoint-export.applescript`, `powerpoint-read.applescript`): opens all 4 without a repair prompt; its own PDF export keeps every word and all 20 table cells and looks like the PDFs. Saving as PDF works only after its first-launch screen is dismissed.
