@@ -63,3 +63,5 @@ internal/benchmarks/repair/fx/
 /public/tesseract/
 /public/tessdata/
 /public/pdfjs/
+internal/benchmarks/pdf-to-pptx/out/
+internal/benchmarks/pdf-to-pptx/fx/

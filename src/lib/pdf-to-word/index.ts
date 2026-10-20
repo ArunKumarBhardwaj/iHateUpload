@@ -70,6 +70,28 @@ export async function convertPdf(
     return { bytes: await writeDocx(model, media, title), notes, pages: total };
   }
 
+  const built = await buildDocument(pdf, options, deps, onProgress);
+  return { bytes: await writeDocx(built.model, built.media, title), notes: built.notes, pages: total };
+}
+
+/** What the extract and layout steps produce, before any file format is written. */
+export type BuiltDocument = { model: DocModel; media: Record<string, MediaFile>; notes: string[] };
+
+/**
+ * Read every page (OCR for scans), then lay it out as flowing sections or, in
+ * exact mode, as pinned pages. Shared by the Word and PowerPoint writers.
+ */
+export async function buildDocument(
+  pdf: PDFDocumentProxy,
+  options: Pick<ConvertOptions, "mode" | "embedFonts">,
+  deps: ConvertDeps,
+  onProgress: (ratio: number) => void,
+  pageNumbers?: number[],
+): Promise<BuiltDocument> {
+  const media: Record<string, MediaFile> = {};
+  const notes: string[] = [];
+  const wanted = pageNumbers ?? Array.from({ length: pdf.numPages }, (_, i) => i + 1);
+  const total = wanted.length;
   const resolve = createResolver(pdf);
   const fonts = options.embedFonts === false ? undefined : new FontCollector();
   const inputs: PageInput[] = [];
@@ -77,8 +99,9 @@ export async function convertPdf(
   const unreadable: number[] = [];
   let rotatedSkipped = 0;
   let imageFailures = 0;
-  for (let n = 1; n <= total; n++) {
-    const base = (n - 1) / total;
+  for (let i = 0; i < total; i++) {
+    const n = wanted[i];
+    const base = i / total;
     const share = 1 / total;
     const page = await pdf.getPage(n);
     const extracted = await extractPage(page, deps.OPS, n, fonts);
@@ -126,5 +149,5 @@ export async function convertPdf(
   }
   if (rotatedSkipped) notes.push("Some sideways text was left out.");
   if (imageFailures) notes.push(`${imageFailures} picture${imageFailures === 1 ? "" : "s"} could not be copied.`);
-  return { bytes: await writeDocx(model, media, title), notes, pages: total };
+  return { model, media, notes };
 }

@@ -175,6 +175,15 @@ export type ToolOptions =
     }
   | { kind: "pdf-to-word"; mode: PdfToWordMode; language: string; embedFonts: boolean }
   | {
+      kind: "pdf-to-pptx";
+      /** Native text boxes, tables and shapes, or one picture per slide. */
+      mode: "editable" | "picture";
+      size: "match" | "16:9" | "4:3";
+      language: string;
+      /** Empty or "all" converts every page. */
+      range: string;
+    }
+  | {
       kind: "pdf-to-excel";
       layout: PdfToExcelLayout;
       /** Excel workbook, or one CSV per sheet. */
@@ -694,6 +703,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       };
     case "pdf-to-word":
       return { kind: "pdf-to-word", mode: "editable", language: "eng", embedFonts: true };
+    case "pdf-to-pptx":
+      return { kind: "pdf-to-pptx", mode: "editable", size: "match", language: "eng", range: "" };
     case "pdf-to-excel":
       return {
         kind: "pdf-to-excel",
@@ -904,6 +915,7 @@ export function optionsReady(
     case "pdf-image":
     case "pdf-to-word":
     case "pdf-to-excel":
+    case "pdf-to-pptx":
       return true;
     case "flatten":
       return (

@@ -82,6 +82,28 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
       a: "Yes. The Page images mode puts each page into the Word file as a picture. It looks the same, but the text cannot be edited.",
     },
   ],
+  "pdf-to-pptx": [
+    {
+      q: "Is my PDF uploaded to make the slides?",
+      a: "No. The PDF is read and the PowerPoint file is built in your browser tab. Nothing is sent anywhere.",
+    },
+    {
+      q: "Can I edit the slides?",
+      a: "Yes. Text lands in real text boxes with its font, size, colour and bullets, tables become real PowerPoint tables, and pictures and drawn shapes stay separate objects you can move or delete. Choose Page pictures instead if every slide must look exactly like the PDF.",
+    },
+    {
+      q: "What slide size do I get?",
+      a: "Same as the PDF page by default. You can also pick widescreen 16:9 or standard 4:3; each page is then scaled to fit and centred on its slide.",
+    },
+    {
+      q: "Does it work on scanned PDFs?",
+      a: "Yes. Pages with no text are read with OCR in your browser, in the language you pick, so the slide gets real text.",
+    },
+    {
+      q: "Will it open in Keynote and Google Slides?",
+      a: "Yes. The file is a standard .pptx, so PowerPoint, Keynote, Google Slides and LibreOffice Impress all open it.",
+    },
+  ],
   "pdf-to-excel": [
     {
       q: "Does my PDF get uploaded to find the tables?",

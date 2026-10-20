@@ -26,6 +26,7 @@ export type ToolId =
   | "page-size"
   | "pdf-to-png"
   | "pdf-to-word"
+  | "pdf-to-pptx"
   | "pdf-to-excel"
   | "watermark-pdf"
   | "page-numbers"
@@ -88,6 +89,7 @@ export type ToolDefinition = {
     | "pdf-image"
     | "pdf-png"
     | "pdf-to-word"
+    | "pdf-to-pptx"
     | "pdf-to-excel"
     | "organize"
     | "resize"
@@ -236,6 +238,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "pdf-to-word",
+  },
+  {
+    id: "pdf-to-pptx",
+    slug: "pdf-to-pptx",
+    title: "PDF to PowerPoint",
+    shortTitle: "PDF → PowerPoint",
+    description:
+      "Turn each PDF page into a slide you can edit: real text boxes, tables, pictures and shapes where they were on the page.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Convert to PowerPoint",
+    seoTitle: "PDF to PowerPoint Converter Free — Editable PPTX, No Upload",
+    seoDescription:
+      "Convert PDF to editable PowerPoint (.pptx) online free. Text boxes, tables, pictures and shapes land where they were, scans are read with OCR, and it runs in your browser — no upload.",
+    seoHowTo: [
+      "Drop one or more PDF files into the workspace.",
+      "Pick editable slides or page pictures, a slide size and the pages, then click Convert to PowerPoint.",
+      "Download the .pptx and edit it in PowerPoint, Keynote or Google Slides.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "pdf-to-pptx",
   },
   {
     id: "pdf-to-excel",

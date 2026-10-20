@@ -174,6 +174,10 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
         : options.layout === "pages"
           ? "Each page becomes a sheet, with its text and tables in the order they appear. Pages with no text are read with OCR."
           : "Every table goes on one sheet, one under another, each under its title. Pages with no text are read with OCR.";
+    case "pdf-to-pptx":
+      return options.mode === "editable"
+        ? "Each page becomes a slide with real text boxes, tables, pictures and shapes where they were. Pages with no text are read with OCR."
+        : "Each page becomes one picture on its slide. It looks the same, but nothing can be edited.";
     case "pdf-to-word":
       return options.mode === "editable"
         ? "Paragraphs, headings, lists, tables and pictures become real Word content. Pages with no text are read with OCR."
@@ -600,6 +604,90 @@ export function OptionsPanel({
                 bigger.
               </span>
             </label>
+          ) : null}
+        </div>
+      );
+
+    case "pdf-to-pptx":
+      return (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Slides</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["editable", "Editable — text boxes, tables, shapes"],
+                  ["picture", "Page pictures (not editable)"],
+                ] as const
+              ).map(([mode, title]) => (
+                <Button
+                  key={mode}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.mode === mode ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, mode })}
+                >
+                  {title}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Slide size</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["match", "Same as the page"],
+                  ["16:9", "Widescreen 16:9"],
+                  ["4:3", "Standard 4:3"],
+                ] as const
+              ).map(([size, title]) => (
+                <Button
+                  key={size}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.size === size ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, size })}
+                >
+                  {title}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <Field label="Pages" htmlFor="pptx-range">
+            <Input
+              id="pptx-range"
+              value={options.range}
+              disabled={disabled}
+              onChange={(e) => onOptions({ ...options, range: e.target.value })}
+              placeholder="All pages, or e.g. 1-3, 7"
+              inputMode="text"
+              autoComplete="off"
+            />
+          </Field>
+          {options.mode === "editable" ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-ink">Language of scanned pages</p>
+              <div className="flex flex-wrap gap-2">
+                {OCR_LANGUAGES.map((language) => (
+                  <Button
+                    key={language.id}
+                    type="button"
+                    size="sm"
+                    className={OPTION_BUTTON}
+                    variant={options.language === language.id ? "default" : "outline"}
+                    disabled={disabled}
+                    onClick={() => onOptions({ ...options, language: language.id })}
+                  >
+                    {language.title}
+                  </Button>
+                ))}
+              </div>
+            </div>
           ) : null}
         </div>
       );

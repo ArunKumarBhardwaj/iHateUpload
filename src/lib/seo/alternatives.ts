@@ -159,6 +159,16 @@ export const COMPARE_ROWS: CompareRow[] = [
     checked: "2026-10-20",
   },
   {
+    slug: "pdf-to-powerpoint",
+    tool: "pdf-to-pptx",
+    feature: "PDF to PowerPoint",
+    ours: "Editable slides: text boxes with fonts, colours and bullets, real PowerPoint tables, pictures and vector shapes where they were; slide size matches the page or 16:9 / 4:3; page range; OCR for scans; or one picture per slide",
+    theirs: "Fully Editable mode drops pictures, charts and tables; Smart Hybrid is a page picture with invisible text on top; slides always 16:9",
+    verdict: "better",
+    evidence: "Synthetic 4-slide deck (title, bullets with a picture, vector bar chart, table) opened in LibreOffice: ours kept all text, the picture, all 8 chart shapes and a real 5-row table; their editable output had no picture, no bars and the table flattened into lines; their hybrid was a JPEG per slide with text at 0% opacity.",
+    checked: "2026-10-20",
+  },
+  {
     slug: "repair-pdf",
     tool: "repair-pdf",
     feature: "Repair PDF",
@@ -314,14 +324,6 @@ export const COMPARE_ROWS: CompareRow[] = [
     checked: "2026-10-19",
   },
   // Their lead
-  {
-    feature: "PDF to PowerPoint",
-    ours: "Not available yet",
-    theirs: "Available",
-    verdict: "gap",
-    evidence: "Their sitemap.",
-    checked: "2026-10-17",
-  },
   {
     feature: "Saved multi-step workflows and batch",
     ours: "One-step \"Continue with\" only",
