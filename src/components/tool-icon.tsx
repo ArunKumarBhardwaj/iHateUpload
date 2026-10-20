@@ -39,6 +39,7 @@ import {
   Type,
   Unlock,
   TextCursorInput,
+  Wrench,
 } from "lucide-react";
 
 import { TOOL_GROUPS } from "@/lib/tool-groups";
@@ -121,6 +122,7 @@ const ACTION: Partial<Record<ToolId, LucideIcon>> = {
   "invert-pdf": Contrast,
   "sign-pdf": PenLine,
   "fill-pdf-form": TextCursorInput,
+  "repair-pdf": Wrench,
   "edit-pdf": Type,
   "watermark-pdf": Stamp,
   "page-numbers": Hash,

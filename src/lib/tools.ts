@@ -30,6 +30,7 @@ export type ToolId =
   | "watermark-pdf"
   | "page-numbers"
   | "flatten-pdf"
+  | "repair-pdf"
   | "png-to-pdf"
   | "ocr-pdf"
   | "word-to-pdf"
@@ -856,6 +857,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: false,
     kind: "pdf",
     ui: "bates-numbering",
+  },
+  {
+    id: "repair-pdf",
+    slug: "repair-pdf",
+    title: "Repair PDF",
+    shortTitle: "Repair PDF",
+    description:
+      "Fix a PDF that will not open, is cut short, or shows missing pages. Three rebuilds run in this tab and the one that recovers the most is kept.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Repair PDF",
+    seoTitle: "Repair PDF Online Free — Fix Corrupted PDF, No Upload",
+    seoDescription:
+      "Repair a damaged or corrupted PDF online free. Rebuilds broken indexes, truncated downloads and missing catalogs in your browser, and tells you what was wrong. No upload.",
+    seoHowTo: [
+      "Choose the PDF that will not open or looks broken. You can add several.",
+      "Click Repair PDF. Three different rebuilds run in your browser and the best one is kept.",
+      "Read what was wrong and how many pages came back, then download the repaired PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "none",
   },
   {
     id: "flatten-pdf",

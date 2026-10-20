@@ -33,6 +33,7 @@ const CONTINUE_MAP: Partial<Record<ToolId, ToolId[]>> = {
   "watermark-pdf": ["flatten-pdf", "protect-pdf"],
   "page-numbers": ["flatten-pdf", "compress-pdf"],
   "flatten-pdf": ["protect-pdf", "compress-pdf"],
+  "repair-pdf": ["compress-pdf", "organize-pdf", "pdf-to-word"],
   "ocr-pdf": ["extract-text", "compress-pdf", "protect-pdf"],
   "word-to-pdf": ["compress-pdf", "protect-pdf"],
   "excel-to-pdf": ["compress-pdf", "protect-pdf"],

@@ -25,15 +25,15 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 
 | | Count |
 |---|---|
-| ✅ We are better (measured) | 30 rows |
+| ✅ We are better (measured) | 31 rows |
 | 🟰 Equal (measured) | 22 rows |
 | ⚠️ They are better | 0 rows |
 | ❔ Shared, not compared yet | 1 rows |
 | ➕ Only we have | 15 tools (section 3) |
-| ❌ Only they have | 16 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
+| ❌ Only they have | 15 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
-Biggest gaps: PDF to PowerPoint, Repair, workflows, on-device AI, blog content (113 posts vs none).
+Biggest gaps: PDF to PowerPoint, workflows, on-device AI, blog content (113 posts vs none).
 
 ---
 
@@ -82,6 +82,7 @@ Biggest gaps: PDF to PowerPoint, Repair, workflows, on-device AI, blog content (
 | Organize pages | Drag and drop + Alt+Arrow keyboard reorder, per-page rotate, duplicate, insert blank, delete, multi-select | Drag and drop, rotate, delete | ✅ | Synthetic six.pdf, output order/rotation checked by render; internal/benchmarks/page-tools steps, 2026-10-19 |
 | Sign PDF | Any page via page strip, ink colour and width, draw/type/photo with background removal, date stamps, multiple placements, undo/redo | Multi-page viewer, ink colour, photo, undo, resize, zoom | 🟰 | merged from wave2 branches, agent browser-proved + lead render check; rival features from head-to-head notes, wave 2; no fresh side-by-side, 2026-10-17 |
 | Fill PDF form | Controls on the page itself: single/multi-line text, comb, date picker (AFDate formats), checkbox, radio, dropdown (editable too), multi-select list; read-only locked, max length enforced while typing, required fields block the save; Latin-2/Greek/Cyrillic via embedded Liberation Sans; keep editable or flatten; fresh appearances (Acrobat-style 12 pt auto size); "no fields" notice pointing to Edit PDF and Sign PDF | A list of one-line boxes beside the page; plain text for dates; single-pick list boxes; read-only fields editable; no required check; no max length; field errors swallowed; optional "lock answers" flatten | ✅ | Same synthetic 10-field, 2-page form (gen.ts). Ours, production build: 21/21 Playwright checks, all 10 values read back in pdf-lib and pdf.js (keep editable), flatten leaves 0 widgets with all values as page text; renders checked in Chrome PDF viewer and macOS Quick Look; 0 POST requests. Theirs: PIN dropped (6 digits typed, 4-char limit, error swallowed), address newline lost, only 1 of 2 list picks, saved with the required name empty, no file for "Łukasz Ωmega Дмитрий". Save ~110 ms vs ~65 ms. Acrobat not tested (no copy here). internal/benchmarks/fill-form (prove.mjs, verify.ts, rival.mjs), 2026-10-20 |
+| Repair PDF | Three independent rebuilds — pdf-lib re-save (keeps bookmarks/forms/metadata), salvage that rebuilds the page tree and catalog from surviving page objects, pdf.js rebuild via extractPages — each reopened and scored (readable pages, text, drawing); strict-parse gate; drops garbled xref/object-stream containers; plain-language report naming damaged pages and cut-off pages; batch | Five pdf-lib strategies (direct, stream lengths, manual xref, truncation, page salvage) with a forensic panel | ✅ | 9 synthetic damage types (fixtures.ts). Equal on 6. No catalog: ours 5/5 pages, theirs no file. Truncated: ours 3 clean pages, theirs 5 pages with 1 blank and 1 unreadable. Damaged xref stream: their output fails strict pdf-lib parse, ours passes. PDFKit (Preview) opens all 9 of ours (all markers) vs 4 of 9 originals. Production batch of 9 in 1.9 s, 0 POST. internal/benchmarks/repair (prove.mjs, rival.mjs, score.ts), 2026-10-20 |
 | Edit PDF text | Click a line to edit, old glyphs removed from the content stream (standard, TrueType, Type0, TJ kerning, rotated pages); font family, size, B/I, colour, align, add text box, undo/redo; find & replace across all pages (match case, whole word, count, next/prev, one/all); OCR for scans | Font ("Original"), size, B/I, colour, align, undo/redo; find & replace on the current page only; old text stays in the file; no OCR | ✅ | Synthetic invoice.pdf: after edit, old string gone from our extracted text but still in theirs ("Bill to: Acme Corp"); our replace-all hit page 2, theirs did not. Lead re-extracted all outputs. internal/benchmarks/wave2-d, 2026-10-19 |
 | Crop / page size | Per-page or all-pages crop, 8 drag handles, margins in mm or %, untouched pages kept; page size A3/A4/A5/Letter/Legal/Tabloid + custom (mm/in/pt), fit/fill/stretch, keeps orientation, vector | Per-page crop, 4 sliders, 6 paper sizes + custom, scale to fit; their A3 forced a landscape page to portrait | ✅ | six.pdf: lead re-ran per-page crop, crop boxes exact (p1 top 40 mm, p3 left 100 mm, others untouched); 52 ms vs 189 ms. internal/benchmarks/page-tools, 2026-10-19 |
 | Redact PDF | Manual boxes + automatic PII finder (11 types, checksum-validated, OCR for scans, per-item review), pixels burned out | Automatic finder: Aadhaar (no checksum), PAN, IFSC, email, bank, DOB; no cards, phones, IBAN, SSN; no OCR | ✅ | internal/benchmarks/redact head-to-head, 2026-10-17 |
@@ -128,7 +129,6 @@ Priority is our guess at value for a privacy-first PDF site; "skip" means off-br
 | Tool | Priority | Notes |
 |---|---|---|
 | PDF to PowerPoint | High | Reuse text boxes from Exact layout |
-| Repair PDF | High | Rebuild broken xref; qpdf-wasm is an option |
 | PDF to HTML | Medium | |
 | Workflows (chain steps) + batch | Medium | Extend "Continue with" |
 | Recent files / starred | Low | Local-only storage |

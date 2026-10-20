@@ -492,6 +492,28 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
       a: "Yes. It is stamped as selectable text. You can also add a white plate behind it so it reads on dark pages.",
     },
   ],
+  "repair-pdf": [
+    {
+      q: "Is my damaged PDF uploaded?",
+      a: "No. The file is read and rebuilt in your browser tab. Nothing is sent anywhere, which matters most for files you cannot open to check what is inside.",
+    },
+    {
+      q: "What kinds of damage can it fix?",
+      a: "Broken or missing cross-reference tables, wrong pointers, junk before the PDF header, a missing end of file, damaged object streams, streams with the wrong length, a destroyed document catalog, and downloads that were cut short.",
+    },
+    {
+      q: "How does it decide which repair to keep?",
+      a: "It runs three independent rebuilds: a structural re-save that keeps bookmarks and forms, a salvage that rebuilds the page list from the pages that survived, and a rebuild from what a PDF reader can still see. Each result is reopened and the one with the most readable pages and text wins.",
+    },
+    {
+      q: "Can it bring back pages that are not in the file any more?",
+      a: "No tool can. If a download stopped early, the missing pages are simply not there. Repair keeps every page that survived, leaves out pages that were cut off, and tells you how many.",
+    },
+    {
+      q: "Does it work on password-protected PDFs?",
+      a: "Remove the password first with Unlock PDF, then repair the unlocked copy.",
+    },
+  ],
   "flatten-pdf": [
     {
       q: "Is my PDF uploaded to flatten it?",

@@ -63,6 +63,7 @@ import {
   processReversePages,
   processSignPdf,
   processFillForm,
+  processRepairPdf,
   processEditPdf,
   processStripMetadata,
   processWordToPdf,
@@ -149,6 +150,8 @@ async function runTool(
       return processSignPdf(files, onProgress, options);
     case "fill-pdf-form":
       return processFillForm(files, onProgress, options);
+    case "repair-pdf":
+      return processRepairPdf(files, onProgress);
     case "edit-pdf":
       return processEditPdf(files, onProgress, options);
     case "crop-pdf":

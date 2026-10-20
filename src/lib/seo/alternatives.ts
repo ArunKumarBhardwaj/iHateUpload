@@ -159,6 +159,16 @@ export const COMPARE_ROWS: CompareRow[] = [
     checked: "2026-10-20",
   },
   {
+    slug: "repair-pdf",
+    tool: "repair-pdf",
+    feature: "Repair PDF",
+    ours: "Three independent rebuilds (structural re-save, page salvage, pdf.js rebuild), each reopened and scored; the best is kept; plain-language report naming damaged pages; batches of files",
+    theirs: "Five pdf-lib strategies with a detailed forensic panel",
+    verdict: "better",
+    evidence: "Nine synthetic damage types: equal on six; on a destroyed catalog ours recovered all 5 pages and theirs made no file; on a cut-off download ours returned the 3 surviving pages cleanly while theirs kept 5 pages, one blank and one that does not open; on a damaged cross-reference stream their output failed a strict parse and ours did not.",
+    checked: "2026-10-20",
+  },
+  {
     slug: "split-pdf",
     tool: "split-pdf",
     feature: "Split PDF",
@@ -305,7 +315,7 @@ export const COMPARE_ROWS: CompareRow[] = [
   },
   // Their lead
   {
-    feature: "PDF to PowerPoint, Repair PDF",
+    feature: "PDF to PowerPoint",
     ours: "Not available yet",
     theirs: "Available",
     verdict: "gap",

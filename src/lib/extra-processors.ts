@@ -100,6 +100,36 @@ export async function processPngToPdf(
   return processImageToPdf(files, onProgress);
 }
 
+export async function processRepairPdf(
+  files: FileItem[],
+  onProgress: ProgressFn,
+): Promise<ResultItem[]> {
+  const { repairPdf, reportLine } = await import("@/lib/repair/repair");
+  const { getDocument } = await loadPdfJs();
+  const open = (bytes: Uint8Array) => getDocument({ data: bytes, verbosity: 0 }).promise;
+  const results: ResultItem[] = [];
+  const failed: string[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const done = (ratio: number) => onProgress((i + ratio) / files.length);
+    try {
+      const { bytes, report } = await repairPdf(new Uint8Array(await item.file.arrayBuffer()), open, done);
+      const name = item.name.replace(/\.pdf$/i, "") + "-repaired.pdf";
+      results.push({ ...resultFrom(item, pdfBlob(bytes), name, item.size), note: reportLine(report) });
+    } catch (error) {
+      // One hopeless file should not cost the others in a batch.
+      if (files.length === 1) throw error;
+      failed.push(item.name);
+    }
+  }
+  if (results.length === 0) throw new Error("None of these files could be rebuilt: no readable pages were found in them.");
+  if (failed.length > 0) {
+    const last = results[results.length - 1];
+    last.note = `${last.note ?? ""} Could not rebuild: ${failed.join(", ")}.`.trim();
+  }
+  return results;
+}
+
 export async function processFillForm(
   files: FileItem[],
   onProgress: ProgressFn,
