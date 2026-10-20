@@ -7,6 +7,7 @@ import {
   askDirect,
   askViaServer,
   buildGeminiBody,
+  callGemini,
   fitDocs,
   hasWords,
   keyStore,
@@ -193,4 +194,37 @@ test("route: rejects files, bad shapes, too many documents, and a missing key", 
 test("page markers alone are not text", () => {
   expect(hasWords("\n\n--- Page 1 ---\n  \n\n--- Page 2 ---")).toBe(false);
   expect(hasWords("--- Page 1 ---\nHello")).toBe(true);
+});
+
+test("a model that hangs past the time limit falls through to the next one", async () => {
+  const urls: string[] = [];
+  const impl = (async (url: string, init: RequestInit) => {
+    urls.push(String(url));
+    if (urls.length === 1) {
+      // Never answers until the caller gives up on it.
+      return new Promise<Response>((_, reject) =>
+        init.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError"))),
+      );
+    }
+    return ok("Fast answer");
+  }) as unknown as typeof fetch;
+  const result = await callGemini("k", { contents: [] }, impl, { timeoutMs: 50 });
+  expect(result.ok).toBe(true);
+  if (result.ok) {
+    expect(result.answer).toBe("Fast answer");
+    expect(result.model).toBe(MODELS[1]);
+  }
+  expect(result.attempts.map((a) => a.status)).toEqual([504, 200]);
+});
+
+test("the quick lite model is tried first", () => {
+  expect(MODELS[0]).toContain("lite");
+});
+
+test("route: says which model answered and how long it took", async () => {
+  process.env.GEMINI_API_KEY = "test-key";
+  globalThis.fetch = mockFetch([ok("Timed")]).impl;
+  const res = await post({ docs: [{ name: "a.pdf", text: "alpha" }], messages: [{ role: "user", content: "q?" }] });
+  expect(res.status).toBe(200);
+  expect(res.headers.get("server-timing")).toMatch(new RegExp(`gemini;desc="${MODELS[0]}";dur=\\d+`));
 });

@@ -7,6 +7,7 @@ import {
   MAX_TURN_CHARS,
   MAX_TURNS,
   messageFor,
+  serverTiming,
   TOTAL_CHARS,
   type AskDoc,
   type ChatTurn,
@@ -20,6 +21,9 @@ type AskBody = {
   file?: unknown;
   blob?: unknown;
 };
+
+/** Three models at up to 25 s each, plus headroom. */
+export const maxDuration = 90;
 
 function bad(error: string) {
   return NextResponse.json({ error }, { status: 400 });
@@ -78,7 +82,8 @@ export async function POST(request: Request) {
   if (!key) return NextResponse.json({ error: "Ask PDF is not configured." }, { status: 503 });
 
   const result = await callGemini(key, buildGeminiBody(input.docs, input.turns));
-  if (result.ok) return NextResponse.json({ answer: result.answer });
+  const headers = { "Server-Timing": serverTiming(result.attempts) };
+  if (result.ok) return NextResponse.json({ answer: result.answer }, { headers });
   const status = result.status === 429 ? 429 : 502;
-  return NextResponse.json({ error: messageFor(result.status, false) }, { status });
+  return NextResponse.json({ error: messageFor(result.status, false) }, { status, headers });
 }

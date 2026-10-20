@@ -9,7 +9,15 @@ export const TOTAL_CHARS = 120_000;
 export const MAX_TURNS = 40;
 export const MAX_TURN_CHARS = 4000;
 
-export const MODELS = ["gemini-flash-latest", "gemini-3.5-flash-lite", "gemini-3.6-flash"] as const;
+/**
+ * Tried in order. The lite model answers questions about a document in a few
+ * seconds; the full flash models reason first and can take half a minute, so
+ * they are the fallback, not the default.
+ */
+export const MODELS = ["gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-3.6-flash"] as const;
+
+/** How long one model may take before the next one is tried. */
+export const MODEL_TIMEOUT_MS = 25_000;
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -64,37 +72,66 @@ export function parseAnswer(payload: GeminiPayload) {
   );
 }
 
-export type GeminiResult = { ok: true; answer: string } | { ok: false; status: number };
+/** One try at one model: what came back and how long it took (504 when it ran out of time). */
+export type GeminiAttempt = { model: string; status: number; ms: number };
 
-/** Tries each model in turn; stops early on a rejected key or an used-up quota. */
+export type GeminiResult =
+  | { ok: true; answer: string; model: string; attempts: GeminiAttempt[] }
+  | { ok: false; status: number; attempts: GeminiAttempt[] };
+
+const isTimeout = (error: unknown) =>
+  error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+
+/**
+ * Tries each model in turn. A model that errors on the server side or takes
+ * longer than `timeoutMs` hands over to the next; a rejected key or a used-up
+ * quota stops at once, since every model would say the same.
+ */
 export async function callGemini(
   key: string,
   body: unknown,
   fetchImpl: typeof fetch = fetch,
+  { timeoutMs = MODEL_TIMEOUT_MS }: { timeoutMs?: number } = {},
 ): Promise<GeminiResult> {
   let status = 502;
+  const attempts: GeminiAttempt[] = [];
   for (const model of MODELS) {
+    const started = Date.now();
     let response: Response;
+    let payload: GeminiPayload;
     try {
       response = await fetchImpl(`${ENDPOINT}/${model}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
       });
-    } catch {
-      return { ok: false, status: 0 };
+      payload = (await response.json().catch(() => ({}))) as GeminiPayload;
+    } catch (error) {
+      if (isTimeout(error)) {
+        attempts.push({ model, status: 504, ms: Date.now() - started });
+        status = 504;
+        continue;
+      }
+      attempts.push({ model, status: 0, ms: Date.now() - started });
+      return { ok: false, status: 0, attempts };
     }
-    const payload = (await response.json().catch(() => ({}))) as GeminiPayload;
+    attempts.push({ model, status: response.status, ms: Date.now() - started });
     if (response.ok) {
       const answer = parseAnswer(payload);
-      if (answer) return { ok: true, answer };
+      if (answer) return { ok: true, answer, model, attempts };
       status = 502;
       continue;
     }
     status = response.status;
     if (status === 400 || status === 401 || status === 403 || status === 429) break;
   }
-  return { ok: false, status };
+  return { ok: false, status, attempts };
+}
+
+/** Standard Server-Timing header: each model tried and how long it took, so slow answers can be traced. */
+export function serverTiming(attempts: GeminiAttempt[]): string {
+  return attempts.map((a, i) => `gemini${i ? i + 1 : ""};desc="${a.model}${a.status === 200 ? "" : ` ${a.status}`}";dur=${a.ms}`).join(", ");
 }
 
 export function messageFor(status: number, ownKey: boolean) {
