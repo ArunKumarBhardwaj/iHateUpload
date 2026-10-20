@@ -228,3 +228,25 @@ test("route: says which model answered and how long it took", async () => {
   expect(res.status).toBe(200);
   expect(res.headers.get("server-timing")).toMatch(new RegExp(`gemini;desc="${MODELS[0]}";dur=\\d+`));
 });
+
+test("asks for low thinking, and retries the same model without it if Google rejects that", async () => {
+  const bodies: { url: string; thinking: unknown }[] = [];
+  const impl = (async (url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    bodies.push({ url: String(url), thinking: body.generationConfig?.thinkingConfig });
+    if (bodies.length === 1) return new Response(JSON.stringify({ error: { message: "thinking_level is not supported" } }), { status: 400 });
+    return ok("Plain answer");
+  }) as unknown as typeof fetch;
+  const result = await callGemini("k", buildGeminiBody([{ name: "a.pdf", text: "t" }], [{ role: "user", content: "q" }]), impl);
+  expect(result.ok).toBe(true);
+  expect(bodies[0].thinking).toEqual({ thinkingLevel: "low" });
+  expect(bodies[1].url).toBe(bodies[0].url);
+  expect(bodies[1].thinking).toBeUndefined();
+});
+
+test("a 400 that is not about thinking still stops at once", async () => {
+  const { impl, calls } = mockFetch([new Response(JSON.stringify({ error: { message: "API key not valid" } }), { status: 400 })]);
+  const result = await callGemini("bad", buildGeminiBody([{ name: "a.pdf", text: "t" }], [{ role: "user", content: "q" }]), impl);
+  expect(result.ok).toBe(false);
+  expect(calls).toHaveLength(1);
+});

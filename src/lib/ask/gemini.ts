@@ -58,10 +58,27 @@ export function buildGeminiBody(docs: AskDoc[], turns: ChatTurn[]) {
     role: t.role === "user" ? "user" : "model",
     parts: [{ text: i === 0 ? `${context}\n\nQuestion: ${t.content}` : t.content }],
   }));
-  return { systemInstruction: { parts: [{ text: SYSTEM }] }, contents };
+  // Looking things up in a document needs little reasoning; default thinking made every answer take ~16 s.
+  return {
+    systemInstruction: { parts: [{ text: SYSTEM }] },
+    contents,
+    generationConfig: { thinkingConfig: { thinkingLevel: "low" } },
+  };
 }
 
-type GeminiPayload = { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+/** The same request without a thinking setting, for a model that does not accept one. */
+function withoutThinking(body: unknown): unknown {
+  if (!body || typeof body !== "object" || !("generationConfig" in body)) return body;
+  const { generationConfig, ...rest } = body as { generationConfig?: { thinkingConfig?: unknown } };
+  const { thinkingConfig, ...config } = generationConfig ?? {};
+  void thinkingConfig;
+  return Object.keys(config).length ? { ...rest, generationConfig: config } : rest;
+}
+
+type GeminiPayload = {
+  candidates?: { content?: { parts?: { text?: string }[] } }[];
+  error?: { message?: string };
+};
 
 export function parseAnswer(payload: GeminiPayload) {
   return (
@@ -95,7 +112,9 @@ export async function callGemini(
 ): Promise<GeminiResult> {
   let status = 502;
   const attempts: GeminiAttempt[] = [];
-  for (const model of MODELS) {
+  let request = body;
+  for (let m = 0; m < MODELS.length; m++) {
+    const model = MODELS[m];
     const started = Date.now();
     let response: Response;
     let payload: GeminiPayload;
@@ -103,7 +122,7 @@ export async function callGemini(
       response = await fetchImpl(`${ENDPOINT}/${model}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify(body),
+        body: JSON.stringify(request),
         signal: AbortSignal.timeout(timeoutMs),
       });
       payload = (await response.json().catch(() => ({}))) as GeminiPayload;
@@ -124,6 +143,12 @@ export async function callGemini(
       continue;
     }
     status = response.status;
+    // A model that does not know the thinking setting: ask it again, plainly.
+    if (status === 400 && request !== withoutThinking(request) && /think/i.test(payload.error?.message ?? "")) {
+      request = withoutThinking(request);
+      m--;
+      continue;
+    }
     if (status === 400 || status === 401 || status === 403 || status === 429) break;
   }
   return { ok: false, status, attempts };
