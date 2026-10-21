@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Search } from "lucide-react";
@@ -160,28 +168,15 @@ export function SiteHeader({ className }: { className?: string }) {
           <span className="text-brand">Upload</span>
         </Link>
 
-        <nav
-          className="hidden items-center gap-0.5 rounded-full bg-ink/[0.045] p-1 font-sans sm:flex"
-          onMouseEnter={fineHover ? cancelClose : undefined}
-          onMouseLeave={fineHover ? scheduleClose : undefined}
-        >
-          {SECTIONS.map((section) => (
-            <NavButton
-              key={section.id}
-              section={section}
-              open={open === section.id}
-              panelId={panelId}
-              onHover={() => openSection(section.id)}
-              onToggle={() => openSection(section.id)}
-            />
-          ))}
-          <Link
-            href="/tools/workflow"
-            className="pressable rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium text-ink/70 hover:bg-card hover:text-ink"
-          >
-            Workflow
-          </Link>
-        </nav>
+        <SegmentedNav
+          open={open}
+          panelId={panelId}
+          className="hidden sm:flex"
+          onEnter={fineHover ? cancelClose : undefined}
+          onLeave={fineHover ? scheduleClose : undefined}
+          onHover={fineHover ? openSection : undefined}
+          onToggle={openSection}
+        />
 
         <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2 md:ml-0">
           <ToolSearch onOpen={() => setOpen(null)} />
@@ -194,30 +189,17 @@ export function SiteHeader({ className }: { className?: string }) {
         </div>
       </div>
 
-      <nav className="flex sm:hidden">
-        <div className="mx-5 mb-2.5 flex w-full gap-0.5 rounded-full bg-ink/[0.045] p-1">
-          {SECTIONS.map((section) => (
-            <NavButton
-              key={section.id}
-              section={section}
-              open={open === section.id}
-              panelId={panelId}
-              className="flex-1 justify-center"
-              onToggle={() =>
-                setOpen((current) =>
-                  current === section.id ? null : section.id,
-                )
-              }
-            />
-          ))}
-          <Link
-            href="/tools/workflow"
-            className="pressable inline-flex flex-1 items-center justify-center rounded-full px-3 py-1.5 font-sans text-[15px] font-medium text-ink/70 hover:bg-card hover:text-ink"
-          >
-            Workflow
-          </Link>
-        </div>
-      </nav>
+      <div className="px-5 pb-2.5 sm:hidden">
+        <SegmentedNav
+          open={open}
+          panelId={panelId}
+          className="flex w-full"
+          itemClassName="flex-1 justify-center"
+          onToggle={(id) =>
+            setOpen((current) => (current === id ? null : id))
+          }
+        />
+      </div>
 
       {active && (
         <div
@@ -286,44 +268,133 @@ export function SiteHeader({ className }: { className?: string }) {
   );
 }
 
-function NavButton({
-  section,
+type NavKey = "images" | "pdf" | "workflow";
+
+/**
+ * Images · PDF · Workflow as one segmented control: a single white thumb
+ * slides to whatever is hovered, focused or open, and fades out when nothing
+ * is. It appears in place (no slide in from the edge) and then glides.
+ */
+function SegmentedNav({
   open,
   panelId,
   className,
+  itemClassName,
+  onEnter,
+  onLeave,
   onHover,
   onToggle,
 }: {
-  section: (typeof SECTIONS)[number];
-  open: boolean;
+  open: OpenSection;
   panelId: string;
   className?: string;
-  onHover?: () => void;
-  onToggle: () => void;
+  itemClassName?: string;
+  onEnter?: () => void;
+  onLeave?: () => void;
+  /** Fine pointers only: hovering a section opens it; Workflow closes it. */
+  onHover?: (id: OpenSection) => void;
+  onToggle: (id: "pdf" | "images") => void;
 }) {
+  const items = useRef(new Map<NavKey, HTMLElement>());
+  const thumbRef = useRef<HTMLSpanElement>(null);
+  const shownRef = useRef(false);
+  const [hovered, setHovered] = useState<NavKey | null>(null);
+  const [focused, setFocused] = useState<NavKey | null>(null);
+  const target = focused ?? hovered ?? open;
+
+  useLayoutEffect(() => {
+    const thumb = thumbRef.current;
+    if (!thumb) return;
+    const el = target ? items.current.get(target) : undefined;
+    if (!el) {
+      thumb.style.opacity = "0";
+      shownRef.current = false;
+      return;
+    }
+    const place = () => {
+      thumb.style.width = `${el.offsetWidth}px`;
+      thumb.style.transform = `translateX(${el.offsetLeft}px)`;
+    };
+    if (!shownRef.current) {
+      // Jump to the item, then fade in, so it never slides from the edge.
+      thumb.style.transition = "none";
+      place();
+      void thumb.offsetWidth;
+      thumb.style.transition = "";
+      shownRef.current = true;
+    } else {
+      place();
+    }
+    thumb.style.opacity = "1";
+  }, [target]);
+
+  const register = (key: NavKey) => (el: HTMLElement | null) => {
+    if (el) items.current.set(key, el);
+    else items.current.delete(key);
+  };
+
+  const itemProps = (key: NavKey) => ({
+    ref: register(key),
+    // Touch taps fake a hover that never ends, so only real pointers track it.
+    onMouseEnter: onHover
+      ? () => {
+          setHovered(key);
+          onHover(key === "workflow" ? null : key);
+        }
+      : undefined,
+    onFocus: (event: React.FocusEvent<HTMLElement>) => {
+      if (event.currentTarget.matches(":focus-visible")) setFocused(key);
+    },
+    onBlur: () => setFocused(null),
+    className: cn(
+      "relative z-10 inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium outline-none transition-colors duration-200 focus-visible:outline-none",
+      target === key ? "text-ink" : "text-ink/60 hover:text-ink",
+      itemClassName,
+    ),
+  });
+
   return (
-    <button
-      type="button"
+    <nav
       className={cn(
-        "pressable relative inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium",
-        open
-          ? "bg-card text-ink shadow-[0_1px_3px_rgba(17,18,20,0.12)]"
-          : "text-ink/70 hover:bg-card hover:text-ink",
+        "relative items-center gap-0.5 rounded-full bg-ink/[0.05] p-1",
         className,
       )}
-      aria-expanded={open}
-      aria-controls={panelId}
-      onMouseEnter={onHover}
-      onClick={onToggle}
+      onMouseEnter={onEnter}
+      onMouseLeave={() => {
+        setHovered(null);
+        onLeave?.();
+      }}
     >
-      {section.label}
-      <ChevronDown
+      <span
+        ref={thumbRef}
+        aria-hidden
         className={cn(
-          "size-4 transition-transform duration-200 ease-out",
-          open ? "rotate-180 text-ink/60" : "text-ink/35",
+          "pointer-events-none absolute inset-y-1 left-0 rounded-full bg-card opacity-0 shadow-[0_1px_2px_rgba(17,18,20,0.1),0_3px_10px_-3px_rgba(17,18,20,0.14)] transition-[transform,width,opacity,box-shadow] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-opacity",
+          focused && "ring-2 ring-signal/35",
         )}
       />
-    </button>
+      {SECTIONS.map((section) => (
+        <button
+          key={section.id}
+          type="button"
+          aria-expanded={open === section.id}
+          aria-controls={panelId}
+          onClick={() => onToggle(section.id)}
+          {...itemProps(section.id)}
+        >
+          {section.label}
+          <ChevronDown
+            className={cn(
+              "size-4 text-ink/35 transition-transform duration-200 ease-out",
+              open === section.id && "rotate-180",
+            )}
+          />
+        </button>
+      ))}
+      <Link href="/tools/workflow" {...itemProps("workflow")}>
+        Workflow
+      </Link>
+    </nav>
   );
 }
 
