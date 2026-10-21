@@ -229,6 +229,32 @@ test("clearly aligned columns without lines become a borderless table", () => {
   expect(table.rows.map((row) => row.map((cell) => cell.paragraphs.map(text).join("")))).toEqual(rows);
 });
 
+test("a right-aligned last column keeps its alignment when most left edges happen to match", () => {
+  const rows = [
+    ["Item", "Amount"],
+    ["Design", "$231.00"],
+    ["Review", "$217.00"],
+    ["Hosting", "$162.00"],
+    ["Support", "$118.80"],
+    ["Setup", "$45.00"],
+    ["Backup", "$118.80"],
+    ["Domain", "$231.00"],
+    ["Mail", "$217.00"],
+  ];
+  const items: TextItem[] = [item("Statement of work", 72, 100)];
+  rows.forEach(([name, amount], r) => {
+    const y = 140 + r * 16;
+    items.push(item(name, 72, y));
+    // Right edge fixed at 550; the left edge moves with the width, but 7 of 9 land within 2pt.
+    const w = amount.length * 5.5;
+    items.push(item(amount, 550 - w, y, 11, { w }));
+  });
+  const table = blocks([page(items)]).find((b) => b.type === "table") as TableBlock;
+  expect(table).toBeDefined();
+  const last = table.rows.slice(1).map((row) => row[1].paragraphs[0]);
+  expect(last.map((p) => p.type === "p" && p.align)).toEqual(Array(8).fill("right"));
+});
+
 test("prose in two lines per row is not mistaken for a table", () => {
   const items = [
     item("Just a normal line of text here", 72, 100),

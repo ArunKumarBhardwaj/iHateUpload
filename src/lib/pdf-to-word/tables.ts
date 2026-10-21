@@ -310,16 +310,29 @@ function lineUp(values: number[], tol: number): boolean {
   return values.filter((v) => Math.abs(v - m) <= tol).length >= values.length * 0.75;
 }
 
+/** Mean distance from the median: how tightly the values stack on one line. */
+function spread(values: number[]): number {
+  const m = median(values);
+  return values.reduce((a, v) => a + Math.abs(v - m), 0) / values.length;
+}
+
 /**
  * How the text of one column lines up. Right and centre only count when the left edges are ragged,
- * so a column of equal-width dates stays left.
+ * so a column of equal-width dates stays left. Edges that all line up within the tolerance by luck
+ * (a few figures starting at the same x) lose to an edge that is tighter by more than that.
  */
 export function columnAlign(spans: Span[], tol = 2): ColumnAlign {
   if (spans.length < 2) return "left";
-  if (lineUp(spans.map((s) => s.x0), tol)) return "left";
-  if (lineUp(spans.map((s) => s.x1), tol)) return "right";
-  if (lineUp(spans.map((s) => (s.x0 + s.x1) / 2), tol)) return "center";
-  return "left";
+  const edges: [ColumnAlign, number[]][] = [
+    ["left", spans.map((s) => s.x0)],
+    ["right", spans.map((s) => s.x1)],
+    ["center", spans.map((s) => (s.x0 + s.x1) / 2)],
+  ];
+  const fit = edges.filter(([, v]) => lineUp(v, tol)).map(([a, v]) => ({ a, dev: spread(v) }));
+  if (!fit.length) return "left";
+  const best = fit.reduce((x, y) => (y.dev < x.dev ? y : x));
+  const left = fit.find((f) => f.a === "left");
+  return left && left.dev <= Math.max(0.5, 2 * best.dev) ? "left" : best.a;
 }
 
 /** Column extents: pieces that overlap across rows are one column. */
