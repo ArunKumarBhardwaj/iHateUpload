@@ -110,6 +110,19 @@ export function SiteHeader({ className }: { className?: string }) {
     return () => window.cancelAnimationFrame(frame);
   }, [open]);
 
+  // While a menu is open the page behind it stays put, so scrolling the
+  // menu never drags the page along. The scrollbar gutter is reserved in
+  // globals.css, so locking doesn't shift the layout.
+  useEffect(() => {
+    if (!open) return;
+    const root = document.documentElement;
+    const previous = root.style.overflow;
+    root.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = previous;
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onPointer = (event: MouseEvent) => {
@@ -211,7 +224,7 @@ export function SiteHeader({ className }: { className?: string }) {
           id={panelId}
           role="menu"
           className={cn(
-            "absolute top-[calc(100%+0.5rem)] left-1/2 w-[min(64rem,calc(100vw-1.5rem))] origin-top -translate-x-1/2 rounded-[1.5rem] bg-card shadow-[0_30px_60px_-30px_rgba(17,18,20,0.35)] ring-1 ring-ink/8 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+            "absolute top-[calc(100%+0.5rem)] left-1/2 w-[min(72rem,calc(100vw-1.5rem))] origin-top -translate-x-1/2 rounded-[1.5rem] bg-card shadow-[0_30px_60px_-30px_rgba(17,18,20,0.35)] ring-1 ring-ink/8 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
             entered
               ? "scale-100 opacity-100"
               : "pointer-events-none scale-[0.97] opacity-0",
@@ -230,7 +243,7 @@ export function SiteHeader({ className }: { className?: string }) {
             if (!open) setShown(null);
           }}
         >
-          <div className="max-h-[70vh] overflow-y-auto p-3 sm:p-4">
+          <div className="max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain p-3 sm:p-4">
             <div className="mb-2 flex items-baseline justify-between gap-2 px-2 pt-1">
               <p className="font-display text-xl font-semibold tracking-[-0.02em] text-ink">
                 {active.label} tools
@@ -246,7 +259,7 @@ export function SiteHeader({ className }: { className?: string }) {
                 See all
               </Link>
             </div>
-            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {active.tools.map((tool) => (
                 <Link
                   key={tool.id}

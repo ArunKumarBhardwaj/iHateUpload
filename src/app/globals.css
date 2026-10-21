@@ -81,6 +81,9 @@
 
   html {
     scroll-behavior: smooth;
+    /* Reserve the scrollbar's space so locking scroll (open menus) never
+       shifts the page sideways. */
+    scrollbar-gutter: stable;
   }
 
   body {
