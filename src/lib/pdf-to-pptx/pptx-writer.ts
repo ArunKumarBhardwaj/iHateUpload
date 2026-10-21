@@ -217,7 +217,7 @@ const bodyPr = (wrap: "square" | "none") =>
  * ignores custom tab stops and bunches the pieces together; separate boxes land
  * where the PDF had them in every viewer.
  */
-function splitAtTabs(item: ExactItem, block: ParagraphBlock): ExactItem[] {
+export function splitAtTabs(item: ExactItem, block: ParagraphBlock): ExactItem[] {
   const pieces: Run[][] = [[]];
   for (const run of block.runs) {
     if (run.tab) pieces.push([]);
