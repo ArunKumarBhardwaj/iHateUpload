@@ -1,7 +1,7 @@
 // Drives the real PDF to ZIP page on a production build; unzips the download and checks names, bytes and per-page text.
 // Usage: node prove-zip.mjs [port]   (run `bun gen.ts` first)
 import { createRequire } from "node:module";
-import { mkdirSync, readdirSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { pageTexts } from "./pagetext.mjs";
