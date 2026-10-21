@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, Upload, X } from "lucide-react";
 
+import { ToolDirectory } from "@/components/home/tool-directory";
 import { ToolIcon } from "@/components/tool-icon";
 import { toolsForFiles } from "@/lib/file-match";
 import { setHandoff } from "@/lib/handoff";
@@ -90,56 +91,12 @@ export function HomePage({
         </div>
       </section>
 
-      {/* Everything else: a plain directory by job, fast to scan. Footer
-          links jump to a job with /#smaller, /#private and so on. */}
-      <section id="all-tools" className="scroll-mt-20 mx-auto max-w-[84rem] px-5 pt-24 sm:px-8 sm:pt-32">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <h2
-            className={cn(
-                "font-display text-4xl font-semibold tracking-[-0.03em] sm:text-5xl",
-            )}
-          >
-            Every tool, by job
-          </h2>
-          <Link
-            href="/tools/workflow"
-            className="pressable inline-flex items-center gap-1.5 text-sm font-semibold underline-offset-4 hover:underline"
-          >
-            Chain several into a workflow
-            <ArrowRight className="size-4" aria-hidden />
-          </Link>
-        </div>
-        <div className="mt-10 grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
-          {groups.map((group) => (
-            <div key={group.id} id={group.id} className="scroll-mt-24">
-              <h3 className="flex items-baseline justify-between border-b border-ink/10 pb-3 text-sm font-semibold">
-                {group.title}
-                <span className="text-xs font-medium text-ink/45 tabular-nums">
-                  {group.tools.length}
-                </span>
-              </h3>
-              <ul className="mt-2">
-                {group.tools.map((tool) => (
-                  <li key={tool.id}>
-                    <Link
-                      href={`/tools/${tool.slug}`}
-                      className="group -mx-2 flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors duration-150 hover:bg-white"
-                    >
-                      <ToolIcon id={tool.id} className="size-7" />
-                      <span className="min-w-0 flex-1 truncate text-[15px] font-medium">
-                        {tool.title}
-                      </span>
-                      <ArrowRight
-                        className="size-3.5 -translate-x-1 opacity-0 transition-[opacity,transform] duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-60"
-                        aria-hidden
-                      />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+      {/* Everything else, one job at a time. */}
+      <section
+        id="all-tools"
+        className="mx-auto max-w-[84rem] scroll-mt-20 px-5 pt-24 sm:px-8 sm:pt-32"
+      >
+        <ToolDirectory groups={groups} />
       </section>
 
       {/* Privacy, said once and plainly. */}
