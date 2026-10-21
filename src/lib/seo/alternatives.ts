@@ -268,6 +268,15 @@ export const COMPARE_ROWS: CompareRow[] = [
     evidence: "Same Bates output across 2 synthetic files; 358 ms vs 402 ms on 300 pages.",
     checked: "2026-10-17",
   },
+  {
+    tool: "alternate-mix",
+    feature: "Alternate & mix pages",
+    ours: "N pages per turn for each file, one-click duplex setup, stop-at-shortest or keep-the-rest, 2+ files, live order preview",
+    theirs: "One page per turn, per-file reverse, longer file's rest always appended",
+    verdict: "better",
+    evidence: "Same duplex, unequal and 3-file outputs on synthetic files; only ours does N per turn and stop-at-shortest.",
+    checked: "2026-10-21",
+  },
   // Even
   {
     tool: "merge-pdf",

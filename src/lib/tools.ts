@@ -32,6 +32,7 @@ export type ToolId =
   | "page-numbers"
   | "flatten-pdf"
   | "repair-pdf"
+  | "alternate-mix"
   | "png-to-pdf"
   | "ocr-pdf"
   | "word-to-pdf"
@@ -110,6 +111,7 @@ export type ToolDefinition = {
     | "invert"
     | "flatten"
     | "nup"
+    | "alternate-mix"
     | "page-size"
     | "watermark"
     | "page-numbers"
@@ -790,6 +792,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "nup",
+  },
+  {
+    id: "alternate-mix",
+    slug: "alternate-mix",
+    title: "Alternate & Mix Pages",
+    shortTitle: "Alternate & mix",
+    description:
+      "Interleave pages from two or more PDFs: fronts and backs from a duplex scan, or any files turn by turn. Stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: true,
+    actionLabel: "Mix pages",
+    seoTitle: "Alternate & Mix PDF Pages Free — Interleave PDFs, No Upload",
+    seoDescription:
+      "Interleave pages from two or more PDFs online free. Reverse the back sides of a duplex scan, take N pages per turn, handle unequal lengths. No upload.",
+    seoHowTo: [
+      "Add two or more PDFs. The list order is the turn order.",
+      "Set pages per turn, tick Reverse for a file scanned back to front, and choose what happens when one file is shorter.",
+      "Click Mix pages and download the interleaved PDF.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "alternate-mix",
   },
   {
     id: "page-size",

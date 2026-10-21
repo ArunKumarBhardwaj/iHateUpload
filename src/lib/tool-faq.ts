@@ -384,6 +384,28 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
       a: "Yes. Choose header, footer or both, set size, color, bold and margin, limit it to a page range, and skip the first page.",
     },
   ],
+  "alternate-mix": [
+    {
+      q: "Are my PDFs uploaded to mix them?",
+      a: "No. The pages are copied into a new file in your browser tab. Nothing is sent anywhere.",
+    },
+    {
+      q: "How do I combine the front and back sides of a duplex scan?",
+      a: "Add the fronts first and the backs second, then tick Reverse on the backs (or press Duplex scan). Most feeders scan the backs last page first, so the result reads front 1, back 1, front 2, back 2 and so on.",
+    },
+    {
+      q: "Can it take more than one page per turn, or mix more than two files?",
+      a: "Yes. Each file has its own pages-per-turn box, so you can alternate two pages from one file with one from another. You can add as many files as you like; they take turns in card order.",
+    },
+    {
+      q: "What if the files have different lengths?",
+      a: "Choose Keep the rest of the longer files to carry on with whatever is left, or Stop at the shortest to end after the last complete turn.",
+    },
+    {
+      q: "Is the page content changed?",
+      a: "No. Pages are copied as they are, so text stays selectable and links on the pages keep working. Links that jump to another page of the original file may not point to the right place after mixing, and bookmarks and form fields from the source files are not carried over.",
+    },
+  ],
   "reverse-pages": [
     {
       q: "Is my PDF uploaded to reverse it?",

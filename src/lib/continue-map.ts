@@ -24,6 +24,7 @@ const CONTINUE_MAP: Partial<Record<ToolId, ToolId[]>> = {
   "extract-images": ["compress-image", "resize-image", "image-to-pdf"],
   "header-footer": ["flatten-pdf", "compress-pdf"],
   "reverse-pages": ["compress-pdf", "organize-pdf"],
+  "alternate-mix": ["compress-pdf", "organize-pdf", "protect-pdf"],
   "delete-blank": ["compress-pdf", "merge-pdf"],
   "insert-blank": ["compress-pdf", "page-numbers"],
   "invert-pdf": ["compress-pdf", "pdf-to-jpg"],

@@ -25,6 +25,7 @@ export function acceptsFile(
 const FIRST_CHOICES: ToolId[] = [
   "compress-pdf",
   "merge-pdf",
+  "alternate-mix",
   "edit-pdf",
   "sign-pdf",
   "organize-pdf",

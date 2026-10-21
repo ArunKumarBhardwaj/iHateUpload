@@ -64,6 +64,7 @@ import {
   processSignPdf,
   processFillForm,
   processRepairPdf,
+  processAlternateMix,
   processEditPdf,
   processStripMetadata,
   processWordToPdf,
@@ -176,6 +177,8 @@ async function runTool(
       return processInvertPdf(files, onProgress, options);
     case "n-up":
       return processNup(files, onProgress, options);
+    case "alternate-mix":
+      return processAlternateMix(files, onProgress, options);
     case "page-size":
       return processPageSize(files, onProgress, options);
     case "pdf-to-png":
@@ -402,7 +405,10 @@ export function ToolWorkspace({
   const settled = job.status === "ready" || job.status === "error";
   const locked = busy || job.status === "done";
   const reorderable = tool.ordered && tool.multiple;
-  const needsPair = tool.id === "merge-pdf" || tool.id === "compare-pdfs";
+  const needsPair =
+    tool.id === "merge-pdf" ||
+    tool.id === "compare-pdfs" ||
+    tool.id === "alternate-mix";
   const enoughFiles = !needsPair || files.length >= 2;
   const canProcess =
     settled && enoughFiles && optionsReady(options, confirmPassword);
@@ -416,7 +422,9 @@ export function ToolWorkspace({
         message:
           tool.id === "compare-pdfs"
             ? "Add two PDFs to compare."
-            : "Add at least two PDF files to merge.",
+            : tool.id === "alternate-mix"
+              ? "Add at least two PDFs to mix."
+              : "Add at least two PDF files to merge.",
         files: current,
       });
       return;
@@ -734,9 +742,10 @@ export function ToolWorkspace({
                   {reorderable && files.length > 1 && (
                     <p>Output follows the order of the cards.</p>
                   )}
-                  {tool.id === "merge-pdf" && files.length < 2 && (
+                  {(tool.id === "merge-pdf" || tool.id === "alternate-mix") &&
+                    files.length < 2 && (
                     <p className="font-medium text-ink">
-                      Add at least two PDFs to merge.
+                      Add at least two PDFs to {tool.id === "merge-pdf" ? "merge" : "mix"}.
                     </p>
                   )}
                 </div>

@@ -40,6 +40,7 @@ import {
   Unlock,
   TextCursorInput,
   Wrench,
+  Shuffle,
 } from "lucide-react";
 
 import { TOOL_GROUPS } from "@/lib/tool-groups";
@@ -115,6 +116,7 @@ const ACTION: Partial<Record<ToolId, LucideIcon>> = {
   "organize-pdf": Layers2,
   "rotate-pdf": RotateCw,
   "reverse-pages": ArrowDownUp,
+  "alternate-mix": Shuffle,
   "delete-blank": FileX,
   "insert-blank": FilePlus,
   "crop-pdf": Crop,

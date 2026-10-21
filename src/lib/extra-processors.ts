@@ -1604,6 +1604,32 @@ export async function processNup(
   ];
 }
 
+export async function processAlternateMix(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "alternate-mix") throw new Error("Alternate & mix needs its settings.");
+  if (files.length < 2) throw new Error("Add at least two PDFs to mix.");
+  const { buildAlternateMix } = await import("@/lib/page-tools/alternate-mix");
+  const donors: PDFDocument[] = [];
+  for (const item of files) donors.push(await loadPdf(item.file));
+  const sources = files.map((item, i) => ({
+    pages: donors[i].getPageCount(),
+    take: options.take[item.id] ?? 1,
+    reverse: options.reverse.includes(item.id),
+  }));
+  const out = await buildAlternateMix(donors, sources, options.leftover, onProgress);
+  stripPdfMetadata(out);
+  const blob = pdfBlob(await out.save({ useObjectStreams: true }));
+  return [
+    {
+      ...resultFrom(files[0], blob, "alternate-mixed.pdf", files.reduce((sum, f) => sum + f.size, 0)),
+      note: `${out.getPageCount()} pages from ${files.length} files.`,
+    },
+  ];
+}
+
 export async function processPageSize(
   files: FileItem[],
   onProgress: ProgressFn,

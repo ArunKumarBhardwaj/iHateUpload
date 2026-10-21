@@ -58,6 +58,7 @@ export const TOOL_GROUPS: { id: string; title: string; tools: ToolId[] }[] = [
       "organize-pdf",
       "rotate-pdf",
       "reverse-pages",
+      "alternate-mix",
       "delete-blank",
       "repair-pdf",
       "insert-blank",

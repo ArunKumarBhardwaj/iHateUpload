@@ -5,6 +5,7 @@ import type { InvertEngine, InvertMode, OrganizeEntry } from "@/lib/page-tools/t
 import { DEFAULT_FLATTEN, DEFAULT_STRIP, type FlattenSettings } from "@/lib/page-tools/flatten";
 import { DEFAULT_RESIZE, type ResizeSettings } from "@/lib/page-tools/resize";
 import { DEFAULT_NUP, type NupSettings } from "@/lib/page-tools/nup";
+import type { MixLeftover } from "@/lib/page-tools/alternate-mix";
 import { RESERVED_INFO_KEYS } from "@/lib/pdf-meta";
 import type { PiiCategory } from "@/lib/pii-detect";
 import type { DocConvertOptions } from "@/lib/doc-render/options";
@@ -259,6 +260,14 @@ export type ToolOptions =
   | ({ kind: "flatten" } & FlattenSettings)
   | { kind: "invert"; mode: InvertMode; engine: InvertEngine; dpi: number; keepHues: boolean }
   | ({ kind: "nup" } & NupSettings)
+  | {
+      kind: "alternate-mix";
+      /** Pages each file gives per turn, by file id. Missing means 1. */
+      take: Record<string, number>;
+      /** Ids of files read last page first. */
+      reverse: string[];
+      leftover: MixLeftover;
+    }
   | ({ kind: "page-size" } & ResizeSettings)
   | {
       kind: "annotate";
@@ -786,6 +795,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "invert", mode: "invert", engine: "vector", dpi: 150, keepHues: true };
     case "nup":
       return { kind: "nup", ...DEFAULT_NUP };
+    case "alternate-mix":
+      return { kind: "alternate-mix", take: {}, reverse: [], leftover: "append" };
     case "flatten":
       return { kind: "flatten", ...DEFAULT_FLATTEN, strip: { ...DEFAULT_STRIP } };
     case "page-size":
@@ -922,6 +933,8 @@ export function optionsReady(
         options.mode === "form" ||
         (Number.isFinite(options.dpi) && options.dpi >= 96 && options.dpi <= 400)
       );
+    case "alternate-mix":
+      return Object.values(options.take).every((n) => Number.isInteger(n) && n >= 1);
     case "nup":
       return (
         options.cols >= 1 &&
