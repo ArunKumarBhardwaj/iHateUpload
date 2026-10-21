@@ -27,6 +27,7 @@ export type ToolId =
   | "pdf-to-png"
   | "pdf-to-word"
   | "pdf-to-pptx"
+  | "pdf-to-html"
   | "pdf-to-excel"
   | "watermark-pdf"
   | "page-numbers"
@@ -90,6 +91,7 @@ export type ToolDefinition = {
     | "pdf-png"
     | "pdf-to-word"
     | "pdf-to-pptx"
+    | "pdf-to-html"
     | "pdf-to-excel"
     | "organize"
     | "resize"
@@ -261,6 +263,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "pdf-to-pptx",
+  },
+  {
+    id: "pdf-to-html",
+    slug: "pdf-to-html",
+    title: "PDF to HTML",
+    shortTitle: "PDF → HTML",
+    description:
+      "Turn a PDF into a web page: real headings, paragraphs, lists, tables and pictures, or an exact copy of each page with selectable text.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Convert to HTML",
+    seoTitle: "PDF to HTML Converter Free — Clean, Responsive HTML, No Upload",
+    seoDescription:
+      "Convert PDF to HTML online free. Clean semantic markup with headings, lists, tables and inline images, or an exact page layout with selectable text. Runs in your browser — nothing is uploaded.",
+    seoHowTo: [
+      "Drop one or more PDF files into the workspace.",
+      "Pick a reflowing page, an exact layout or page pictures, whether you want one .html file or a zip, and the pages.",
+      "Click Convert to HTML, check the preview, and download the page.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "pdf-to-html",
   },
   {
     id: "pdf-to-excel",

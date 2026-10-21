@@ -318,6 +318,11 @@ function tableHtml(table: TableBlock, opts: InlineOptions, pos?: { x: number; y:
           for (const side of ["top", "right", "bottom", "left"] as const) {
             css.push(`border-${side}:${b[side] ? `.75pt solid ${border}` : "0"}`);
           }
+        } else if (!table.borders && cell.borders) {
+          // Tables that only draw some rules (row lines, a header rule) keep just those.
+          for (const side of ["top", "right", "bottom", "left"] as const) {
+            if (cell.borders[side]) css.push(`border-${side}:1px solid #c9c9d1`);
+          }
         }
         if (css.length) attrs.push(`style="${css.join(";")}"`);
         void i;
@@ -334,7 +339,7 @@ function tableHtml(table: TableBlock, opts: InlineOptions, pos?: { x: number; y:
     const style = `${pos ? `left:${n(pos.x)}pt;top:${n(pos.y)}pt;` : ""}width:${n(width)}pt`;
     return `<table class="x" style="${style}"><colgroup>${cols}</colgroup>${bodyRows}</table>`;
   }
-  return `<table${table.borders ? "" : ' class="plain"'}>${bodyRows}</table>`;
+  return `<div class="tw"><table${table.borders ? "" : ' class="plain"'}>${bodyRows}</table></div>`;
 }
 
 // ---- reflow ------------------------------------------------------------------
@@ -352,7 +357,10 @@ ul,ol{margin:.9em 0;padding-inline-start:1.6em}
 li{margin:.25em 0}
 li>ul,li>ol{margin:.25em 0}
 img{max-width:100%;height:auto;display:block;margin:1.2em auto}
-table{border-collapse:collapse;margin:1.2em 0;display:block;overflow-x:auto;max-width:100%}
+.tw{overflow-x:auto;margin:1.2em 0;max-width:100%}
+table{border-collapse:collapse}
+td p,th p{margin:0}
+td p+p,th p+p{margin-top:.5em}
 table:not(.plain) th,table:not(.plain) td{border:1px solid #c9c9d1}
 th,td{padding:.4em .7em;text-align:start;vertical-align:top}
 th{background:#f3f3f6;font-weight:700}

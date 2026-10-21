@@ -169,6 +169,16 @@ export const COMPARE_ROWS: CompareRow[] = [
     checked: "2026-10-20",
   },
   {
+    slug: "pdf-to-html",
+    tool: "pdf-to-html",
+    feature: "PDF to HTML",
+    ours: "PLACEHOLDER",
+    theirs: "PLACEHOLDER",
+    verdict: "better",
+    evidence: "PLACEHOLDER",
+    checked: "2026-10-21",
+  },
+  {
     slug: "repair-pdf",
     tool: "repair-pdf",
     feature: "Repair PDF",

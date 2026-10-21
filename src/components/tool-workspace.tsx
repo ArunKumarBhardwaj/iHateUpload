@@ -184,6 +184,10 @@ async function runTool(
       return import("@/lib/pdf-to-word/process").then((engine) =>
         engine.processPdfToWord(files, onProgress, options),
       );
+    case "pdf-to-html":
+      return import("@/lib/pdf-to-html/process").then((engine) =>
+        engine.processPdfToHtml(files, onProgress, options),
+      );
     case "pdf-to-pptx":
       return import("@/lib/pdf-to-pptx/process").then((engine) =>
         engine.processPdfToPptx(files, onProgress, options),
@@ -234,6 +238,7 @@ function downloadLabel(results: ResultItem[]) {
   if (type.includes("zip")) return "Download zip";
   if (type.includes("wordprocessingml")) return "Download Word file";
   if (type.includes("presentationml")) return "Download PowerPoint file";
+  if (type.includes("html")) return "Download HTML page";
   if (type.includes("text")) return "Download text";
   return "Download file";
 }

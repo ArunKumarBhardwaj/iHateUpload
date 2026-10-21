@@ -22,7 +22,7 @@ function sizeDelta(results: ResultItem[]) {
   return { before, after, percent: Math.round((1 - after / before) * 100) };
 }
 
-function CopyText({ text }: { text: string }) {
+function CopyText({ text, label = "Copy text" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
@@ -37,7 +37,7 @@ function CopyText({ text }: { text: string }) {
       }}
     >
       {copied ? <Check /> : <Copy />}
-      {copied ? "Copied" : "Copy text"}
+      {copied ? "Copied" : label}
     </Button>
   );
 }
@@ -131,6 +131,25 @@ export function ResultPanel({
           </li>
         ))}
       </ul>
+
+      {results
+        .filter((result) => result.htmlPreview)
+        .map((result) => (
+          <div key={result.id} className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal-ink">
+                Preview
+              </p>
+              <CopyText text={result.htmlPreview ?? ""} label="Copy HTML" />
+            </div>
+            <iframe
+              title={`Preview of ${result.name}`}
+              sandbox="allow-scripts"
+              srcDoc={result.htmlPreview}
+              className="h-[28rem] w-full rounded-xl border border-ink/10 bg-white"
+            />
+          </div>
+        ))}
 
       {results.filter((result) => result.editor).map((result) => (
         <ExcelPreview key={result.id} result={result} />

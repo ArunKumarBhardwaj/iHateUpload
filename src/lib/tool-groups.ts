@@ -39,6 +39,7 @@ export const TOOL_GROUPS: { id: string; title: string; tools: ToolId[] }[] = [
       "pdf-to-png",
       "pdf-to-word",
       "pdf-to-pptx",
+      "pdf-to-html",
       "pdf-to-excel",
       "heic-to-jpg",
       "webp-to-jpg",

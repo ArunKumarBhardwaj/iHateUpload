@@ -15,6 +15,8 @@ export type ResultItem = {
   previewText?: string;
   /** One line under the result, e.g. when a target size was out of reach. */
   note?: string;
+  /** PDF to HTML: the page as written, shown in a sandboxed frame. */
+  htmlPreview?: string;
   /** PDF to Excel: the tables found, open to edits before the file is saved. */
   editor?: import("@/lib/pdf-to-excel/edit").ExcelEditor;
 };
