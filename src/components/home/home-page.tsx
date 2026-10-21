@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, Upload, X } from "lucide-react";
 
 import { ToolDirectory } from "@/components/home/tool-directory";
@@ -35,9 +35,14 @@ export function HomePage({
             "font-display max-w-6xl text-[clamp(2.75rem,7.6vw,6.5rem)] leading-[0.92] font-semibold tracking-[-0.045em] text-balance",
           )}
         >
-          Edit any file.
-          <br />
-          <span className="text-ink/35">Nothing leaves this tab.</span>
+          <span className="sr-only">
+            Edit, shrink, convert and sign any file. Nothing leaves this tab.
+          </span>
+          <span aria-hidden>
+            <RollingVerb /> any file.
+            <br />
+            <span className="text-ink/35">Nothing leaves this tab.</span>
+          </span>
         </h1>
         <div className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <p className="max-w-xl text-lg leading-relaxed text-ink/70">
@@ -125,6 +130,75 @@ export function HomePage({
       </section>
 
     </div>
+  );
+}
+
+const VERBS = ["Edit", "Shrink", "Convert", "Sign", "Merge"];
+
+/**
+ * The headline's first word rolls through what the tools do. The box eases
+ * to each word's width so "any file." glides instead of jumping. Static
+ * under reduced motion; screen readers get the plain sentence instead.
+ */
+function RollingVerb() {
+  // Counts every turn, so the first word shows without an exit ghost.
+  const [turn, setTurn] = useState(0);
+  const index = turn % VERBS.length;
+  const boxRef = useRef<HTMLSpanElement>(null);
+  const sizers = useRef<(HTMLSpanElement | null)[]>([]);
+  const sizedRef = useRef(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setInterval(
+      () => setTurn((t) => t + 1),
+      2600,
+    );
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const width = sizers.current[index]?.offsetWidth;
+    if (!box || !width) return;
+    if (!sizedRef.current) {
+      box.style.transition = "none";
+      box.style.width = `${width}px`;
+      void box.offsetWidth;
+      box.style.transition = "";
+      sizedRef.current = true;
+    } else {
+      box.style.width = `${width}px`;
+    }
+  }, [index]);
+
+  const previous = (index - 1 + VERBS.length) % VERBS.length;
+
+  return (
+    <span
+      ref={boxRef}
+      className="relative inline-block whitespace-nowrap align-baseline transition-[width] duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]"
+    >
+      {VERBS.map((verb, i) => (
+        <span
+          key={verb}
+          ref={(el) => {
+            sizers.current[i] = el;
+          }}
+          className="invisible absolute top-0 left-0"
+        >
+          {verb}
+        </span>
+      ))}
+      {turn > 0 ? (
+        <span key={`out-${turn}`} className="word-out absolute top-0 left-0">
+          {VERBS[previous]}
+        </span>
+      ) : null}
+      <span key={turn} className={cn("inline-block", turn > 0 && "word-in")}>
+        {VERBS[index]}
+      </span>
+    </span>
   );
 }
 

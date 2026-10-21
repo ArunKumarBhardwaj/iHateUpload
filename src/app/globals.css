@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #f6f6f3;
+  --background: #f7f7f8;
   --foreground: #111214;
   --card: #ffffff;
   --card-foreground: #111214;
@@ -13,20 +13,20 @@
   --popover-foreground: #111214;
   --primary: #111214;
   --primary-foreground: #ffffff;
-  --secondary: #ecece7;
+  --secondary: #eeeef0;
   --secondary-foreground: #111214;
-  --muted: #ecece7;
-  --muted-foreground: #5c5d58;
+  --muted: #eeeef0;
+  --muted-foreground: #5b5c63;
   --accent: #0f766e;
   --accent-foreground: #ffffff;
   --destructive: #be123c;
-  --border: #e3e2dc;
-  --input: #d4d3cc;
+  --border: #e4e4e7;
+  --input: #d4d4d8;
   --ring: #0f766e;
   --radius: 1rem;
   --ink: #111214;
-  /* A slightly deeper paper for bands and wells under white cards. */
-  --surface: #efefea;
+  /* A slightly deeper neutral for bands and wells under white cards. */
+  --surface: #efeff1;
   /* The one interaction accent (selection, drag, active step). Brand red
      stays on the logo only. */
   --signal: #0f766e;
@@ -159,6 +159,31 @@
   }
   to {
     stroke-dashoffset: 0;
+  }
+}
+
+/* Headline verb: the old word rolls up and out, the new one rolls in. */
+.word-in {
+  animation: word-in 560ms var(--ease-out) both;
+}
+
+.word-out {
+  animation: word-out 420ms var(--ease-in-out) both;
+}
+
+@keyframes word-in {
+  from {
+    opacity: 0;
+    transform: translateY(85%);
+    filter: blur(6px);
+  }
+}
+
+@keyframes word-out {
+  to {
+    opacity: 0;
+    transform: translateY(-85%);
+    filter: blur(6px);
   }
 }
 
