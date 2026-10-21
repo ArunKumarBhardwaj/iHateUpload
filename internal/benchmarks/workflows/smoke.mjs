@@ -56,6 +56,6 @@ const hash = await page.evaluate(() => location.hash);
 console.log("hash has password:", hash.includes("topsecret"), "decoded has password:", Buffer.from(hash.slice(3).replace(/-/g, "+").replace(/_/g, "/"), "base64").toString().includes("topsecret"));
 await page.goto(BASE + "/tools/workflow" + hash, { waitUntil: "networkidle" });
 await page.reload({ waitUntil: "networkidle" });
-console.log("steps after load:", (await page.getByTestId("wf-step").allInnerTexts()).map((t) => t.split("\n")[1]));
+console.log("steps after load:", (await page.getByTestId("wf-step").allInnerTexts()).map((t) => t.split("\n").filter(Boolean)[1]));
 console.log("notice:", await page.getByRole("status").first().innerText());
 await browser.close();
