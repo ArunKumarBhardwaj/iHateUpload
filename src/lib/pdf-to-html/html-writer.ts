@@ -288,7 +288,7 @@ function cellContent(paragraphs: ParagraphBlock[], opts: InlineOptions, counts: 
     const lh = p.lineRatio ? ` style="line-height:${n(Math.min(3, Math.max(0.8, p.lineRatio * 1.15)))}${p.align ? `;text-align:${p.align === "center" ? "center" : "right"}` : ""}"` : p.align ? ` style="text-align:${p.align === "center" ? "center" : "right"}"` : "";
     return { text: marker + text, attrs: lh };
   });
-  if (parts.length === 1 && !parts[0].attrs) return parts[0].text;
+  if (parts.length === 1 && !parts[0].attrs && !opts.exact) return parts[0].text;
   return parts.map((p) => `<p${p.attrs}>${p.text}</p>`).join("");
 }
 
@@ -326,7 +326,14 @@ function tableHtml(table: TableBlock, opts: InlineOptions, pos?: { x: number; y:
         }
         if (css.length) attrs.push(`style="${css.join(";")}"`);
         void i;
-        return `<${tag}${attrs.length ? " " + attrs.join(" ") : ""}>${cellContent(cell.paragraphs, tag === "th" && !exact ? { ...opts, noBold: true } : opts, counts)}</${tag}>`;
+        let content = cellContent(cell.paragraphs, tag === "th" && !exact ? { ...opts, noBold: true } : opts, counts);
+        if (exact && table.rowHeights) {
+          // A row is never taller than it was on the page: the content sits in a box of that height and overflows rather than pushing the rows below.
+          const span = table.rowHeights.slice(r, r + rowSpan).reduce((a, b) => a + b, 0);
+          const inner = Math.max(1, span - pad.top - pad.bottom);
+          content = `<div class="cc" style="height:${n(inner)}pt;justify-content:${cell.vAlign === "center" ? "center" : "flex-start"}">${content}</div>`;
+        }
+        return `<${tag}${attrs.length ? " " + attrs.join(" ") : ""}>${content}</${tag}>`;
       })
       .join("");
     const height = exact ? table.rowHeights?.[r] : undefined;
@@ -493,8 +500,9 @@ body{margin:0;padding:16px 8px;font-family:Helvetica,Arial,sans-serif}
 .t{margin:0;white-space:nowrap}
 .t.w{white-space:normal}
 .t p{margin:0}
-.m{display:inline-block}
+.m{display:inline-block;white-space:pre}
 .pg img{display:block}
+table.x .cc{display:flex;flex-direction:column;line-height:1.15}
 table.x{position:absolute;border-collapse:collapse;table-layout:fixed;margin:0}
 table.x p{margin:0}
 .pg a{color:inherit;text-decoration:inherit}
@@ -566,7 +574,7 @@ function textBox(item: ExactItem, opts: InlineOptions, counts: Map<string, numbe
     const ms = `display:inline-block;width:${n(list.hanging)}pt;margin-inline-start:-${n(list.hanging)}pt`;
     const first = block.runs.find((r) => r.text);
     const ind = first ? runStyle({ ...first, underline: false, strike: false, highlight: undefined, vertAlign: undefined }, true) : "";
-    body = `<span class="m" style="${ms}${ind ? ";" + ind : ""}">${esc(marker)}</span>${body}`;
+    body = `<span class="m" style="${ms}${ind ? ";" + ind : ""}">${esc(marker)} </span>${body}`;
     attrs[1] = `style="${css.join(";")};padding-inline-start:${n(list.hanging)}pt"`;
   }
   return `<div ${attrs.join(" ")}>${body}</div>`;

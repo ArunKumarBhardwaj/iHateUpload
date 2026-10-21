@@ -67,3 +67,8 @@ internal/benchmarks/pdf-to-pptx/out/
 internal/benchmarks/pdf-to-pptx/fx/
 internal/benchmarks/live-checks/fx/
 internal/benchmarks/live-checks/out/
+
+# PDF to HTML benchmark outputs
+/internal/benchmarks/pdf-to-html/results/
+/internal/benchmarks/pdf-to-html/results-fx/
+/internal/benchmarks/pdf-to-html/fx/*.pdf

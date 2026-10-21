@@ -1,5 +1,5 @@
 // Converts the synthetic realistic corpus on our PDF to HTML page (3 layouts) and on ihatepdf.cv/pdf-to-html (Semantic, Positioned).
-// Usage: node internal/benchmarks/pdf-to-html/run.mjs [--ours PORT] [--sides ours-reflow,ours-exact,ours-picture,rival-semantic,rival-positioned] [--only a,b]
+// Usage: node internal/benchmarks/pdf-to-html/run.mjs [--ours PORT] [--sides ours-reflow,ours-exact,ours-picture,rival-semantic,rival-positioned] [--only a,b] [--fx  (use fx/*.pdf, results-fx/)]
 // Output: results/<side>/<doc>.html and results/<side>/<doc>.json (ms, errors). Also asserts no POST/PUT with data on our side.
 import { createRequire } from "node:module";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -14,7 +14,9 @@ const arg = (k, d) => { const i = process.argv.indexOf("--" + k); return i > 0 ?
 const port = arg("ours", "43160");
 const sides = arg("sides", "ours-reflow,ours-exact,ours-picture,rival-semantic,rival-positioned").split(",");
 const only = arg("only", "").split(",").filter(Boolean);
-const corpus = join(HERE, "../pdf-to-word/realistic/corpus");
+const FX = process.argv.includes("--fx");
+const corpus = FX ? join(HERE, "fx") : join(HERE, "../pdf-to-word/realistic/corpus");
+const RES = FX ? "results-fx" : "results";
 const names = readdirSync(corpus).filter((f) => f.endsWith(".pdf")).map((f) => f.slice(0, -4)).filter((n) => !only.length || only.includes(n)).sort();
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
@@ -75,7 +77,7 @@ async function rival(name, mode) {
 }
 
 for (const side of sides) {
-  const out = join(HERE, "results", side);
+  const out = join(HERE, RES, side);
   mkdirSync(out, { recursive: true });
   for (const name of names) {
     const [who, mode] = side.split("-");
@@ -87,5 +89,5 @@ for (const side of sides) {
   }
 }
 console.log("POST/PUT requests from our page:", posts.length, posts.join(","));
-writeFileSync(join(HERE, "results", "posts.txt"), `${posts.length}\n${posts.join("\n")}\n`);
+writeFileSync(join(HERE, RES, "posts.txt"), `${posts.length}\n${posts.join("\n")}\n`);
 await browser.close();
