@@ -58,6 +58,20 @@ function useFineHover() {
   return enabled;
 }
 
+// The border only appears once the page moves under the header.
+function useScrolled() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setScrolled(window.scrollY > 4);
+    sync();
+    window.addEventListener("scroll", sync, { passive: true });
+    return () => window.removeEventListener("scroll", sync);
+  }, []);
+
+  return scrolled;
+}
+
 export function SiteHeader({ className }: { className?: string }) {
   const [open, setOpen] = useState<OpenSection>(null);
   const [shown, setShown] = useState<OpenSection>(null);
@@ -66,6 +80,7 @@ export function SiteHeader({ className }: { className?: string }) {
   const rootRef = useRef<HTMLElement>(null);
   const closeTimer = useRef<number>(0);
   const fineHover = useFineHover();
+  const scrolled = useScrolled();
 
   const cancelClose = () => {
     window.clearTimeout(closeTimer.current);
@@ -117,22 +132,23 @@ export function SiteHeader({ className }: { className?: string }) {
     <header
       ref={rootRef}
       className={cn(
-        "sticky top-0 z-20 border-b border-ink/10 bg-background font-sans text-ink",
+        "sticky top-0 z-20 border-b bg-background/80 font-sans text-ink backdrop-blur-xl backdrop-saturate-150 transition-[border-color,background-color] duration-200",
+        scrolled || active ? "border-ink/8" : "border-transparent",
         className,
       )}
     >
-      <div className="mx-auto flex h-16 max-w-[90rem] items-center gap-4 px-6 sm:gap-8">
-        <Link href="/" className="flex shrink-0 items-baseline font-sans">
-          <span className="text-[1.65rem] font-semibold leading-none tracking-tight text-ink">
-            iHate
-          </span>
-          <span className="text-[1.65rem] font-semibold leading-none tracking-tight text-brand">
-            Upload
-          </span>
+      <div className="mx-auto flex h-16 max-w-[90rem] items-center gap-4 px-5 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr]">
+        <Link
+          href="/"
+          aria-label="iHateUpload home"
+          className="pressable flex shrink-0 items-baseline justify-self-start font-display text-[1.6rem] leading-none font-semibold tracking-[-0.035em]"
+        >
+          <span className="text-ink">iHate</span>
+          <span className="text-brand">Upload</span>
         </Link>
 
         <nav
-          className="hidden h-16 items-center gap-0.5 font-sans sm:flex"
+          className="hidden items-center gap-0.5 rounded-full bg-ink/[0.045] p-1 font-sans sm:flex"
           onMouseEnter={fineHover ? cancelClose : undefined}
           onMouseLeave={fineHover ? scheduleClose : undefined}
         >
@@ -148,17 +164,25 @@ export function SiteHeader({ className }: { className?: string }) {
           ))}
           <Link
             href="/tools/workflow"
-            className="rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium text-ink/70 transition-colors hover:bg-secondary hover:text-ink"
+            className="pressable rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium text-ink/70 hover:bg-card hover:text-ink"
           >
             Workflow
           </Link>
         </nav>
 
-        <ToolSearch onOpen={() => setOpen(null)} />
+        <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2 md:ml-0">
+          <ToolSearch onOpen={() => setOpen(null)} />
+          <Link
+            href="/#all-tools"
+            className="pressable hidden h-10 shrink-0 items-center rounded-full bg-ink px-4 text-sm font-semibold text-white hover:bg-ink/85 lg:inline-flex"
+          >
+            All tools
+          </Link>
+        </div>
       </div>
 
-      <nav className="flex border-t border-ink/10 sm:hidden">
-        <div className="mx-auto flex w-full max-w-[90rem] gap-1 px-5 py-2">
+      <nav className="flex sm:hidden">
+        <div className="mx-5 mb-2.5 flex w-full gap-0.5 rounded-full bg-ink/[0.045] p-1">
           {SECTIONS.map((section) => (
             <NavButton
               key={section.id}
@@ -175,7 +199,7 @@ export function SiteHeader({ className }: { className?: string }) {
           ))}
           <Link
             href="/tools/workflow"
-            className="inline-flex flex-1 items-center justify-center rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium text-ink/70 hover:bg-secondary hover:text-ink"
+            className="pressable inline-flex flex-1 items-center justify-center rounded-full px-3 py-1.5 font-sans text-[15px] font-medium text-ink/70 hover:bg-card hover:text-ink"
           >
             Workflow
           </Link>
@@ -187,10 +211,10 @@ export function SiteHeader({ className }: { className?: string }) {
           id={panelId}
           role="menu"
           className={cn(
-            "absolute inset-x-0 top-full border-t border-ink/10 bg-background shadow-[0_16px_32px_-14px_rgba(20,22,28,0.22)] transition-[opacity,transform] duration-150 ease-out motion-reduce:transition-none",
+            "absolute top-[calc(100%+0.5rem)] left-1/2 w-[min(64rem,calc(100vw-1.5rem))] origin-top -translate-x-1/2 rounded-[1.5rem] bg-card shadow-[0_30px_60px_-30px_rgba(17,18,20,0.35)] ring-1 ring-ink/8 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
             entered
-              ? "translate-y-0 opacity-100"
-              : "pointer-events-none -translate-y-1 opacity-0",
+              ? "scale-100 opacity-100"
+              : "pointer-events-none scale-[0.97] opacity-0",
           )}
           onMouseEnter={
             fineHover
@@ -206,14 +230,17 @@ export function SiteHeader({ className }: { className?: string }) {
             if (!open) setShown(null);
           }}
         >
-          <div className="mx-auto max-w-[90rem] px-6 py-5">
-            <div className="mb-4 flex items-baseline justify-between gap-2">
-              <p className="font-sans text-sm font-semibold tracking-tight text-ink">
+          <div className="max-h-[70vh] overflow-y-auto p-3 sm:p-4">
+            <div className="mb-2 flex items-baseline justify-between gap-2 px-2 pt-1">
+              <p className="font-display text-xl font-semibold tracking-[-0.02em] text-ink">
                 {active.label} tools
+                <span className="ml-2 font-sans text-sm font-medium text-ink/40 tabular-nums">
+                  {active.tools.length}
+                </span>
               </p>
               <Link
                 href={active.href}
-                className="font-sans text-sm font-semibold text-signal-ink hover:underline"
+                className="inline-flex items-center gap-1 font-sans text-sm font-semibold text-ink underline-offset-4 hover:underline"
                 onClick={() => queueMicrotask(() => setOpen(null))}
               >
                 See all
@@ -225,7 +252,7 @@ export function SiteHeader({ className }: { className?: string }) {
                   key={tool.id}
                   role="menuitem"
                   href={`/tools/${tool.slug}`}
-                  className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-signal/5"
+                  className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors duration-150 hover:bg-ink/[0.045]"
                   onClick={() => queueMicrotask(() => setOpen(null))}
                 >
                   <ToolIcon
@@ -265,10 +292,10 @@ function NavButton({
     <button
       type="button"
       className={cn(
-        "relative inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium transition-colors",
+        "pressable relative inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium",
         open
-          ? "bg-ink text-white"
-          : "text-ink/70 hover:bg-secondary hover:text-ink",
+          ? "bg-card text-ink shadow-[0_1px_3px_rgba(17,18,20,0.12)]"
+          : "text-ink/70 hover:bg-card hover:text-ink",
         className,
       )}
       aria-expanded={open}
@@ -279,8 +306,8 @@ function NavButton({
       {section.label}
       <ChevronDown
         className={cn(
-          "size-4 transition-transform",
-          open ? "rotate-180 text-white/70" : "text-ink/35",
+          "size-4 transition-transform duration-200 ease-out",
+          open ? "rotate-180 text-ink/60" : "text-ink/35",
         )}
       />
     </button>
@@ -354,7 +381,7 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
   };
 
   return (
-    <div ref={boxRef} className="relative ml-auto w-full max-w-[16.5rem]">
+    <div ref={boxRef} className="relative w-full max-w-[15rem]">
       <label className="sr-only" htmlFor={`${listId}-q`}>
         Search tools
       </label>
@@ -372,7 +399,7 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
         aria-activedescendant={
           open && matches[active] ? `${listId}-${matches[active].id}` : undefined
         }
-        className="h-10 w-full rounded-full border border-ink/12 bg-card pr-3 pl-9 md:pr-16 font-sans text-sm tracking-tight text-ink outline-none placeholder:text-muted-foreground focus:border-signal/40"
+        className="h-10 w-full rounded-full border border-transparent bg-ink/[0.045] pr-3 pl-9 font-sans text-sm tracking-tight text-ink outline-none transition-[background-color,border-color] duration-150 placeholder:text-ink/45 hover:bg-ink/[0.07] focus:border-ink/15 focus:bg-card md:pr-14"
         onFocus={() => {
           onOpen();
           setOpen(true);
@@ -399,16 +426,16 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
           }
         }}
       />
-      <kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded border border-ink/12 bg-background px-1.5 font-sans text-[11px] leading-5 text-muted-foreground md:block">
+      <kbd className="pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 rounded-md bg-card px-1.5 font-sans text-[11px] leading-5 text-ink/50 shadow-[0_1px_2px_rgba(17,18,20,0.1)] md:block">
         {hint}
       </kbd>
       {open && (
         <ul
           id={listId}
           role="listbox"
-          className="absolute inset-x-0 top-[calc(100%+0.4rem)] z-30 overflow-hidden rounded-2xl border border-ink/10 bg-card py-1.5 shadow-[0_18px_40px_-24px_rgba(20,22,28,0.35)]"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-[max(100%,18rem)] overflow-hidden rounded-[1.25rem] bg-card p-1.5 shadow-[0_30px_60px_-30px_rgba(17,18,20,0.35)] ring-1 ring-ink/8"
         >
-          <li className="px-3 pb-1 font-sans text-[11px] font-semibold tracking-[0.14em] text-signal-ink uppercase">
+          <li className="px-2.5 pt-1 pb-1.5 font-sans text-xs font-medium text-ink/45">
             {query.trim() ? "Matches" : "Popular"}
           </li>
           {matches.length === 0 ? (
@@ -422,11 +449,11 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
                 id={`${listId}-${tool.id}`}
                 role="option"
                 aria-selected={index === active}
-                className={index === active ? "bg-signal/5" : undefined}
+                className={cn("rounded-xl", index === active && "bg-ink/[0.045]")}
               >
                 <Link
                   href={`/tools/${tool.slug}`}
-                  className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-signal/5"
+                  className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 hover:bg-ink/[0.045]"
                   onClick={() => go(tool)}
                 >
                   <ToolIcon
