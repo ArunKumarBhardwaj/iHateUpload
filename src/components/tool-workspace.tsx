@@ -39,9 +39,11 @@ import {
   optionsReady,
   type ToolOptions,
 } from "@/lib/tool-options";
-import type { ToolDefinition, ToolId } from "@/lib/tools";
+import type { ToolDefinition } from "@/lib/tools";
 import { shouldWarnLargeJob } from "@/lib/device-caps";
 import { runTool } from "@/lib/run-tool";
+import { isWorkflowTool } from "@/lib/workflow/catalog";
+import { shareFragment } from "@/lib/workflow/share";
 import type { FileFacts } from "@/lib/preview";
 import { TOOL_GROUPS } from "@/lib/tool-groups";
 import { useFilePreviews } from "@/lib/use-previews";
@@ -588,6 +590,13 @@ export function ToolWorkspace({
               job.results.map((result) => ({ type: result.blob.type })),
             )}
             onContinue={continueWith}
+            workflowHref={
+              isWorkflowTool(tool.id) &&
+              options.kind === initialOptions(tool.ui).kind &&
+              optionsReady(options, confirmPassword)
+                ? `/tools/workflow${shareFragment([{ toolId: tool.id, options }])}`
+                : undefined
+            }
           />
         )}
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Check, Copy, Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -47,11 +48,14 @@ export function ResultPanel({
   showSaving,
   continueTargets,
   onContinue,
+  workflowHref,
 }: {
   results: ResultItem[];
   showSaving: boolean;
   continueTargets: ToolDefinition[];
   onContinue: (tool: ToolDefinition) => void;
+  /** Where "save these steps as a workflow" goes; absent for tools a workflow cannot run. */
+  workflowHref?: string;
 }) {
   const delta = showSaving ? sizeDelta(results) : null;
   const answer = results.find((result) => result.previewText)?.previewText;
@@ -135,6 +139,20 @@ export function ResultPanel({
       {results.filter((result) => result.editor).map((result) => (
         <ExcelPreview key={result.id} result={result} />
       ))}
+
+      {workflowHref ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-ink/10 pt-4 text-sm">
+          <Link
+            href={workflowHref}
+            className="font-medium text-signal-ink underline-offset-4 hover:underline"
+          >
+            Save these steps as a workflow
+          </Link>
+          <span className="text-muted-foreground">
+            Run them on many files at once. Passwords are not kept.
+          </span>
+        </div>
+      ) : null}
 
       {continueTargets.length > 0 && (
         <div className="space-y-2 border-t border-ink/10 pt-4">
