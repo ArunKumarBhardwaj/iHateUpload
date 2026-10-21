@@ -394,7 +394,7 @@ export function ToolWorkspace({
           >
             <button
               type="button"
-              className="flex w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-ink/15 bg-background px-4 py-16 text-center transition-colors hover:border-signal/40 hover:bg-signal/[0.03] sm:py-20"
+              className="flex w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-ink/15 bg-background px-4 py-16 text-center pressable hover:border-signal/40 hover:bg-signal/[0.03] sm:py-20"
               onClick={() => inputRef.current?.click()}
             >
               <span className="flex size-16 items-center justify-center rounded-full bg-signal/10 text-signal">

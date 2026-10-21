@@ -63,6 +63,9 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  /* Strong ease-out for UI: fast start, soft landing. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 @layer base {
@@ -93,46 +96,51 @@
 }
 
 @layer utilities {
-  .noise {
-    display: none;
+  /* Taps answer at once: a quick squeeze on press, eased out so it settles. */
+  .pressable {
+    transition-property: transform, color, background-color, border-color,
+      box-shadow, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out);
   }
 
-  .animate-rise {
-    animation: rise 0.7s ease-out both;
+  .pressable:active {
+    transform: scale(0.97);
   }
 
-  .animate-rise-delay {
-    animation: rise 0.7s ease-out 0.12s both;
+  /* Hover lift only where a real pointer can hover, so taps don't stick. */
+  @media (hover: hover) and (pointer: fine) {
+    .lift:hover {
+      transform: translateY(-2px);
+    }
+
+    .lift:active {
+      transform: translateY(-2px) scale(0.98);
+    }
   }
 
-  .animate-rise-delay-2 {
-    animation: rise 0.7s ease-out 0.24s both;
+  /* Lists fade up in a short stagger; set --i to the item's index. */
+  .enter {
+    animation: enter 240ms var(--ease-out) both;
+    animation-delay: calc(min(var(--i, 0), 12) * 30ms);
   }
 
-  .animate-pulse-ring {
-    animation: pulse-ring 2.4s ease-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    .enter {
+      animation: none;
+    }
+
+    .pressable:active,
+    .lift:hover,
+    .lift:active {
+      transform: none;
+    }
   }
 }
 
-@keyframes rise {
+@keyframes enter {
   from {
     opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pulse-ring {
-  0% {
-    box-shadow: 0 0 0 0 rgba(214, 31, 58, 0.3);
-  }
-  70% {
-    box-shadow: 0 0 0 16px rgba(214, 31, 58, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(214, 31, 58, 0);
+    transform: translateY(6px);
   }
 }

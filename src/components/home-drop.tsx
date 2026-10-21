@@ -149,7 +149,12 @@ export function HomeDrop() {
                   : "border-ink/12 bg-surface/60",
               )}
             >
-              <span className="flex size-14 items-center justify-center rounded-full bg-signal text-white shadow-[0_10px_24px_-10px_rgba(214,31,58,0.8)]">
+              <span
+                className={cn(
+                  "flex size-14 items-center justify-center rounded-full bg-signal text-white shadow-[0_10px_24px_-10px_rgba(214,31,58,0.8)] transition-transform duration-200 ease-out",
+                  dragging && "-translate-y-1 scale-110",
+                )}
+              >
                 <Upload className="size-6" aria-hidden />
               </span>
               <p className="mt-4 text-lg font-semibold text-ink">
@@ -197,12 +202,16 @@ export function HomeDrop() {
                     What do you want to do?
                   </p>
                   <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
-                    {shown.map((tool) => (
-                      <li key={tool.id}>
+                    {shown.map((tool, index) => (
+                      <li
+                        key={tool.id}
+                        className="enter"
+                        style={{ "--i": index } as React.CSSProperties}
+                      >
                         <button
                           type="button"
                           onClick={() => open(tool)}
-                          className="group flex min-h-12 w-full items-center gap-3 rounded-xl border border-ink/8 px-3 py-2 text-left transition-colors hover:border-signal/40 hover:bg-signal/5"
+                          className="group flex min-h-12 w-full items-center gap-3 rounded-xl border border-ink/8 px-3 py-2 text-left pressable hover:border-signal/40 hover:bg-signal/5"
                         >
                           <ToolIcon
                             id={tool.id}
@@ -213,7 +222,7 @@ export function HomeDrop() {
                             {tool.shortTitle}
                           </span>
                           <ArrowRight
-                            className="size-4 shrink-0 text-ink/30 transition-transform group-hover:translate-x-0.5 group-hover:text-signal-ink"
+                            className="size-4 shrink-0 text-ink/30 transition-[transform,color] duration-200 ease-out group-hover:translate-x-0.5 group-hover:text-signal-ink"
                             aria-hidden
                           />
                         </button>

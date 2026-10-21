@@ -119,7 +119,7 @@ export default function HomePage() {
             </div>
             <Link
               href="/tools/workflow"
-              className="inline-flex h-10 shrink-0 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground"
+              className="pressable inline-flex h-10 shrink-0 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground"
             >
               Build a workflow
             </Link>

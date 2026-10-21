@@ -54,7 +54,7 @@ export function ToolCatalog({
                 window.location.hash = chip.id === "all" ? "all-tools" : chip.id;
               }}
               className={cn(
-                "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
+                "pressable inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium",
                 selected
                   ? "border-ink bg-ink text-white"
                   : "border-ink/12 bg-card text-ink hover:border-ink/30",
@@ -73,12 +73,18 @@ export function ToolCatalog({
         })}
       </div>
 
-      <ul className="mt-6 grid grid-cols-2 gap-2.5 sm:mt-8 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
-        {shown.map((tool) => (
-          <li key={tool.id}>
+      <ul
+        key={active}
+        className="mt-6 grid grid-cols-2 gap-2.5 sm:mt-8 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
+        {shown.map((tool, index) => (
+          <li
+            key={tool.id}
+            className="enter"
+            style={{ "--i": index } as React.CSSProperties}
+          >
             <Link
               href={`/tools/${tool.slug}`}
-              className="group flex h-full items-center gap-3 rounded-2xl border border-ink/8 bg-card p-3 transition-[border-color,box-shadow] hover:border-ink/15 hover:shadow-[0_14px_30px_-18px_rgba(20,22,28,0.35)] sm:flex-col sm:items-start sm:gap-0 sm:p-5"
+              className="group pressable lift flex h-full items-center gap-3 rounded-2xl border border-ink/8 bg-card p-3 hover:border-ink/15 hover:shadow-[0_14px_30px_-18px_rgba(20,22,28,0.35)] sm:flex-col sm:items-start sm:gap-0 sm:p-5"
             >
               <ToolIcon id={tool.id} className="size-9 sm:size-12" />
               <span className="min-w-0 sm:mt-4">

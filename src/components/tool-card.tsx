@@ -17,7 +17,7 @@ export function ToolCard({
     <Link
       href={`/tools/${tool.slug}`}
       className={cn(
-        "group flex min-h-12 flex-row items-center gap-2.5 rounded-xl border border-ink/8 bg-card p-2.5 shadow-[0_1px_0_rgba(20,22,28,0.04)] transition-colors hover:border-signal/40 hover:shadow-[0_10px_28px_-18px_rgba(20,22,28,0.45)] sm:flex-col sm:items-stretch sm:gap-0 sm:rounded-2xl sm:p-5",
+        "group flex min-h-12 flex-row items-center gap-2.5 rounded-xl border border-ink/8 bg-card p-2.5 shadow-[0_1px_0_rgba(20,22,28,0.04)] pressable lift hover:border-signal/40 hover:shadow-[0_10px_28px_-18px_rgba(20,22,28,0.45)] sm:flex-col sm:items-stretch sm:gap-0 sm:rounded-2xl sm:p-5",
         compact && "sm:p-4",
       )}
     >
