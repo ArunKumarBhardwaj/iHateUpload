@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 
-import { GROUP_COLOR, ToolIcon } from "@/components/tool-icon";
+import { ToolIcon } from "@/components/tool-icon";
 import type { ToolDefinition } from "@/lib/tools";
 import { cn } from "@/lib/utils";
 
@@ -11,7 +11,7 @@ type Group = { id: string; title: string; tools: readonly ToolDefinition[] };
 
 /**
  * Every tool as a grid, filtered by job. "All" leads with the most used
- * tools; each chip carries its job's colour so it matches the tiles below.
+ * tools. The jobs sit in one scrollable row of tabs, each with its count.
  * All links render on the server too, so crawlers see the whole catalog.
  * The filter lives in the URL hash (#smaller, #private…), so footer links
  * and shared links open the grid already filtered.
@@ -30,7 +30,10 @@ export function ToolCatalog({
       ? all
       : (groups.find((group) => group.id === active)?.tools ?? all);
 
-  const chips = [{ id: "all", title: "All tools" }, ...groups];
+  const chips = [
+    { id: "all", title: "All tools", count: all.length },
+    ...groups.map((group) => ({ ...group, count: group.tools.length })),
+  ];
 
   return (
     <div>
@@ -38,39 +41,44 @@ export function ToolCatalog({
       {groups.map((group) => (
         <span key={group.id} id={group.id} className="block scroll-mt-28" />
       ))}
-      <div
-        role="group"
-        aria-label="Filter tools by job"
-        className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-2 sm:mx-0 sm:flex-wrap sm:justify-center sm:px-0"
-      >
-        {chips.map((chip) => {
-          const selected = active === chip.id;
-          return (
-            <button
-              key={chip.id}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => {
-                window.location.hash = chip.id === "all" ? "all-tools" : chip.id;
-              }}
-              className={cn(
-                "pressable inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium",
-                selected
-                  ? "border-ink bg-ink text-white"
-                  : "border-ink/12 bg-card text-ink hover:border-ink/30",
-              )}
-            >
-              {chip.id !== "all" ? (
+      {/* w-max + mx-auto centres the row when it fits and scrolls when not. */}
+      <div className="-mx-6 overflow-x-auto px-6 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0">
+        <div
+          role="group"
+          aria-label="Filter tools by job"
+          className="mx-auto flex w-max gap-0.5 rounded-full border border-ink/8 bg-card p-1"
+        >
+          {chips.map((chip) => {
+            const selected = active === chip.id;
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => {
+                  window.location.hash =
+                    chip.id === "all" ? "all-tools" : chip.id;
+                }}
+                className={cn(
+                  "pressable inline-flex min-h-10 shrink-0 items-center gap-1 rounded-full px-3 text-sm font-medium",
+                  selected
+                    ? "bg-ink text-white"
+                    : "text-ink hover:bg-ink/[0.05]",
+                )}
+              >
+                {chip.title}
                 <span
-                  className="size-2 rounded-full"
-                  style={{ backgroundColor: GROUP_COLOR[chip.id] }}
-                  aria-hidden
-                />
-              ) : null}
-              {chip.title}
-            </button>
-          );
-        })}
+                  className={cn(
+                    "text-xs tabular-nums",
+                    selected ? "text-white/65" : "text-muted-foreground",
+                  )}
+                >
+                  {chip.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <ul

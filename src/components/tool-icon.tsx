@@ -231,21 +231,3 @@ export function ToolIcon({
     </span>
   );
 }
-
-/** One format tile, for artwork that shows what kinds of files fit. */
-export function FormatTile({
-  format,
-  className,
-}: {
-  format: Format;
-  className?: string;
-}) {
-  const { color, Icon } = FORMAT[format];
-  return (
-    <Tile
-      color={color}
-      Icon={Icon}
-      className={cn("size-12", className)}
-    />
-  );
-}

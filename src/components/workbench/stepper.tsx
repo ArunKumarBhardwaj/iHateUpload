@@ -54,25 +54,25 @@ export function Stepper({
   const active = steps.indexOf(currentStep(job, options.kind !== "none"));
 
   return (
-    <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+    <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
       {steps.map((step, index) => (
         <li key={step} className="flex items-center gap-2">
-          {index > 0 && <span className="text-ink/20">/</span>}
+          {index > 0 && <span className="text-ink/25" aria-hidden>/</span>}
           <span
             aria-current={index === active ? "step" : undefined}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-medium",
+              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium",
               index === active && "bg-signal/10 text-signal-ink",
               index < active && "text-ink",
               index > active && "text-muted-foreground",
             )}
           >
             {index < active ? (
-              <Check className="size-3" />
+              <Check className="size-4" />
             ) : (
               <span
                 className={cn(
-                  "inline-flex size-4 items-center justify-center rounded-full text-[10px]",
+                  "inline-flex size-5 items-center justify-center rounded-full text-xs tabular-nums",
                   index === active
                     ? "bg-signal text-primary-foreground"
                     : "bg-ink/10 text-muted-foreground",

@@ -342,8 +342,13 @@ export function ToolWorkspace({
       <div
         className={cn(
           // No `overflow-hidden` here: it would stop the action bar sticking.
-          "relative rounded-2xl border border-ink/10 bg-card p-5 shadow-[0_18px_40px_-24px_rgba(20,22,28,0.28)] sm:p-8",
-          dragging && "border-signal ring-2 ring-signal/30",
+          "relative rounded-2xl border bg-card p-5 sm:p-8",
+          // Before any file, the whole card is the drop zone: one dashed
+          // surface instead of a dashed box inside a card.
+          job.status === "idle"
+            ? "border-2 border-dashed border-ink/15 transition-colors hover:border-signal/40"
+            : "border-ink/10 shadow-[0_18px_40px_-24px_rgba(20,22,28,0.28)]",
+          dragging && "border-signal bg-signal/[0.03] ring-2 ring-signal/30",
         )}
         onDragEnter={(e) => {
           e.preventDefault();
@@ -394,13 +399,13 @@ export function ToolWorkspace({
           >
             <button
               type="button"
-              className="flex w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-ink/15 bg-background px-4 py-16 text-center pressable hover:border-signal/40 hover:bg-signal/[0.03] sm:py-20"
+              className="group/drop flex w-full flex-col items-center justify-center gap-4 rounded-xl px-4 py-14 text-center sm:py-16"
               onClick={() => inputRef.current?.click()}
             >
               <span className="flex size-16 items-center justify-center rounded-full bg-signal/10 text-signal">
                 <Upload className="size-7" />
               </span>
-              <span className="inline-flex h-12 items-center rounded-xl bg-primary px-8 text-base font-semibold text-primary-foreground">
+              <span className="pressable inline-flex h-12 items-center rounded-xl bg-primary px-8 text-base font-semibold text-primary-foreground group-active/drop:scale-[0.97]">
                 {tool.multiple ? "Select files" : "Select a file"}
               </span>
               <span className="text-sm text-muted-foreground">

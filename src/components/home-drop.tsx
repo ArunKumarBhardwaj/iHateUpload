@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, CloudOff, Lock, Upload } from "lucide-react";
 
-import { FormatTile, ToolIcon, type Format } from "@/components/tool-icon";
+import { ToolIcon } from "@/components/tool-icon";
 import { Button } from "@/components/ui/button";
 import { toolsForFiles } from "@/lib/file-match";
 import { setHandoff } from "@/lib/handoff";
@@ -12,16 +12,6 @@ import type { ToolDefinition } from "@/lib/tools";
 import { cn, formatBytes } from "@/lib/utils";
 
 const FIRST_LOOK = 6;
-
-// Decorative tiles around the window: the kinds of files that fit.
-const FLOATING: { format: Format; className: string }[] = [
-  { format: "pdf", className: "-top-7 -left-9 -rotate-12" },
-  { format: "word", className: "top-32 -left-16 rotate-6" },
-  { format: "jpg", className: "-top-9 -right-7 rotate-12" },
-  { format: "excel", className: "-right-14 top-40 -rotate-6" },
-  { format: "heic", className: "-bottom-8 left-24 rotate-3" },
-  { format: "ppt", className: "-right-9 -bottom-7 rotate-12" },
-];
 
 function describe(files: File[]) {
   const total = files.reduce((sum, file) => sum + file.size, 0);
@@ -96,16 +86,6 @@ export function HomeDrop() {
 
   return (
     <div className="relative">
-      {FLOATING.map(({ format, className }) => (
-        <FormatTile
-          key={format}
-          format={format}
-          className={cn(
-            "absolute z-10 hidden shadow-[0_12px_24px_-12px_rgba(20,22,28,0.45)] ring-4 ring-white md:flex",
-            className,
-          )}
-        />
-      ))}
       <div
         className={cn(
           "relative overflow-hidden rounded-2xl border bg-card shadow-[0_30px_60px_-30px_rgba(20,22,28,0.35)] transition-colors",
