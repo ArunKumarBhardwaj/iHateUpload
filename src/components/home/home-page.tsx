@@ -39,7 +39,7 @@ export function HomePage({
             Edit, shrink, convert and sign any file. Nothing leaves this tab.
           </span>
           <span aria-hidden>
-            <RollingVerb /> any file.
+            <RollingVerb />
             <br />
             <span className="text-ink/35">Nothing leaves this tab.</span>
           </span>
@@ -136,69 +136,85 @@ export function HomePage({
 const VERBS = ["Edit", "Shrink", "Convert", "Sign", "Merge"];
 
 /**
- * The headline's first word rolls through what the tools do. The box eases
- * to each word's width so "any file." glides instead of jumping. Static
- * under reduced motion; screen readers get the plain sentence instead.
+ * The headline's first word, in the logo red, rolls through what the tools
+ * do, letter by letter. Only transforms animate: the word's box snaps to the
+ * new width and the rest of the line ("any file.") slides from where it was
+ * (FLIP), so nothing re-lays out mid-animation. Static under reduced motion;
+ * screen readers get the plain sentence instead.
  */
 function RollingVerb() {
   // Counts every turn, so the first word shows without an exit ghost.
   const [turn, setTurn] = useState(0);
   const index = turn % VERBS.length;
+  const previous = (index - 1 + VERBS.length) % VERBS.length;
   const boxRef = useRef<HTMLSpanElement>(null);
+  const restRef = useRef<HTMLSpanElement>(null);
   const sizers = useRef<(HTMLSpanElement | null)[]>([]);
-  const sizedRef = useRef(false);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const timer = window.setInterval(
-      () => setTurn((t) => t + 1),
-      2600,
-    );
+    const timer = window.setInterval(() => setTurn((t) => t + 1), 2800);
     return () => window.clearInterval(timer);
   }, []);
 
   useLayoutEffect(() => {
     const box = boxRef.current;
+    const rest = restRef.current;
     const width = sizers.current[index]?.offsetWidth;
-    if (!box || !width) return;
-    if (!sizedRef.current) {
-      box.style.transition = "none";
-      box.style.width = `${width}px`;
-      void box.offsetWidth;
-      box.style.transition = "";
-      sizedRef.current = true;
-    } else {
-      box.style.width = `${width}px`;
-    }
-  }, [index]);
+    if (!box || !rest || !width) return;
+    const before = box.offsetWidth;
+    box.style.width = `${width}px`;
+    if (turn === 0) return;
+    rest.style.transition = "none";
+    rest.style.transform = `translateX(${before - width}px)`;
+    void rest.offsetWidth;
+    rest.style.transition = "transform 700ms cubic-bezier(0.22, 1, 0.36, 1) 80ms";
+    rest.style.transform = "";
+  }, [index, turn]);
 
-  const previous = (index - 1 + VERBS.length) % VERBS.length;
+  const letters = (word: string, className: string) =>
+    [...word].map((char, i) => (
+      <span
+        key={i}
+        className={className}
+        style={{ "--c": i } as React.CSSProperties}
+      >
+        {char}
+      </span>
+    ));
 
   return (
-    <span
-      ref={boxRef}
-      className="relative inline-block whitespace-nowrap align-baseline transition-[width] duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]"
-    >
-      {VERBS.map((verb, i) => (
-        <span
-          key={verb}
-          ref={(el) => {
-            sizers.current[i] = el;
-          }}
-          className="invisible absolute top-0 left-0"
-        >
-          {verb}
+    <>
+      <span
+        ref={boxRef}
+        className="relative inline-block py-[0.12em] align-baseline -my-[0.12em] whitespace-nowrap text-brand"
+        // Clips top and bottom only, so a wider outgoing word isn't cut off.
+        style={{ clipPath: "inset(0 -100vw)" }}
+      >
+        {VERBS.map((verb, i) => (
+          <span
+            key={verb}
+            ref={(el) => {
+              sizers.current[i] = el;
+            }}
+            className="invisible absolute top-[0.12em] left-0"
+          >
+            {verb}
+          </span>
+        ))}
+        {turn > 0 ? (
+          <span key={`out-${turn}`} className="absolute top-[0.12em] left-0">
+            {letters(VERBS[previous], "char-out")}
+          </span>
+        ) : null}
+        <span key={turn} className="inline-block">
+          {turn > 0 ? letters(VERBS[index], "char-in") : VERBS[index]}
         </span>
-      ))}
-      {turn > 0 ? (
-        <span key={`out-${turn}`} className="word-out absolute top-0 left-0">
-          {VERBS[previous]}
-        </span>
-      ) : null}
-      <span key={turn} className={cn("inline-block", turn > 0 && "word-in")}>
-        {VERBS[index]}
+      </span>{" "}
+      <span ref={restRef} className="inline-block will-change-transform">
+        any file.
       </span>
-    </span>
+    </>
   );
 }
 
