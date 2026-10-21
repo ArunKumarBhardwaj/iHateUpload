@@ -224,10 +224,10 @@ function DropStage() {
   return (
     <div
       className={cn(
-        "relative mt-12 overflow-hidden rounded-[2rem] bg-ink text-white transition-[transform,box-shadow] duration-300 ease-out sm:mt-16",
+        "relative mt-12 overflow-hidden rounded-[2rem] bg-card text-ink ring-1 ring-ink/8 transition-[transform,box-shadow] duration-300 ease-out sm:mt-16",
         dragging
-          ? "scale-[1.012] shadow-[0_0_0_6px_rgba(15,118,110,0.35),0_40px_80px_-30px_rgba(0,0,0,0.6)]"
-          : "shadow-[0_40px_80px_-40px_rgba(0,0,0,0.55)]",
+          ? "scale-[1.012] shadow-[0_0_0_6px_rgba(15,118,110,0.25),0_30px_60px_-30px_rgba(17,18,20,0.3)]"
+          : "shadow-[0_30px_60px_-36px_rgba(17,18,20,0.25)]",
       )}
     >
       <input
@@ -253,7 +253,7 @@ function DropStage() {
                 >
                   {dragging ? "Let go." : "Drop a file anywhere."}
                 </p>
-                <p className="mt-4 max-w-sm text-white/60">
+                <p className="mt-4 max-w-sm text-ink/60">
                   PDF, JPG, PNG, HEIC, Word, Excel or PowerPoint. We show the
                   tools that fit, and nothing is read until you pick one.
                 </p>
@@ -262,13 +262,13 @@ function DropStage() {
                 <button
                   type="button"
                   onClick={() => inputRef.current?.click()}
-                  className="pressable inline-flex h-13 items-center gap-2 rounded-full bg-white px-7 text-base font-semibold text-ink hover:bg-white/90"
+                  className="pressable inline-flex h-13 items-center gap-2 rounded-full bg-ink px-7 text-base font-semibold text-white hover:bg-ink/85"
                 >
                   <Upload className="size-5" aria-hidden />
                   Choose files
                 </button>
-                <span className="flex items-center gap-2 text-sm text-white/55">
-                  <span className="size-1.5 rounded-full bg-[#34d399]" aria-hidden />
+                <span className="flex items-center gap-2 text-sm text-ink/55">
+                  <span className="size-1.5 rounded-full bg-lagoon" aria-hidden />
                   0 bytes sent so far
                 </span>
               </div>
@@ -276,14 +276,14 @@ function DropStage() {
           ) : (
             <div>
               <div className="flex items-baseline justify-between gap-4">
-                <p className="truncate text-sm text-white/60">
+                <p className="truncate text-sm text-ink/60">
                   {files.length === 1 ? files[0].name : `${files.length} files`} ·{" "}
                   {formatBytes(total)}
                 </p>
                 <button
                   type="button"
                   onClick={() => setFiles([])}
-                  className="shrink-0 text-sm font-medium text-white/80 underline-offset-4 hover:underline"
+                  className="shrink-0 text-sm font-medium text-ink/80 underline-offset-4 hover:underline"
                 >
                   Start over
                 </button>
@@ -308,11 +308,11 @@ function DropStage() {
                         setHandoff({ files, from: "home" });
                         router.push(`/tools/${tool.slug}`);
                       }}
-                      className="pressable group flex w-full items-center gap-3 rounded-2xl bg-white/[0.06] px-3 py-2.5 text-left ring-1 ring-white/10 hover:bg-white/[0.12]"
+                      className="pressable group flex w-full items-center gap-3 rounded-2xl bg-surface px-3 py-2.5 text-left ring-1 ring-ink/6 hover:bg-ink/[0.06]"
                     >
                       <ToolIcon id={tool.id} className="size-8" />
                       <span className="flex-1 text-sm font-semibold">{tool.shortTitle}</span>
-                      <ArrowRight className="size-4 text-white/40 transition-transform duration-200 ease-out group-hover:translate-x-0.5" aria-hidden />
+                      <ArrowRight className="size-4 text-ink/40 transition-transform duration-200 ease-out group-hover:translate-x-0.5" aria-hidden />
                     </button>
                   </li>
                 ))}
@@ -320,7 +320,7 @@ function DropStage() {
             </div>
           )}
         </div>
-        <div className="relative hidden border-l border-white/10 lg:block">
+        <div className="relative hidden border-l border-ink/8 bg-surface lg:block">
           <DemoLoop />
         </div>
       </div>
@@ -340,12 +340,12 @@ function DemoLoop() {
   const name = SCENES[scene];
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-8 bg-[radial-gradient(60%_60%_at_50%_45%,rgba(255,255,255,0.07),transparent)]">
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-8 bg-[radial-gradient(60%_60%_at_50%_45%,rgba(255,255,255,0.8),transparent)]">
       <div key={name} className="scene flex h-56 items-center justify-center">
         {name === "compress" && (
           <div className="flex items-center gap-8">
             <Page label="report.pdf" tint="#e5322d" />
-            <ArrowRight className="size-6 text-white/30" aria-hidden />
+            <ArrowRight className="size-6 text-ink/25" aria-hidden />
             <div className="squash">
               <Page label="report.pdf" tint="#e5322d" />
             </div>
@@ -354,7 +354,7 @@ function DemoLoop() {
         {name === "convert" && (
           <div className="flex items-center gap-8">
             <Page label="IMG_2041.heic" tint="#8b45d9" photo />
-            <ArrowRight className="size-6 text-white/30" aria-hidden />
+            <ArrowRight className="size-6 text-ink/25" aria-hidden />
             <div className="pop">
               <Page label="IMG_2041.jpg" tint="#f2a516" photo />
             </div>
@@ -370,7 +370,7 @@ function DemoLoop() {
           </div>
         )}
       </div>
-      <p className="scene text-sm font-medium text-white/70" key={`${name}-caption`}>
+      <p className="scene text-sm font-medium text-ink/65" key={`${name}-caption`}>
         {name === "compress" && "Compress PDF · 4.2 MB → 1.1 MB"}
         {name === "convert" && "HEIC to JPG · opens on any phone"}
         {name === "merge" && "Merge PDF · three files become one"}
@@ -381,7 +381,7 @@ function DemoLoop() {
             key={s}
             className={cn(
               "h-1 rounded-full transition-all duration-300 ease-out",
-              i === scene ? "w-6 bg-white/80" : "w-1.5 bg-white/25",
+              i === scene ? "w-6 bg-ink/70" : "w-1.5 bg-ink/20",
             )}
           />
         ))}
@@ -408,7 +408,7 @@ function DemoLoop() {
 
 function Page({ label, tint, photo = false }: { label: string; tint: string; photo?: boolean }) {
   return (
-    <div className="flex h-44 w-36 flex-col overflow-hidden rounded-2xl bg-white p-3 text-ink shadow-[0_20px_40px_-20px_rgba(0,0,0,0.7)]">
+    <div className="flex h-44 w-36 flex-col overflow-hidden rounded-2xl bg-white p-3 text-ink shadow-[0_20px_40px_-22px_rgba(17,18,20,0.4)] ring-1 ring-ink/6">
       {photo ? (
         <div
           className="flex-1 rounded-lg"
