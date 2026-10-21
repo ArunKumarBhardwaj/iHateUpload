@@ -147,6 +147,10 @@ export async function runTool(
       return import("@/lib/pdf-to-word/process").then((engine) =>
         engine.processPdfToWord(files, onProgress, options),
       );
+    case "pdf-to-html":
+      return import("@/lib/pdf-to-html/process").then((engine) =>
+        engine.processPdfToHtml(files, onProgress, options),
+      );
     case "pdf-to-pptx":
       return import("@/lib/pdf-to-pptx/process").then((engine) =>
         engine.processPdfToPptx(files, onProgress, options),

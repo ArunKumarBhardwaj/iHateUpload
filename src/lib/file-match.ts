@@ -32,6 +32,7 @@ const FIRST_CHOICES: ToolId[] = [
   "pdf-to-jpg",
   "pdf-to-word",
   "pdf-to-pptx",
+  "pdf-to-html",
   "split-pdf",
   "heic-to-jpg",
   "heic-to-pdf",

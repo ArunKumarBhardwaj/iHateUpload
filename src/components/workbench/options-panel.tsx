@@ -176,6 +176,12 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
         : options.layout === "pages"
           ? "Each page becomes a sheet, with its text and tables in the order they appear. Pages with no text are read with OCR."
           : "Every table goes on one sheet, one under another, each under its title. Pages with no text are read with OCR.";
+    case "pdf-to-html":
+      return options.mode === "reflow"
+        ? "A clean web page: real headings, paragraphs, lists, tables and pictures that reflow on any screen. Pages with no text are read with OCR."
+        : options.mode === "exact"
+          ? "Each page is a box of the same size with every block placed where it was. The text stays selectable, but it does not reflow."
+          : "Each page is a picture with an invisible text layer on top, so it looks identical and you can still search and copy.";
     case "pdf-to-pptx":
       return options.mode === "editable"
         ? "Each page becomes a slide with real text boxes, tables, pictures and shapes where they were. Pages with no text are read with OCR."
@@ -611,6 +617,88 @@ export function OptionsPanel({
               </span>
             </label>
           ) : null}
+        </div>
+      );
+
+    case "pdf-to-html":
+      return (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Layout</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["reflow", "Flowing page — headings, lists, tables"],
+                  ["exact", "Exact layout — same as the page"],
+                  ["picture", "Page pictures + invisible text"],
+                ] as const
+              ).map(([mode, title]) => (
+                <Button
+                  key={mode}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.mode === mode ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, mode })}
+                >
+                  {title}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Save as</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["html", "One .html file"],
+                  ["zip", "Zip: index.html + images folder"],
+                ] as const
+              ).map(([output, title]) => (
+                <Button
+                  key={output}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.output === output ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, output })}
+                >
+                  {title}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <Field label="Pages" htmlFor="html-range">
+            <Input
+              id="html-range"
+              value={options.range}
+              disabled={disabled}
+              onChange={(e) => onOptions({ ...options, range: e.target.value })}
+              placeholder="All pages, or e.g. 1-3, 7"
+              inputMode="text"
+              autoComplete="off"
+            />
+          </Field>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Language of scanned pages</p>
+            <div className="flex flex-wrap gap-2">
+              {OCR_LANGUAGES.map((language) => (
+                <Button
+                  key={language.id}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.language === language.id ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, language: language.id })}
+                >
+                  {language.title}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
       );
 

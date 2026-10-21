@@ -69,3 +69,8 @@ internal/benchmarks/live-checks/fx/
 internal/benchmarks/live-checks/out/
 internal/benchmarks/small-tools/out/
 internal/benchmarks/small-tools/fx/
+
+# PDF to HTML benchmark outputs
+/internal/benchmarks/pdf-to-html/results/
+/internal/benchmarks/pdf-to-html/results-fx/
+/internal/benchmarks/pdf-to-html/fx/*.pdf

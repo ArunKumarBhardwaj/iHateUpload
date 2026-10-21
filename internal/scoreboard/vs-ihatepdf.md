@@ -21,16 +21,16 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 - When we ship or measure something, update the row in the same commit.
 - Their tool list comes from `https://www.ihatepdf.cv/sitemap.xml` (last pulled 2026-10-17: 68 tool pages).
 
-## Summary (2026-10-20)
+## Summary (2026-10-21)
 
 | | Count |
 |---|---|
-| ✅ We are better (measured) | 35 rows |
+| ✅ We are better (measured) | 36 rows |
 | 🟰 Equal (measured) | 22 rows |
 | ⚠️ They are better | 0 rows |
 | ❔ Shared, not compared yet | 1 rows |
 | ➕ Only we have | 15 tools (section 3) |
-| ❌ Only they have | 11 gap rows (section 4) + 3 platform/feature gaps (sections 1–2) |
+| ❌ Only they have | 10 gap rows (section 4) + 3 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
 Biggest gaps: on-device AI, blog content (113 posts vs none).
@@ -102,6 +102,7 @@ Biggest gaps: on-device AI, blog content (113 posts vs none).
 | Word to PDF | Follows the docx: theme fonts (Calibri→Carlito, Cambria→Caladea), heading colours, spacing, table width/grid/shading, image size; lists, links, page breaks; selectable text; ~0.07 s | Same fidelity on the test file, selectable text; ~0.8 s; smaller files | 🟰 | Same synthetic docx rendered side by side: same line breaks, colours, table and image. Ours faster, theirs smaller (108 KB vs 226 KB, we embed fonts whole). Lead check, 2026-10-17 |
 | Excel to PDF | All or chosen sheets, sheet titles, number formats right-aligned, repeated header row, fit to width, orientation, footer; text selectable | All sheets, picker, titles, numbers aligned | 🟰 | merged from wave2 branches, agent browser-proved + lead render check; rival features from head-to-head notes, wave 2; no fresh side-by-side, 2026-10-17 |
 | PDF to PowerPoint | Editable: Exact-layout engine written as native text boxes (font, size, colour, bold/italic/underline/strike, highlight, sub/superscript, links, bullets and running numbers), real tables (merged cells, shading, borders), pictures and vector shapes; slide size = page, 16:9 or 4:3 (scaled, centred); page range; OCR for scans. Picture mode: one image per slide | Fully Editable (text boxes only: pictures, vector charts and tables lost), Smart Hybrid (page JPEG + text at 0% opacity), Visual Only; slides always 16:9 | ✅ | Synthetic 4-slide deck + 2-page report (gen.ts), outputs opened in LibreOffice 26.8 and rendered: ours all text (11/11, 5/5), 1 picture, 8 shapes, 1 real table, looks like the PDF; their editable: no picture, chart bars gone ("NorthEastSouthWest" run together), table flattened to lines; their hybrid: JPEG per slide, LibreOffice reads 0/11 text. Speed equal (~0.2 s). Also opened in Microsoft PowerPoint 16.114, Keynote 15.4 and Google Slides (2026-10-20): no repair prompt, every word and all table cells kept, renders match (Google Slides ignores tab stops, so one-line tabbed rows are now written as one text box per stop); Apple Quick Look thumbnails ignore list startAt (cosmetic). internal/benchmarks/pdf-to-pptx (prove.mjs, rival.mjs, check.ts), 2026-10-20 |
+| PDF to HTML | Three layouts: flowing semantic page (h1-h6 from heading detection, real lists, tables with spans and header rows, links, inline images), exact layout (one positioned page per PDF page: text, tables, pictures and shapes where they were, selectable), or page picture with an invisible text layer; one .html or a zip; OCR for scans; page range; escaped text, lang and dir set; live preview, Copy HTML | Positioned and Semantic modes with themes, per-page export, include toggles and a live preview; no pictures in the output, no OCR; Semantic mode found no table and wrote the numbered list as bullets, and the extractor failed outright on 16 of 19 Chrome-made documents | ✅ | Same synthetic files on both (internal/benchmarks/pdf-to-html): on 8 documents they could convert, text 0.99 vs 0.86 (their scan came out empty), headings 1.00 vs 0.89, tables 1.00 vs 0.00, exact visual 0.89 vs 0.63; on a 20-document realistic corpus theirs failed with a script error on 16 (Chrome-made PDFs) while ours converted all 20 with text 0.99, headings 0.87, tables 0.92 (exact layout) to 1.00 (flowing) and a scan read with OCR. Both sides driven in Chrome (Playwright); a minimal Chrome-made PDF and every pdf-lib file converted on their side, so the failure is not every Chrome PDF. We match their live preview and Copy HTML; we lack their Light/Dark/Sepia themes and per-page export. Not tested: Safari/WebKit (not installed). 2026-10-21 |
 | PowerPoint to PDF | One page per slide at slide size: master/layout placeholders, shapes (rect, round rect, ellipse, line), fills, outlines, backgrounds, pictures, tables, bullets, bold/italic/colour/alignment; text selectable; hidden-slides option | Hi-Fi raster (text not selectable) or Vector mode, grid preview | ✅ | Synthetic 3-slide deck: ours 54 KB, 159 ms, all text selectable, all shapes/picture/master title drawn; their preview dropped the master title and bullets and showed the picture as a grey box. internal/benchmarks/wave2-b (prove.mjs, rival.mjs), 2026-10-19 |
 | Markdown to PDF | Real GFM rendering, TOC, numbered headings, typeface, size, margins, line spacing, LaTeX math ($, $$, \\(, \\[) as vector paths (MathJax SVG); "$5" stays text | Same plus live editor and per-side margins; KaTeX-style math | 🟰 | Synthetic math.md: ours 23 KB, 1 page, 257 ms, math rendered; their preview typesets the same equations. Ours vector from a file, theirs has a live editor. internal/benchmarks/wave2-b, 2026-10-19 |
 | CSV to PDF | Repeated header row, title, orientation/paper, auto widths, zebra rows; in-page preview with sort (numeric-aware), search, hide columns; PDF prints the view | Repeated header, title, in-page sort and cell edit, bulk/folder | 🟰 | Synthetic people.csv filtered+sorted: 15 rows in order, 5.4 KB. We have search/column hiding, they have cell edit and bulk. internal/benchmarks/wave2-b, 2026-10-19 |
@@ -131,7 +132,6 @@ Priority is our guess at value for a privacy-first PDF site; "skip" means off-br
 
 | Tool | Priority | Notes |
 |---|---|---|
-| PDF to HTML | Medium | |
 | Recent files / starred | Low | Local-only storage |
 | PDF to EPUB, eBook to PDF | Low | |
 | Create PDF (blank editor) | Low | |

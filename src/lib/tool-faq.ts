@@ -104,6 +104,28 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
       a: "Yes. The file is a standard .pptx, so PowerPoint, Keynote, Google Slides and LibreOffice Impress all open it.",
     },
   ],
+  "pdf-to-html": [
+    {
+      q: "Is my PDF uploaded to make the HTML?",
+      a: "No. The PDF is read and the page is built in your browser tab. The preview runs in a sandboxed frame on your device too.",
+    },
+    {
+      q: "What is the difference between the three layouts?",
+      a: "Flowing page writes real h1 to h6 headings, paragraphs, lists, tables and images that reflow on a phone. Exact layout pins every block at its place on a page of the same size, with selectable text. Page picture puts each page in as an image with an invisible text layer on top, so it looks identical and you can still search and copy.",
+    },
+    {
+      q: "Is it one file?",
+      a: "Yes by default: a single .html with the pictures inside it, so you can email it or open it anywhere. Choose Zip if you prefer index.html and an images folder.",
+    },
+    {
+      q: "Is the text safe to open in a browser?",
+      a: "Yes. Everything from the PDF is escaped, so text such as <script> shows as words and never runs. Only http, https, mailto and tel links are kept.",
+    },
+    {
+      q: "Does it handle Chinese, Japanese, Korean, Arabic and Hebrew?",
+      a: "Yes. The page is saved as UTF-8 with its language set, and right-to-left paragraphs get dir=rtl. Scanned pages are read with OCR in the language you pick.",
+    },
+  ],
   "pdf-to-excel": [
     {
       q: "Does my PDF get uploaded to find the tables?",

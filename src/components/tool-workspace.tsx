@@ -59,6 +59,7 @@ function downloadLabel(results: ResultItem[]) {
   if (type.includes("zip")) return "Download zip";
   if (type.includes("wordprocessingml")) return "Download Word file";
   if (type.includes("presentationml")) return "Download PowerPoint file";
+  if (type.includes("html")) return "Download HTML page";
   if (type.includes("text")) return "Download text";
   return "Download file";
 }
