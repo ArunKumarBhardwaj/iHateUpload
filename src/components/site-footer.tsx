@@ -22,7 +22,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-[90rem] grid-cols-2 gap-x-6 gap-y-10 px-6 py-14 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="col-span-2 max-w-xs lg:col-span-1">
           <p className="text-xl font-semibold tracking-tight text-ink">
-            iHate<span className="text-signal-ink">Upload</span>
+            iHate<span className="text-brand">Upload</span>
           </p>
           <FooterClaims />
         </div>

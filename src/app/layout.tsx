@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Funnel_Display, Geist } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -13,6 +13,13 @@ import "./globals.css";
 const sans = Geist({
   variable: "--font-geist",
   subsets: ["latin"],
+});
+
+// Headings only: a display face with more character than the body sans.
+const display = Funnel_Display({
+  variable: "--font-funnel",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -52,7 +59,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${sans.variable} ${sans.className} h-full`}
+      className={`${sans.variable} ${display.variable} ${sans.className} h-full`}
     >
       <body className="relative flex min-h-full flex-col font-sans">
         <SiteHeader />

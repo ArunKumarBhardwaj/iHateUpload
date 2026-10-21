@@ -342,13 +342,14 @@ export function ToolWorkspace({
       <div
         className={cn(
           // No `overflow-hidden` here: it would stop the action bar sticking.
-          "relative rounded-2xl border bg-card p-5 sm:p-8",
+          "relative rounded-[1.75rem] border bg-card p-5 transition-[transform,border-color,box-shadow] duration-300 ease-out sm:p-8",
           // Before any file, the whole card is the drop zone: one dashed
           // surface instead of a dashed box inside a card.
           job.status === "idle"
-            ? "border-2 border-dashed border-ink/15 transition-colors hover:border-signal/40"
-            : "border-ink/10 shadow-[0_18px_40px_-24px_rgba(20,22,28,0.28)]",
-          dragging && "border-signal bg-signal/[0.03] ring-2 ring-signal/30",
+            ? "border-2 border-dashed border-ink/15 hover:border-ink/30"
+            : "border-ink/8 shadow-[0_24px_50px_-30px_rgba(17,18,20,0.3)]",
+          dragging &&
+            "scale-[1.01] border-signal bg-signal/[0.03] ring-4 ring-signal/20",
         )}
         onDragEnter={(e) => {
           e.preventDefault();
@@ -402,14 +403,20 @@ export function ToolWorkspace({
               className="group/drop flex w-full flex-col items-center justify-center gap-4 rounded-xl px-4 py-14 text-center sm:py-16"
               onClick={() => inputRef.current?.click()}
             >
-              <span className="flex size-16 items-center justify-center rounded-full bg-signal/10 text-signal">
-                <Upload className="size-7" />
+              <span
+                className={cn(
+                  "font-display text-3xl leading-none font-semibold tracking-[-0.03em] text-ink transition-transform duration-200 ease-out sm:text-4xl",
+                  dragging && "scale-105",
+                )}
+              >
+                {dragging ? "Let go." : `Drop ${dropLabel(tool)} here.`}
               </span>
-              <span className="pressable inline-flex h-12 items-center rounded-xl bg-primary px-8 text-base font-semibold text-primary-foreground group-active/drop:scale-[0.97]">
-                {tool.multiple ? "Select files" : "Select a file"}
+              <span className="max-w-sm text-sm text-muted-foreground">
+                They stay in this tab. Nothing is read until you press go.
               </span>
-              <span className="text-sm text-muted-foreground">
-                or drop {dropLabel(tool)} here
+              <span className="pressable mt-2 inline-flex h-12 items-center gap-2 rounded-full bg-primary px-7 text-base font-semibold text-primary-foreground group-active/drop:scale-[0.97]">
+                <Upload className="size-5" aria-hidden />
+                {tool.multiple ? "Choose files" : "Choose a file"}
               </span>
             </button>
             {options.kind === "scan" ? (

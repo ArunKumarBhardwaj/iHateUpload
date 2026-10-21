@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ArrowUpRight, Check, Upload } from "lucide-react";
+import { ArrowRight, Check, Upload } from "lucide-react";
 
 import { ToolIcon } from "@/components/tool-icon";
 import { toolsForFiles } from "@/lib/file-match";
@@ -15,12 +15,10 @@ type Group = { id: string; title: string; tools: ToolDefinition[] };
 
 const PROOF = ["Zero bytes uploaded", "Works offline", "No account, no watermark"];
 
-export function BoldHome({
-  displayClass,
+export function HomePage({
   groups,
   toolCount,
 }: {
-  displayClass: string;
   groups: Group[];
   toolCount: number;
 }) {
@@ -28,22 +26,20 @@ export function BoldHome({
     groups.flatMap((group) => group.tools).find((tool) => tool.id === id);
 
   return (
-    <div className="bg-[#f6f6f3] text-[#111214]">
-      <style>{`@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }`}</style>
+    <div className="bg-background text-ink">
       {/* Hero: one big promise, then the drop stage does the talking. */}
       <section className="mx-auto max-w-[84rem] px-5 pt-14 sm:px-8 sm:pt-20">
         <h1
           className={cn(
-            displayClass,
-            "max-w-6xl text-[clamp(2.75rem,7.6vw,6.5rem)] leading-[0.92] font-semibold tracking-[-0.045em] text-balance",
+            "font-display max-w-6xl text-[clamp(2.75rem,7.6vw,6.5rem)] leading-[0.92] font-semibold tracking-[-0.045em] text-balance",
           )}
         >
           Edit any file.
           <br />
-          <span className="text-[#111214]/35">Nothing leaves this tab.</span>
+          <span className="text-ink/35">Nothing leaves this tab.</span>
         </h1>
         <div className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <p className="max-w-xl text-lg leading-relaxed text-[#111214]/70">
+          <p className="max-w-xl text-lg leading-relaxed text-ink/70">
             {toolCount} PDF and image tools that run on your own device, so
             contracts, IDs and medical records never touch a server.
           </p>
@@ -56,15 +52,14 @@ export function BoldHome({
             ))}
           </ul>
         </div>
-        <DropStage displayClass={displayClass} />
+        <DropStage />
       </section>
 
       {/* Most used: a bento, so the five big jobs read before the long list. */}
       <section className="mx-auto max-w-[84rem] px-5 pt-24 sm:px-8 sm:pt-32">
         <h2
           className={cn(
-            displayClass,
-            "text-4xl font-semibold tracking-[-0.03em] sm:text-5xl",
+            "font-display text-4xl font-semibold tracking-[-0.03em] sm:text-5xl",
           )}
         >
           The ones people reach for
@@ -72,26 +67,22 @@ export function BoldHome({
         <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:grid-rows-[15rem_15rem]">
           <BentoTile
             tool={byId("compress-pdf")}
-            displayClass={displayClass}
             className="lg:col-span-3 lg:row-span-2"
             art={<CompressArt />}
             big
           />
           <BentoTile
             tool={byId("merge-pdf")}
-            displayClass={displayClass}
             className="lg:col-span-3"
             art={<MergeArt />}
           />
           <BentoTile
             tool={byId("sign-pdf")}
-            displayClass={displayClass}
             className="lg:col-span-2"
             art={<SignArt />}
           />
           <BentoTile
             tool={byId("heic-to-jpg")}
-            displayClass={displayClass}
             className="lg:col-span-1"
             art={null}
             narrow
@@ -99,13 +90,13 @@ export function BoldHome({
         </div>
       </section>
 
-      {/* Everything else: a plain directory by job, fast to scan. */}
-      <section className="mx-auto max-w-[84rem] px-5 pt-24 sm:px-8 sm:pt-32">
+      {/* Everything else: a plain directory by job, fast to scan. Footer
+          links jump to a job with /#smaller, /#private and so on. */}
+      <section id="all-tools" className="scroll-mt-20 mx-auto max-w-[84rem] px-5 pt-24 sm:px-8 sm:pt-32">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <h2
             className={cn(
-              displayClass,
-              "text-4xl font-semibold tracking-[-0.03em] sm:text-5xl",
+                "font-display text-4xl font-semibold tracking-[-0.03em] sm:text-5xl",
             )}
           >
             Every tool, by job
@@ -120,10 +111,10 @@ export function BoldHome({
         </div>
         <div className="mt-10 grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
           {groups.map((group) => (
-            <div key={group.id}>
-              <h3 className="flex items-baseline justify-between border-b border-[#111214]/10 pb-3 text-sm font-semibold">
+            <div key={group.id} id={group.id} className="scroll-mt-24">
+              <h3 className="flex items-baseline justify-between border-b border-ink/10 pb-3 text-sm font-semibold">
                 {group.title}
-                <span className="text-xs font-medium text-[#111214]/45 tabular-nums">
+                <span className="text-xs font-medium text-ink/45 tabular-nums">
                   {group.tools.length}
                 </span>
               </h3>
@@ -153,11 +144,10 @@ export function BoldHome({
 
       {/* Privacy, said once and plainly. */}
       <section className="mx-auto max-w-[84rem] px-5 py-24 sm:px-8 sm:py-32">
-        <div className="grid gap-10 rounded-[2rem] bg-white p-8 ring-1 ring-[#111214]/6 sm:p-12 lg:grid-cols-[1.1fr_2fr]">
+        <div className="grid gap-10 rounded-[2rem] bg-white p-8 ring-1 ring-ink/6 sm:p-12 lg:grid-cols-[1.1fr_2fr]">
           <h2
             className={cn(
-              displayClass,
-              "text-4xl leading-[1] font-semibold tracking-[-0.03em] sm:text-5xl",
+                "font-display text-4xl leading-[1] font-semibold tracking-[-0.03em] sm:text-5xl",
             )}
           >
             How it stays private
@@ -170,20 +160,13 @@ export function BoldHome({
             ].map(([title, body]) => (
               <div key={title}>
                 <p className="font-semibold">{title}</p>
-                <p className="mt-2 text-sm leading-relaxed text-[#111214]/65">{body}</p>
+                <p className="mt-2 text-sm leading-relaxed text-ink/65">{body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <Link
-        href="/"
-        className="pressable fixed right-4 bottom-4 z-50 inline-flex items-center gap-2 rounded-full bg-[#111214] px-4 py-2.5 text-sm font-medium text-white shadow-[0_12px_30px_-10px_rgba(0,0,0,0.5)]"
-      >
-        Mockup · compare with current
-        <ArrowUpRight className="size-4" aria-hidden />
-      </Link>
     </div>
   );
 }
@@ -193,7 +176,7 @@ export function BoldHome({
  * a file arrives, leans in when one is dragged over, then lists the jobs that
  * fit. Dropping anywhere on the page lands here.
  */
-function DropStage({ displayClass }: { displayClass: string }) {
+function DropStage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
@@ -241,7 +224,7 @@ function DropStage({ displayClass }: { displayClass: string }) {
   return (
     <div
       className={cn(
-        "relative mt-12 overflow-hidden rounded-[2rem] bg-[#111214] text-white transition-[transform,box-shadow] duration-300 ease-out sm:mt-16",
+        "relative mt-12 overflow-hidden rounded-[2rem] bg-ink text-white transition-[transform,box-shadow] duration-300 ease-out sm:mt-16",
         dragging
           ? "scale-[1.012] shadow-[0_0_0_6px_rgba(15,118,110,0.35),0_40px_80px_-30px_rgba(0,0,0,0.6)]"
           : "shadow-[0_40px_80px_-40px_rgba(0,0,0,0.55)]",
@@ -258,15 +241,14 @@ function DropStage({ displayClass }: { displayClass: string }) {
           event.target.value = "";
         }}
       />
-      <div className="grid min-h-[26rem] lg:grid-cols-[1fr_1.1fr]">
+      <div className="grid lg:min-h-[26rem] lg:grid-cols-[1fr_1.1fr]">
         <div className="flex flex-col justify-between gap-10 p-8 sm:p-12">
           {files.length === 0 ? (
             <>
               <div>
                 <p
                   className={cn(
-                    displayClass,
-                    "text-4xl leading-[1] font-semibold tracking-[-0.03em] sm:text-5xl",
+                            "font-display text-4xl leading-[1] font-semibold tracking-[-0.03em] sm:text-5xl",
                   )}
                 >
                   {dragging ? "Let go." : "Drop a file anywhere."}
@@ -280,7 +262,7 @@ function DropStage({ displayClass }: { displayClass: string }) {
                 <button
                   type="button"
                   onClick={() => inputRef.current?.click()}
-                  className="pressable inline-flex h-13 items-center gap-2 rounded-full bg-white px-7 text-base font-semibold text-[#111214] hover:bg-white/90"
+                  className="pressable inline-flex h-13 items-center gap-2 rounded-full bg-white px-7 text-base font-semibold text-ink hover:bg-white/90"
                 >
                   <Upload className="size-5" aria-hidden />
                   Choose files
@@ -308,8 +290,7 @@ function DropStage({ displayClass }: { displayClass: string }) {
               </div>
               <p
                 className={cn(
-                  displayClass,
-                  "mt-4 text-4xl leading-[1] font-semibold tracking-[-0.03em]",
+                        "font-display mt-4 text-4xl leading-[1] font-semibold tracking-[-0.03em]",
                 )}
               >
                 {matches.length > 0 ? "What should it become?" : "Nothing opens this yet."}
@@ -427,7 +408,7 @@ function DemoLoop() {
 
 function Page({ label, tint, photo = false }: { label: string; tint: string; photo?: boolean }) {
   return (
-    <div className="flex h-44 w-36 flex-col overflow-hidden rounded-2xl bg-white p-3 text-[#111214] shadow-[0_20px_40px_-20px_rgba(0,0,0,0.7)]">
+    <div className="flex h-44 w-36 flex-col overflow-hidden rounded-2xl bg-white p-3 text-ink shadow-[0_20px_40px_-20px_rgba(0,0,0,0.7)]">
       {photo ? (
         <div
           className="flex-1 rounded-lg"
@@ -437,25 +418,23 @@ function Page({ label, tint, photo = false }: { label: string; tint: string; pho
         <div className="flex-1 space-y-1.5 pt-1">
           <div className="h-2 w-2/3 rounded-full" style={{ backgroundColor: tint }} />
           {[90, 100, 80, 95, 70, 85].map((w, i) => (
-            <div key={i} className="h-1.5 rounded-full bg-[#111214]/10" style={{ width: `${w}%` }} />
+            <div key={i} className="h-1.5 rounded-full bg-ink/10" style={{ width: `${w}%` }} />
           ))}
         </div>
       )}
-      <p className="mt-2 truncate text-[11px] font-medium text-[#111214]/60">{label}</p>
+      <p className="mt-2 truncate text-[11px] font-medium text-ink/60">{label}</p>
     </div>
   );
 }
 
 function BentoTile({
   tool,
-  displayClass,
   className,
   art,
   big = false,
   narrow = false,
 }: {
   tool: ToolDefinition | undefined;
-  displayClass: string;
   className?: string;
   art: React.ReactNode;
   big?: boolean;
@@ -466,7 +445,7 @@ function BentoTile({
     <Link
       href={`/tools/${tool.slug}`}
       className={cn(
-        "group pressable lift relative flex min-h-60 flex-col justify-between overflow-hidden rounded-[1.75rem] bg-white p-6 ring-1 ring-[#111214]/6 hover:shadow-[0_24px_50px_-28px_rgba(17,18,20,0.35)] sm:p-7",
+        "group pressable lift relative flex min-h-60 flex-col justify-between overflow-hidden rounded-[1.75rem] bg-white p-6 ring-1 ring-ink/6 hover:shadow-[0_24px_50px_-28px_rgba(17,18,20,0.35)] sm:p-7",
         className,
       )}
     >
@@ -474,17 +453,16 @@ function BentoTile({
         {art}
       </div>
       <ToolIcon id={tool.id} className="relative size-10" />
-      <div className={cn("relative", narrow ? "" : "max-w-[55%]")}>
+      <div className={cn("relative", narrow ? "" : "sm:max-w-[55%]")}>
         <p
           className={cn(
-            displayClass,
-            "font-semibold tracking-[-0.02em]",
+            "font-display font-semibold tracking-[-0.02em]",
             big ? "text-4xl sm:text-5xl" : "text-2xl",
           )}
         >
           {tool.title}
         </p>
-        <p className={cn("mt-2 text-sm leading-relaxed text-[#111214]/60", big ? "max-w-xs" : "line-clamp-2")}>
+        <p className={cn("mt-2 text-sm leading-relaxed text-ink/60", big ? "max-w-xs" : "line-clamp-2")}>
           {tool.description}
         </p>
       </div>
@@ -502,11 +480,11 @@ function CompressArt() {
         <div className="space-y-2 p-4">
           <div className="h-2.5 w-1/2 rounded-full bg-[#18975a]" />
           {[95, 80, 100, 70, 90, 60, 85].map((w, i) => (
-            <div key={i} className="h-2 rounded-full bg-[#111214]/8" style={{ width: `${w}%` }} />
+            <div key={i} className="h-2 rounded-full bg-ink/8" style={{ width: `${w}%` }} />
           ))}
         </div>
       </div>
-      <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-[#111214] px-3 py-1 text-xs font-semibold text-white tabular-nums">
+      <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white tabular-nums">
         <span className="group-hover:hidden">4.2 MB</span>
         <span className="hidden group-hover:inline">1.1 MB</span>
       </span>
@@ -520,7 +498,7 @@ function MergeArt() {
       {[-1, 0, 1].map((n) => (
         <div
           key={n}
-          className="absolute inset-y-0 left-1/2 w-24 -translate-x-1/2 rounded-xl bg-white shadow-[0_12px_24px_-14px_rgba(0,0,0,0.45)] ring-1 ring-[#111214]/6 transition-transform duration-500 ease-out group-hover:!translate-x-[-50%] group-hover:!rotate-0"
+          className="absolute inset-y-0 left-1/2 w-24 -translate-x-1/2 rounded-xl bg-white shadow-[0_12px_24px_-14px_rgba(0,0,0,0.45)] ring-1 ring-ink/6 transition-transform duration-500 ease-out group-hover:!translate-x-[-50%] group-hover:!rotate-0"
           style={{ transform: `translateX(calc(-50% + ${n * 44}px)) rotate(${n * 8}deg)` }}
         >
           <div className="m-3 h-2 w-1/2 rounded-full bg-[#ee6b2f]" />

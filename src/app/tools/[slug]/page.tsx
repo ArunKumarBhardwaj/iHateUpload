@@ -100,12 +100,12 @@ export default async function ToolPage({ params }: ToolPageProps) {
         ])}
       />
 
-      <div className="mx-auto mb-8 flex max-w-2xl flex-col items-center text-center">
+      <div className="mx-auto mb-10 flex max-w-3xl flex-col items-center text-center sm:mb-12">
         <ToolIcon id={tool.id} className="size-14" />
-        <h1 className="mt-4 text-balance text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-4xl">
+        <h1 className="mt-5 text-balance text-5xl leading-[0.95] font-semibold tracking-[-0.04em] text-ink sm:text-7xl">
           {tool.title}
         </h1>
-        <p className="mt-2 text-balance text-base text-muted-foreground sm:text-lg">
+        <p className="mt-4 max-w-xl text-balance text-base leading-relaxed text-muted-foreground sm:text-lg">
           {tool.description}
         </p>
       </div>
@@ -113,18 +113,18 @@ export default async function ToolPage({ params }: ToolPageProps) {
       {/* Keyed so navigating between tools starts from a clean workspace. */}
       <ToolWorkspace key={tool.id} tool={tool} />
 
-      <section className="mt-12">
-        <h2 className="text-balance text-2xl font-semibold text-ink">
+      <section className="mt-20">
+        <h2 className="text-balance text-3xl font-semibold text-ink sm:text-4xl">
           How to use {tool.title}
         </h2>
         <ol className="mt-5 grid gap-3 sm:grid-cols-3">
           {tool.seoHowTo.map((step, index) => (
             <li
               key={step}
-              className="rounded-2xl border border-ink/8 bg-card p-4"
+              className="rounded-[1.5rem] bg-card p-5 ring-1 ring-ink/6"
             >
-              <p className="text-sm font-semibold text-signal-ink">
-                Step {index + 1}
+              <p className="font-display text-3xl font-semibold text-ink/25 tabular-nums">
+                {index + 1}
               </p>
               <p className="mt-2 text-sm leading-relaxed text-ink">{step}</p>
             </li>
@@ -141,8 +141,8 @@ export default async function ToolPage({ params }: ToolPageProps) {
       <FaqSection items={faq} />
 
       {related.length > 0 && (
-        <section className="mt-12">
-          <h2 className="text-balance text-2xl font-semibold text-ink">
+        <section className="mt-20">
+          <h2 className="text-balance text-3xl font-semibold text-ink sm:text-4xl">
             Related {tool.kind === "pdf" ? "PDF" : "image"} tools
           </h2>
           <div className="mt-5">

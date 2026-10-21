@@ -5,32 +5,36 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #14161c;
+  --background: #f6f6f3;
+  --foreground: #111214;
   --card: #ffffff;
-  --card-foreground: #14161c;
+  --card-foreground: #111214;
   --popover: #ffffff;
-  --popover-foreground: #14161c;
-  --primary: #d61f3a;
-  --primary-foreground: #fff7f8;
-  --secondary: #f2f3f5;
-  --secondary-foreground: #14161c;
-  --muted: #f2f3f5;
-  --muted-foreground: #565c69;
-  --accent: #d61f3a;
-  --accent-foreground: #fff7f8;
+  --popover-foreground: #111214;
+  --primary: #111214;
+  --primary-foreground: #ffffff;
+  --secondary: #ecece7;
+  --secondary-foreground: #111214;
+  --muted: #ecece7;
+  --muted-foreground: #5c5d58;
+  --accent: #0f766e;
+  --accent-foreground: #ffffff;
   --destructive: #be123c;
-  --border: #e4e6ea;
-  --input: #d3d6dc;
-  --ring: #d61f3a;
-  --radius: 0.85rem;
-  --ink: #14161c;
-  /* A cool off-white for bands that sit behind white cards. */
-  --surface: #f6f7f9;
-  --signal: #d61f3a;
-  --signal-ink: #b3162f;
+  --border: #e3e2dc;
+  --input: #d4d3cc;
+  --ring: #0f766e;
+  --radius: 1rem;
+  --ink: #111214;
+  /* A slightly deeper paper for bands and wells under white cards. */
+  --surface: #efefea;
+  /* The one interaction accent (selection, drag, active step). Brand red
+     stays on the logo only. */
+  --signal: #0f766e;
+  --signal-ink: #0b5e58;
+  /* Logo red, used nowhere else. */
+  --brand: #d61f3a;
   --lagoon: #0f766e;
-  --chrome: #14161c;
+  --chrome: #111214;
 }
 
 @theme inline {
@@ -58,7 +62,9 @@
   --color-signal-ink: var(--signal-ink);
   --color-lagoon: var(--lagoon);
   --color-chrome: var(--chrome);
+  --color-brand: var(--brand);
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-funnel), var(--font-geist), ui-sans-serif, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -83,8 +89,14 @@
     font-family: var(--font-sans);
   }
 
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+  }
+
   ::selection {
-    background-color: rgb(214 31 58 / 0.22);
+    background-color: rgb(15 118 110 / 0.2);
     color: var(--ink);
   }
 
@@ -135,6 +147,15 @@
     .lift:active {
       transform: none;
     }
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
   }
 }
 

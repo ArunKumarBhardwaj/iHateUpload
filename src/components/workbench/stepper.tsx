@@ -57,7 +57,7 @@ export function Stepper({
     <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
       {steps.map((step, index) => (
         <li key={step} className="flex items-center gap-2">
-          {index > 0 && <span className="text-ink/25" aria-hidden>/</span>}
+          {index > 0 && <span className="hidden text-ink/25 sm:inline" aria-hidden>/</span>}
           <span
             aria-current={index === active ? "step" : undefined}
             className={cn(

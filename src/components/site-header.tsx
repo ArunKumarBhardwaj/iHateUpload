@@ -126,7 +126,7 @@ export function SiteHeader({ className }: { className?: string }) {
           <span className="text-[1.65rem] font-semibold leading-none tracking-tight text-ink">
             iHate
           </span>
-          <span className="text-[1.65rem] font-semibold leading-none tracking-tight text-signal">
+          <span className="text-[1.65rem] font-semibold leading-none tracking-tight text-brand">
             Upload
           </span>
         </Link>
