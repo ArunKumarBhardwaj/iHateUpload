@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Check, Upload } from "lucide-react";
+import { ArrowRight, Check, Upload, X } from "lucide-react";
 
 import { ToolIcon } from "@/components/tool-icon";
 import { toolsForFiles } from "@/lib/file-match";
@@ -352,13 +352,7 @@ function DemoLoop() {
           </div>
         )}
         {name === "convert" && (
-          <div className="flex items-center gap-8">
-            <Page label="IMG_2041.heic" tint="#8b45d9" photo />
-            <ArrowRight className="size-6 text-ink/25" aria-hidden />
-            <div className="pop">
-              <Page label="IMG_2041.jpg" tint="#f2a516" photo />
-            </div>
-          </div>
+          <ConvertScene />
         )}
         {name === "merge" && (
           <div className="relative h-44 w-36">
@@ -372,7 +366,7 @@ function DemoLoop() {
       </div>
       <p className="scene text-sm font-medium text-ink/65" key={`${name}-caption`}>
         {name === "compress" && "Compress PDF · 4.2 MB → 1.1 MB"}
-        {name === "convert" && "HEIC to JPG · opens on any phone"}
+        {name === "convert" && "HEIC to JPG · same photo, opens everywhere"}
         {name === "merge" && "Merge PDF · three files become one"}
       </p>
       <div className="flex gap-1.5" aria-hidden>
@@ -389,39 +383,95 @@ function DemoLoop() {
       <style>{`
         .scene { animation: scene-in 420ms cubic-bezier(0.23,1,0.32,1) both; }
         .squash { animation: squash 900ms 500ms cubic-bezier(0.23,1,0.32,1) both; transform-origin: bottom center; }
-        .pop { animation: pop 600ms 500ms cubic-bezier(0.34,1.56,0.64,1) both; }
+        .roll-out { animation: roll-out 380ms 900ms cubic-bezier(0.77,0,0.175,1) both; }
+        .roll-in { animation: roll-in 380ms 900ms cubic-bezier(0.77,0,0.175,1) both; }
+        .chip-ok { animation: chip-ok 320ms calc(1350ms + var(--d) * 180ms) cubic-bezier(0.23,1,0.32,1) both; }
+        .chip-ok .roll-out, .chip-ok .roll-in { animation-delay: calc(1350ms + var(--d) * 180ms); }
+        .shine { animation: shine 700ms 900ms ease-out both; }
         .fan { animation: fan 1200ms 300ms cubic-bezier(0.77,0,0.175,1) both; }
         @keyframes scene-in { from { opacity: 0; transform: translateY(10px); } }
         @keyframes squash { from { transform: scale(1); } to { transform: scale(0.62); } }
-        @keyframes pop { from { opacity: 0; transform: scale(0.8) rotate(-4deg); } }
+        @keyframes roll-out { to { opacity: 0; transform: translateY(-110%); } }
+        @keyframes roll-in { from { opacity: 0; transform: translateY(110%); } }
+        @keyframes chip-ok {
+          from { background-color: rgb(17 18 20 / 0.05); color: rgb(17 18 20 / 0.4); }
+          60% { transform: scale(1.06); }
+          to { background-color: rgb(15 118 110 / 0.12); color: #0b5e58; }
+        }
+        @keyframes shine { from { transform: translateX(-120%); } to { transform: translateX(120%); } }
         @keyframes fan {
           from { transform: translateX(calc(var(--n) * 120%)) rotate(calc(var(--n) * 6deg)); }
           to { transform: translate(calc(var(--n) * 6px), calc(var(--n) * -6px)); }
         }
         @media (prefers-reduced-motion: reduce) {
-          .scene, .squash, .pop, .fan { animation: none; }
+          .scene, .squash, .fan, .shine { animation: none; }
+          .roll-out, .roll-in, .chip-ok { animation-duration: 1ms; }
         }
       `}</style>
     </div>
   );
 }
 
-function Page({ label, tint, photo = false }: { label: string; tint: string; photo?: boolean }) {
+/**
+ * HEIC to JPG keeps the picture and changes where it opens: the format tag
+ * rolls from HEIC to JPG, then the places that couldn't open it tick over.
+ */
+function ConvertScene() {
+  return (
+    <div className="flex items-center gap-7">
+      <div className="relative w-44 overflow-hidden rounded-2xl bg-white p-2.5 shadow-[0_20px_40px_-22px_rgba(17,18,20,0.4)] ring-1 ring-ink/6">
+        <div className="relative overflow-hidden rounded-xl">
+          <svg viewBox="0 0 160 120" className="block w-full" aria-hidden>
+            <defs>
+              <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#fbd5c5" />
+                <stop offset="1" stopColor="#fde9c4" />
+              </linearGradient>
+            </defs>
+            <rect width="160" height="120" fill="url(#sky)" />
+            <circle cx="58" cy="40" r="14" fill="#f59e6b" />
+            <path d="M0 86 L38 52 L66 76 L96 44 L160 92 V120 H0Z" fill="#8a7fa8" />
+            <path d="M0 98 Q40 80 80 94 T160 90 V120 H0Z" fill="#4f5d73" />
+          </svg>
+          <span className="shine pointer-events-none absolute inset-0 bg-[linear-gradient(100deg,transparent_30%,rgba(255,255,255,0.55)_50%,transparent_70%)]" />
+          <span className="absolute top-2 right-2 inline-grid h-6 overflow-hidden rounded-full bg-white/90 px-2 text-[11px] leading-6 font-bold tracking-wide shadow-sm">
+            <span className="roll-out col-start-1 row-start-1 text-[#8b45d9]">HEIC</span>
+            <span className="roll-in col-start-1 row-start-1 text-center text-[#b7790f]">JPG</span>
+          </span>
+        </div>
+        <p className="mt-2 inline-grid overflow-hidden text-[11px] font-medium text-ink/60">
+          <span className="roll-out col-start-1 row-start-1">IMG_2041.heic · 2.1 MB</span>
+          <span className="roll-in col-start-1 row-start-1">IMG_2041.jpg · 1.8 MB</span>
+        </p>
+      </div>
+      <ul className="space-y-2">
+        {["Windows", "Android", "Email"].map((place, index) => (
+          <li
+            key={place}
+            className="chip-ok flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold"
+            style={{ "--d": index } as React.CSSProperties}
+          >
+            <span className="inline-grid size-3.5 overflow-hidden">
+              <X className="roll-out col-start-1 row-start-1 size-3.5" aria-hidden />
+              <Check className="roll-in col-start-1 row-start-1 size-3.5" aria-hidden />
+            </span>
+            {place}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Page({ label, tint }: { label: string; tint: string }) {
   return (
     <div className="flex h-44 w-36 flex-col overflow-hidden rounded-2xl bg-white p-3 text-ink shadow-[0_20px_40px_-22px_rgba(17,18,20,0.4)] ring-1 ring-ink/6">
-      {photo ? (
-        <div
-          className="flex-1 rounded-lg"
-          style={{ background: `linear-gradient(160deg, ${tint}, #111214 140%)` }}
-        />
-      ) : (
-        <div className="flex-1 space-y-1.5 pt-1">
-          <div className="h-2 w-2/3 rounded-full" style={{ backgroundColor: tint }} />
-          {[90, 100, 80, 95, 70, 85].map((w, i) => (
-            <div key={i} className="h-1.5 rounded-full bg-ink/10" style={{ width: `${w}%` }} />
-          ))}
-        </div>
-      )}
+      <div className="flex-1 space-y-1.5 pt-1">
+        <div className="h-2 w-2/3 rounded-full" style={{ backgroundColor: tint }} />
+        {[90, 100, 80, 95, 70, 85].map((w, i) => (
+          <div key={i} className="h-1.5 rounded-full bg-ink/10" style={{ width: `${w}%` }} />
+        ))}
+      </div>
       <p className="mt-2 truncate text-[11px] font-medium text-ink/60">{label}</p>
     </div>
   );
