@@ -151,30 +151,45 @@ export function groupOf(id: ToolId) {
   return TOOL_GROUPS.find((group) => group.tools.includes(id));
 }
 
+/**
+ * One icon family: a soft tile tinted with its colour and a 2px glyph in a
+ * deeper shade of it, so every tool reads alike and the colour still carries
+ * the job or format. "solid" is the filled variant for small badges.
+ */
 function Tile({
   color,
   Icon,
+  solid = false,
   className,
   iconClassName,
 }: {
   color: string;
   Icon: LucideIcon;
+  solid?: boolean;
   className?: string;
   iconClassName?: string;
 }) {
   return (
     <span
-      className={cn("flex items-center justify-center text-white", className)}
-      style={{ backgroundColor: color }}
+      className={cn("flex items-center justify-center rounded-[28%]", className)}
+      style={
+        solid
+          ? { backgroundColor: color, color: "#fff" }
+          : {
+              backgroundColor: `color-mix(in oklab, ${color} 13%, white)`,
+              color: `color-mix(in oklab, ${color} 82%, black)`,
+              boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${color} 16%, transparent)`,
+            }
+      }
     >
-      <Icon className={cn("size-[55%]", iconClassName)} strokeWidth={2.25} />
+      <Icon className={cn("size-[52%]", iconClassName)} strokeWidth={2} />
     </span>
   );
 }
 
 /**
- * A converter shows its source tile tucked behind the target; every other
- * tool is one solid tile in its job's colour. Size comes from className.
+ * A converter is its source tile with the target stamped on the corner;
+ * every other tool is one tile in its job's colour. Size comes from className.
  */
 export function ToolIcon({
   id,
@@ -196,12 +211,14 @@ export function ToolIcon({
         <Tile
           color={FORMAT[from].color}
           Icon={FORMAT[from].Icon}
-          className="absolute top-0 left-0 size-[68%] rounded-[24%] opacity-90"
+          className="size-full"
         />
         <Tile
           color={FORMAT[to].color}
           Icon={FORMAT[to].Icon}
-          className="absolute right-0 bottom-0 size-[68%] rounded-[24%] ring-2 ring-card"
+          solid
+          className="absolute -right-[10%] -bottom-[10%] size-[50%] ring-2 ring-card"
+          iconClassName="size-[60%]"
         />
       </span>
     );
@@ -210,25 +227,7 @@ export function ToolIcon({
   const color = GROUP_COLOR[groupOf(id)?.id ?? "to-pdf"];
   return (
     <span className={cn("inline-block size-10 shrink-0", className)} aria-hidden>
-      <Tile color={color} Icon={Icon} className="size-full rounded-[26%]" />
+      <Tile color={color} Icon={Icon} className="size-full" />
     </span>
-  );
-}
-
-/** One format tile, for artwork that shows what kinds of files fit. */
-export function FormatTile({
-  format,
-  className,
-}: {
-  format: Format;
-  className?: string;
-}) {
-  const { color, Icon } = FORMAT[format];
-  return (
-    <Tile
-      color={color}
-      Icon={Icon}
-      className={cn("size-12 rounded-[26%]", className)}
-    />
   );
 }

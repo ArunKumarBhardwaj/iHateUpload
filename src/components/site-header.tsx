@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Search } from "lucide-react";
@@ -58,6 +66,20 @@ function useFineHover() {
   return enabled;
 }
 
+// The border only appears once the page moves under the header.
+function useScrolled() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setScrolled(window.scrollY > 4);
+    sync();
+    window.addEventListener("scroll", sync, { passive: true });
+    return () => window.removeEventListener("scroll", sync);
+  }, []);
+
+  return scrolled;
+}
+
 export function SiteHeader({ className }: { className?: string }) {
   const [open, setOpen] = useState<OpenSection>(null);
   const [shown, setShown] = useState<OpenSection>(null);
@@ -66,6 +88,7 @@ export function SiteHeader({ className }: { className?: string }) {
   const rootRef = useRef<HTMLElement>(null);
   const closeTimer = useRef<number>(0);
   const fineHover = useFineHover();
+  const scrolled = useScrolled();
 
   const cancelClose = () => {
     window.clearTimeout(closeTimer.current);
@@ -95,6 +118,19 @@ export function SiteHeader({ className }: { className?: string }) {
     return () => window.cancelAnimationFrame(frame);
   }, [open]);
 
+  // While a menu is open the page behind it stays put, so scrolling the
+  // menu never drags the page along. The scrollbar gutter is reserved in
+  // globals.css, so locking doesn't shift the layout.
+  useEffect(() => {
+    if (!open) return;
+    const root = document.documentElement;
+    const previous = root.style.overflow;
+    root.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = previous;
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onPointer = (event: MouseEvent) => {
@@ -117,80 +153,63 @@ export function SiteHeader({ className }: { className?: string }) {
     <header
       ref={rootRef}
       className={cn(
-        "sticky top-0 z-20 border-b border-ink/10 bg-background font-sans text-ink",
+        "sticky top-0 z-20 border-b bg-background/80 font-sans text-ink backdrop-blur-xl backdrop-saturate-150 transition-[border-color,background-color] duration-200",
+        scrolled || active ? "border-ink/8" : "border-transparent",
         className,
       )}
     >
-      <div className="mx-auto flex h-16 max-w-[90rem] items-center gap-4 px-6 sm:gap-8">
-        <Link href="/" className="flex shrink-0 items-baseline font-sans">
-          <span className="text-[1.65rem] font-semibold leading-none tracking-tight text-ink">
-            iHate
-          </span>
-          <span className="text-[1.65rem] font-semibold leading-none tracking-tight text-signal">
-            Upload
-          </span>
+      <div className="mx-auto flex h-16 max-w-[90rem] items-center gap-4 px-5 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr]">
+        <Link
+          href="/"
+          aria-label="iHateUpload home"
+          className="pressable flex shrink-0 items-baseline justify-self-start font-display text-[1.6rem] leading-none font-semibold tracking-[-0.035em]"
+        >
+          <span className="text-ink">iHate</span>
+          <span className="text-brand">Upload</span>
         </Link>
 
-        <nav
-          className="hidden h-16 items-center gap-0.5 font-sans sm:flex"
-          onMouseEnter={fineHover ? cancelClose : undefined}
-          onMouseLeave={fineHover ? scheduleClose : undefined}
-        >
-          {SECTIONS.map((section) => (
-            <NavButton
-              key={section.id}
-              section={section}
-              open={open === section.id}
-              panelId={panelId}
-              onHover={() => openSection(section.id)}
-              onToggle={() => openSection(section.id)}
-            />
-          ))}
-          <Link
-            href="/tools/workflow"
-            className="rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium text-ink/70 transition-colors hover:bg-secondary hover:text-ink"
-          >
-            Workflow
-          </Link>
-        </nav>
+        <SegmentedNav
+          open={open}
+          panelId={panelId}
+          className="hidden sm:flex"
+          onEnter={fineHover ? cancelClose : undefined}
+          onLeave={fineHover ? scheduleClose : undefined}
+          onHover={fineHover ? openSection : undefined}
+          onToggle={openSection}
+        />
 
-        <ToolSearch onOpen={() => setOpen(null)} />
-      </div>
-
-      <nav className="flex border-t border-ink/10 sm:hidden">
-        <div className="mx-auto flex w-full max-w-[90rem] gap-1 px-5 py-2">
-          {SECTIONS.map((section) => (
-            <NavButton
-              key={section.id}
-              section={section}
-              open={open === section.id}
-              panelId={panelId}
-              className="flex-1 justify-center"
-              onToggle={() =>
-                setOpen((current) =>
-                  current === section.id ? null : section.id,
-                )
-              }
-            />
-          ))}
+        <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2 md:ml-0">
+          <ToolSearch onOpen={() => setOpen(null)} />
           <Link
-            href="/tools/workflow"
-            className="inline-flex flex-1 items-center justify-center rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium text-ink/70 hover:bg-secondary hover:text-ink"
+            href="/#all-tools"
+            className="pressable hidden h-10 shrink-0 items-center rounded-full bg-ink px-4 text-sm font-semibold text-white hover:bg-ink/85 lg:inline-flex"
           >
-            Workflow
+            All tools
           </Link>
         </div>
-      </nav>
+      </div>
+
+      <div className="px-5 pb-2.5 sm:hidden">
+        <SegmentedNav
+          open={open}
+          panelId={panelId}
+          className="flex w-full"
+          itemClassName="flex-1 justify-center"
+          onToggle={(id) =>
+            setOpen((current) => (current === id ? null : id))
+          }
+        />
+      </div>
 
       {active && (
         <div
           id={panelId}
           role="menu"
           className={cn(
-            "absolute inset-x-0 top-full border-t border-ink/10 bg-background shadow-[0_16px_32px_-14px_rgba(20,22,28,0.22)] transition-[opacity,transform] duration-150 ease-out motion-reduce:transition-none",
+            "absolute top-[calc(100%+0.5rem)] left-1/2 w-[min(72rem,calc(100vw-1.5rem))] origin-top -translate-x-1/2 rounded-[1.5rem] bg-card shadow-[0_30px_60px_-30px_rgba(17,18,20,0.35)] ring-1 ring-ink/8 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
             entered
-              ? "translate-y-0 opacity-100"
-              : "pointer-events-none -translate-y-1 opacity-0",
+              ? "scale-100 opacity-100"
+              : "pointer-events-none scale-[0.97] opacity-0",
           )}
           onMouseEnter={
             fineHover
@@ -206,26 +225,29 @@ export function SiteHeader({ className }: { className?: string }) {
             if (!open) setShown(null);
           }}
         >
-          <div className="mx-auto max-w-[90rem] px-6 py-5">
-            <div className="mb-4 flex items-baseline justify-between gap-2">
-              <p className="font-sans text-sm font-semibold tracking-tight text-ink">
+          <div className="max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain p-3 sm:p-4">
+            <div className="mb-2 flex items-baseline justify-between gap-2 px-2 pt-1">
+              <p className="font-display text-xl font-semibold tracking-[-0.02em] text-ink">
                 {active.label} tools
+                <span className="ml-2 font-sans text-sm font-medium text-ink/40 tabular-nums">
+                  {active.tools.length}
+                </span>
               </p>
               <Link
                 href={active.href}
-                className="font-sans text-sm font-semibold text-signal-ink hover:underline"
+                className="inline-flex items-center gap-1 font-sans text-sm font-semibold text-ink underline-offset-4 hover:underline"
                 onClick={() => queueMicrotask(() => setOpen(null))}
               >
                 See all
               </Link>
             </div>
-            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {active.tools.map((tool) => (
                 <Link
                   key={tool.id}
                   role="menuitem"
                   href={`/tools/${tool.slug}`}
-                  className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-signal/5"
+                  className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors duration-150 hover:bg-ink/[0.045]"
                   onClick={() => queueMicrotask(() => setOpen(null))}
                 >
                   <ToolIcon
@@ -246,44 +268,133 @@ export function SiteHeader({ className }: { className?: string }) {
   );
 }
 
-function NavButton({
-  section,
+type NavKey = "images" | "pdf" | "workflow";
+
+/**
+ * Images · PDF · Workflow as one segmented control: a single white thumb
+ * slides to whatever is hovered, focused or open, and fades out when nothing
+ * is. It appears in place (no slide in from the edge) and then glides.
+ */
+function SegmentedNav({
   open,
   panelId,
   className,
+  itemClassName,
+  onEnter,
+  onLeave,
   onHover,
   onToggle,
 }: {
-  section: (typeof SECTIONS)[number];
-  open: boolean;
+  open: OpenSection;
   panelId: string;
   className?: string;
-  onHover?: () => void;
-  onToggle: () => void;
+  itemClassName?: string;
+  onEnter?: () => void;
+  onLeave?: () => void;
+  /** Fine pointers only: hovering a section opens it; Workflow closes it. */
+  onHover?: (id: OpenSection) => void;
+  onToggle: (id: "pdf" | "images") => void;
 }) {
+  const items = useRef(new Map<NavKey, HTMLElement>());
+  const thumbRef = useRef<HTMLSpanElement>(null);
+  const shownRef = useRef(false);
+  const [hovered, setHovered] = useState<NavKey | null>(null);
+  const [focused, setFocused] = useState<NavKey | null>(null);
+  const target = focused ?? hovered ?? open;
+
+  useLayoutEffect(() => {
+    const thumb = thumbRef.current;
+    if (!thumb) return;
+    const el = target ? items.current.get(target) : undefined;
+    if (!el) {
+      thumb.style.opacity = "0";
+      shownRef.current = false;
+      return;
+    }
+    const place = () => {
+      thumb.style.width = `${el.offsetWidth}px`;
+      thumb.style.transform = `translateX(${el.offsetLeft}px)`;
+    };
+    if (!shownRef.current) {
+      // Jump to the item, then fade in, so it never slides from the edge.
+      thumb.style.transition = "none";
+      place();
+      void thumb.offsetWidth;
+      thumb.style.transition = "";
+      shownRef.current = true;
+    } else {
+      place();
+    }
+    thumb.style.opacity = "1";
+  }, [target]);
+
+  const register = (key: NavKey) => (el: HTMLElement | null) => {
+    if (el) items.current.set(key, el);
+    else items.current.delete(key);
+  };
+
+  const itemProps = (key: NavKey) => ({
+    ref: register(key),
+    // Touch taps fake a hover that never ends, so only real pointers track it.
+    onMouseEnter: onHover
+      ? () => {
+          setHovered(key);
+          onHover(key === "workflow" ? null : key);
+        }
+      : undefined,
+    onFocus: (event: React.FocusEvent<HTMLElement>) => {
+      if (event.currentTarget.matches(":focus-visible")) setFocused(key);
+    },
+    onBlur: () => setFocused(null),
+    className: cn(
+      "relative z-10 inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium outline-none transition-colors duration-200 focus-visible:outline-none",
+      target === key ? "text-ink" : "text-ink/60 hover:text-ink",
+      itemClassName,
+    ),
+  });
+
   return (
-    <button
-      type="button"
+    <nav
       className={cn(
-        "relative inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium transition-colors",
-        open
-          ? "bg-ink text-white"
-          : "text-ink/70 hover:bg-secondary hover:text-ink",
+        "relative items-center gap-0.5 rounded-full bg-ink/[0.05] p-1",
         className,
       )}
-      aria-expanded={open}
-      aria-controls={panelId}
-      onMouseEnter={onHover}
-      onClick={onToggle}
+      onMouseEnter={onEnter}
+      onMouseLeave={() => {
+        setHovered(null);
+        onLeave?.();
+      }}
     >
-      {section.label}
-      <ChevronDown
+      <span
+        ref={thumbRef}
+        aria-hidden
         className={cn(
-          "size-4 transition-transform",
-          open ? "rotate-180 text-white/70" : "text-ink/35",
+          "pointer-events-none absolute inset-y-1 left-0 rounded-full bg-card opacity-0 shadow-[0_1px_2px_rgba(17,18,20,0.1),0_3px_10px_-3px_rgba(17,18,20,0.14)] transition-[transform,width,opacity,box-shadow] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-opacity",
+          focused && "ring-2 ring-signal/35",
         )}
       />
-    </button>
+      {SECTIONS.map((section) => (
+        <button
+          key={section.id}
+          type="button"
+          aria-expanded={open === section.id}
+          aria-controls={panelId}
+          onClick={() => onToggle(section.id)}
+          {...itemProps(section.id)}
+        >
+          {section.label}
+          <ChevronDown
+            className={cn(
+              "size-4 text-ink/35 transition-transform duration-200 ease-out",
+              open === section.id && "rotate-180",
+            )}
+          />
+        </button>
+      ))}
+      <Link href="/tools/workflow" {...itemProps("workflow")}>
+        Workflow
+      </Link>
+    </nav>
   );
 }
 
@@ -354,7 +465,7 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
   };
 
   return (
-    <div ref={boxRef} className="relative ml-auto w-full max-w-[16.5rem]">
+    <div ref={boxRef} className="relative w-full max-w-[15rem]">
       <label className="sr-only" htmlFor={`${listId}-q`}>
         Search tools
       </label>
@@ -372,7 +483,7 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
         aria-activedescendant={
           open && matches[active] ? `${listId}-${matches[active].id}` : undefined
         }
-        className="h-10 w-full rounded-full border border-ink/12 bg-card pr-3 pl-9 md:pr-16 font-sans text-sm tracking-tight text-ink outline-none placeholder:text-muted-foreground focus:border-signal/40"
+        className="h-10 w-full rounded-full border border-transparent bg-ink/[0.045] pr-3 pl-9 font-sans text-sm tracking-tight text-ink outline-none transition-[background-color,border-color] duration-150 placeholder:text-ink/45 hover:bg-ink/[0.07] focus:border-ink/15 focus:bg-card md:pr-14"
         onFocus={() => {
           onOpen();
           setOpen(true);
@@ -399,16 +510,16 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
           }
         }}
       />
-      <kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded border border-ink/12 bg-background px-1.5 font-sans text-[11px] leading-5 text-muted-foreground md:block">
+      <kbd className="pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 rounded-md bg-card px-1.5 font-sans text-[11px] leading-5 text-ink/50 shadow-[0_1px_2px_rgba(17,18,20,0.1)] md:block">
         {hint}
       </kbd>
       {open && (
         <ul
           id={listId}
           role="listbox"
-          className="absolute inset-x-0 top-[calc(100%+0.4rem)] z-30 overflow-hidden rounded-2xl border border-ink/10 bg-card py-1.5 shadow-[0_18px_40px_-24px_rgba(20,22,28,0.35)]"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-[max(100%,18rem)] overflow-hidden rounded-[1.25rem] bg-card p-1.5 shadow-[0_30px_60px_-30px_rgba(17,18,20,0.35)] ring-1 ring-ink/8"
         >
-          <li className="px-3 pb-1 font-sans text-[11px] font-semibold tracking-[0.14em] text-signal-ink uppercase">
+          <li className="px-2.5 pt-1 pb-1.5 font-sans text-xs font-medium text-ink/45">
             {query.trim() ? "Matches" : "Popular"}
           </li>
           {matches.length === 0 ? (
@@ -422,11 +533,11 @@ function ToolSearch({ onOpen }: { onOpen: () => void }) {
                 id={`${listId}-${tool.id}`}
                 role="option"
                 aria-selected={index === active}
-                className={index === active ? "bg-signal/5" : undefined}
+                className={cn("rounded-xl", index === active && "bg-ink/[0.045]")}
               >
                 <Link
                   href={`/tools/${tool.slug}`}
-                  className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-signal/5"
+                  className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 hover:bg-ink/[0.045]"
                   onClick={() => go(tool)}
                 >
                   <ToolIcon

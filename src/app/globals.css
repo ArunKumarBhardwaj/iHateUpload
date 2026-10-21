@@ -5,32 +5,36 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #14161c;
+  --background: #f7f7f8;
+  --foreground: #111214;
   --card: #ffffff;
-  --card-foreground: #14161c;
+  --card-foreground: #111214;
   --popover: #ffffff;
-  --popover-foreground: #14161c;
-  --primary: #d61f3a;
-  --primary-foreground: #fff7f8;
-  --secondary: #f2f3f5;
-  --secondary-foreground: #14161c;
-  --muted: #f2f3f5;
-  --muted-foreground: #565c69;
-  --accent: #d61f3a;
-  --accent-foreground: #fff7f8;
+  --popover-foreground: #111214;
+  --primary: #111214;
+  --primary-foreground: #ffffff;
+  --secondary: #eeeef0;
+  --secondary-foreground: #111214;
+  --muted: #eeeef0;
+  --muted-foreground: #5b5c63;
+  --accent: #0f766e;
+  --accent-foreground: #ffffff;
   --destructive: #be123c;
-  --border: #e4e6ea;
-  --input: #d3d6dc;
-  --ring: #d61f3a;
-  --radius: 0.85rem;
-  --ink: #14161c;
-  /* A cool off-white for bands that sit behind white cards. */
-  --surface: #f6f7f9;
-  --signal: #d61f3a;
-  --signal-ink: #b3162f;
+  --border: #e4e4e7;
+  --input: #d4d4d8;
+  --ring: #0f766e;
+  --radius: 1rem;
+  --ink: #111214;
+  /* A slightly deeper neutral for bands and wells under white cards. */
+  --surface: #efeff1;
+  /* The one interaction accent (selection, drag, active step). Brand red
+     stays on the logo only. */
+  --signal: #0f766e;
+  --signal-ink: #0b5e58;
+  /* Logo red, used nowhere else. */
+  --brand: #d61f3a;
   --lagoon: #0f766e;
-  --chrome: #14161c;
+  --chrome: #111214;
 }
 
 @theme inline {
@@ -58,11 +62,16 @@
   --color-signal-ink: var(--signal-ink);
   --color-lagoon: var(--lagoon);
   --color-chrome: var(--chrome);
+  --color-brand: var(--brand);
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-funnel), var(--font-geist), ui-sans-serif, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  /* Strong ease-out for UI: fast start, soft landing. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 @layer base {
@@ -72,6 +81,9 @@
 
   html {
     scroll-behavior: smooth;
+    /* Reserve the scrollbar's space so locking scroll (open menus) never
+       shifts the page sideways. */
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -80,8 +92,14 @@
     font-family: var(--font-sans);
   }
 
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+  }
+
   ::selection {
-    background-color: rgb(214 31 58 / 0.22);
+    background-color: rgb(15 118 110 / 0.2);
     color: var(--ink);
   }
 
@@ -93,46 +111,89 @@
 }
 
 @layer utilities {
-  .noise {
-    display: none;
+  /* Taps answer at once: a quick squeeze on press, eased out so it settles. */
+  .pressable {
+    transition-property: transform, color, background-color, border-color,
+      box-shadow, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out);
   }
 
-  .animate-rise {
-    animation: rise 0.7s ease-out both;
+  .pressable:active {
+    transform: scale(0.97);
   }
 
-  .animate-rise-delay {
-    animation: rise 0.7s ease-out 0.12s both;
+  /* Hover lift only where a real pointer can hover, so taps don't stick. */
+  @media (hover: hover) and (pointer: fine) {
+    .lift:hover {
+      transform: translateY(-2px);
+    }
+
+    .lift:active {
+      transform: translateY(-2px) scale(0.98);
+    }
   }
 
-  .animate-rise-delay-2 {
-    animation: rise 0.7s ease-out 0.24s both;
+  /* Lists fade up in a short stagger; set --i to the item's index. */
+  .enter {
+    animation: enter 240ms var(--ease-out) both;
+    animation-delay: calc(min(var(--i, 0), 12) * 30ms);
   }
 
-  .animate-pulse-ring {
-    animation: pulse-ring 2.4s ease-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    .enter {
+      animation: none;
+    }
+
+    .pressable:active,
+    .lift:hover,
+    .lift:active {
+      transform: none;
+    }
   }
 }
 
-@keyframes rise {
+@keyframes draw {
   from {
-    opacity: 0;
-    transform: translateY(16px);
+    stroke-dashoffset: 1;
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
+    stroke-dashoffset: 0;
   }
 }
 
-@keyframes pulse-ring {
-  0% {
-    box-shadow: 0 0 0 0 rgba(214, 31, 58, 0.3);
+/* Headline verb: letters roll up out of a clipped line, the next word's
+   letters roll in behind them. Transform and opacity only, so it stays on
+   the compositor. --c is the letter's index for the stagger. */
+.char-in {
+  display: inline-block;
+  animation: char-in 640ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--c) * 28ms + 120ms);
+}
+
+.char-out {
+  display: inline-block;
+  animation: char-out 380ms cubic-bezier(0.55, 0, 1, 0.45) both;
+  animation-delay: calc(var(--c) * 18ms);
+}
+
+@keyframes char-in {
+  from {
+    opacity: 0;
+    transform: translateY(105%);
   }
-  70% {
-    box-shadow: 0 0 0 16px rgba(214, 31, 58, 0);
+}
+
+@keyframes char-out {
+  to {
+    opacity: 0;
+    transform: translateY(-105%);
   }
-  100% {
-    box-shadow: 0 0 0 0 rgba(214, 31, 58, 0);
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
 }
