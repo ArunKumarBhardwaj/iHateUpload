@@ -172,10 +172,10 @@ export const COMPARE_ROWS: CompareRow[] = [
     slug: "pdf-to-html",
     tool: "pdf-to-html",
     feature: "PDF to HTML",
-    ours: "PLACEHOLDER",
-    theirs: "PLACEHOLDER",
+    ours: "Three layouts: flowing semantic page (h1-h6 from heading detection, real lists, tables with spans and header rows, links, inline images), exact layout (one positioned page per PDF page: text, tables, pictures and shapes where they were, selectable), or page picture with an invisible text layer; one .html or a zip; OCR for scans; page range; escaped text, lang and dir set; live preview, Copy HTML",
+    theirs: "Positioned and Semantic modes with themes, per-page export, include toggles and a live preview; no pictures in the output, no OCR; Semantic mode found no table and wrote the numbered list as bullets, and the extractor failed outright on 16 of 19 Chrome-made documents",
     verdict: "better",
-    evidence: "PLACEHOLDER",
+    evidence: "Same synthetic files on both (internal/benchmarks/pdf-to-html): on 8 documents they could convert, text 0.99 vs 0.86 (their scan came out empty), headings 1.00 vs 0.89, tables 1.00 vs 0.00, exact visual 0.89 vs 0.63; on a 20-document realistic corpus theirs failed with a script error on 16 (Chrome-made PDFs) while ours converted all 20 with text 0.99, headings 0.87, tables 0.92 (exact layout) to 1.00 (flowing) and a scan read with OCR.",
     checked: "2026-10-21",
   },
   {

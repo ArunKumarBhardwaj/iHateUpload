@@ -1,4 +1,5 @@
-// Prints the controls on ihatepdf.cv/pdf-to-html after a file is added (used once to learn their flow).
+// Prints the controls on ihatepdf.cv/pdf-to-html after a file is added, with their on/off state (used to learn their flow).
+// Usage: node explore-rival.mjs <file.pdf>
 import { createRequire } from "node:module";
 import { readdirSync } from "node:fs";
 import { homedir } from "node:os";
@@ -11,7 +12,5 @@ await page.goto("https://www.ihatepdf.cv/pdf-to-html", { waitUntil: "networkidle
 await page.waitForTimeout(3000);
 await page.locator("input[type=file]").first().setInputFiles(process.argv[2]);
 await page.waitForTimeout(4000);
-console.log(await page.evaluate(() => document.querySelector("main")?.innerText.slice(0, 1500)));
-console.log(await page.evaluate(() => [...document.querySelectorAll("main button,main input,main label")].map((e) => e.tagName + ":" + (e.innerText || e.getAttribute("aria-label") || e.type || "").slice(0, 50)).join(" | ")));
-await page.screenshot({ path: process.argv[3] ?? "/tmp/rival.png" });
+console.log(await page.evaluate(() => [...document.querySelectorAll("main button")].map((e) => `${(e.innerText || e.getAttribute("aria-label") || "").trim().slice(0, 30)} [pressed=${e.getAttribute("aria-pressed")} checked=${e.getAttribute("aria-checked")} class=${(e.className || "").toString().slice(60, 220)}]`).join("\n")));
 await browser.close();
