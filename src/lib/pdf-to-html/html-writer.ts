@@ -330,14 +330,16 @@ function tableHtml(table: TableBlock, opts: InlineOptions, pos?: { x: number; y:
         if (exact && table.rowHeights) {
           // A row is never taller than it was on the page: the content sits in a box of that height and overflows rather than pushing the rows below.
           const span = table.rowHeights.slice(r, r + rowSpan).reduce((a, b) => a + b, 0);
-          const inner = Math.max(1, span - pad.top - pad.bottom);
+          // Collapsed rules take about half their width from each side of a row.
+          const rule = cell.borders?.bottom || table.borders ? 0.75 : 0;
+          const inner = Math.max(1, span - pad.top - pad.bottom - rule);
           content = `<div class="cc" style="height:${n(inner)}pt;justify-content:${cell.vAlign === "center" ? "center" : "flex-start"}">${content}</div>`;
         }
         return `<${tag}${attrs.length ? " " + attrs.join(" ") : ""}>${content}</${tag}>`;
       })
       .join("");
     const height = exact ? table.rowHeights?.[r] : undefined;
-    return `<tr${height ? ` style="height:${n(height)}pt"` : ""}>${html}</tr>`;
+        return `<tr${height ? ` style="height:${n(height)}pt"` : ""}>${html}</tr>`;
   });
   const bodyRows = headers > 0 ? `<thead>${rows.slice(0, headers).join("")}</thead><tbody>${rows.slice(headers).join("")}</tbody>` : `<tbody>${rows.join("")}</tbody>`;
   if (exact) {
@@ -502,6 +504,7 @@ body{margin:0;padding:16px 8px;font-family:Helvetica,Arial,sans-serif}
 .t p{margin:0}
 .m{display:inline-block;white-space:pre}
 .pg img{display:block}
+table.x th,table.x td{font-weight:normal;text-align:left}
 table.x .cc{display:flex;flex-direction:column;line-height:1.15}
 table.x{position:absolute;border-collapse:collapse;table-layout:fixed;margin:0}
 table.x p{margin:0}

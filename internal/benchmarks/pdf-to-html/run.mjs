@@ -2,7 +2,7 @@
 // Usage: node internal/benchmarks/pdf-to-html/run.mjs [--ours PORT] [--sides ours-reflow,ours-exact,ours-picture,rival-semantic,rival-positioned] [--only a,b] [--fx  (use fx/*.pdf, results-fx/)]
 // Output: results/<side>/<doc>.html and results/<side>/<doc>.json (ms, errors). Also asserts no POST/PUT with data on our side.
 import { createRequire } from "node:module";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 

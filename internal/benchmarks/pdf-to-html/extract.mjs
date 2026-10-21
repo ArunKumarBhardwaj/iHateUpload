@@ -2,7 +2,7 @@
 // whether the text is selectable, and (for page-layout outputs) one screenshot per page element.
 // Usage: node extract.mjs [--fx]      -> results[-fx]/<side>/<doc>.x.json and <doc>.p<N>.png
 import { createRequire } from "node:module";
-import { existsSync, readdirSync, writeFileSync } from "node:fs";
+import { readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
