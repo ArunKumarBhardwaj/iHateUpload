@@ -24,6 +24,8 @@ const CONTINUE_MAP: Partial<Record<ToolId, ToolId[]>> = {
   "extract-images": ["compress-image", "resize-image", "image-to-pdf"],
   "header-footer": ["flatten-pdf", "compress-pdf"],
   "reverse-pages": ["compress-pdf", "organize-pdf"],
+  // A ZIP is not a PDF, so there is nothing to continue with.
+  "pdf-to-zip": [],
   "alternate-mix": ["compress-pdf", "organize-pdf", "protect-pdf"],
   "delete-blank": ["compress-pdf", "merge-pdf"],
   "insert-blank": ["compress-pdf", "page-numbers"],

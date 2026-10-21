@@ -1604,6 +1604,27 @@ export async function processNup(
   ];
 }
 
+export async function processPdfToZip(
+  files: FileItem[],
+  onProgress: ProgressFn,
+  options: ToolOptions,
+): Promise<ResultItem[]> {
+  if (options.kind !== "pdf-to-zip") throw new Error("PDF to ZIP needs its settings.");
+  const { buildPdfZip } = await import("@/lib/pdf-zip");
+  const inputs = [];
+  for (const item of files) inputs.push({ name: item.name, bytes: new Uint8Array(await item.file.arrayBuffer()) });
+  const { bytes, entries } = await buildPdfZip(inputs, options, onProgress);
+  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/zip" });
+  const base = options.zipName.replace(/\.zip$/i, "").replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").trim() || "pdfs";
+  return [
+    {
+      ...resultFrom(files[0], blob, `${base}.zip`, files.reduce((sum, f) => sum + f.size, 0)),
+      id: crypto.randomUUID(),
+      note: `${entries} PDF${entries === 1 ? "" : "s"} in the ZIP.`,
+    },
+  ];
+}
+
 export async function processAlternateMix(
   files: FileItem[],
   onProgress: ProgressFn,

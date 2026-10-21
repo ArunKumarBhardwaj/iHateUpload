@@ -65,6 +65,7 @@ import {
   processFillForm,
   processRepairPdf,
   processAlternateMix,
+  processPdfToZip,
   processEditPdf,
   processStripMetadata,
   processWordToPdf,
@@ -177,6 +178,8 @@ async function runTool(
       return processInvertPdf(files, onProgress, options);
     case "n-up":
       return processNup(files, onProgress, options);
+    case "pdf-to-zip":
+      return processPdfToZip(files, onProgress, options);
     case "alternate-mix":
       return processAlternateMix(files, onProgress, options);
     case "page-size":

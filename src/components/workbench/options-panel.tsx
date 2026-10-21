@@ -10,6 +10,7 @@ import { RotatePanel } from "@/components/workbench/page-tools/rotate-panel";
 import { OrganizePanel } from "@/components/workbench/page-tools/organize-panel";
 import { PageSizePanel } from "@/components/workbench/page-tools/page-size-panel";
 import { NupPanel } from "@/components/workbench/page-tools/nup-panel";
+import { ZipPanel } from "@/components/workbench/page-tools/zip-panel";
 import { MixPanel } from "@/components/workbench/page-tools/mix-panel";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
 import { SplitExtras } from "@/components/workbench/split-extras";
@@ -219,6 +220,8 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
         : "Every page becomes a picture, so nothing underneath can be copied, edited or clicked.";
     case "invert":
       return "Pick a look. Text-keeping mode recolours without redrawing, so text stays selectable and the file stays small.";
+    case "pdf-to-zip":
+      return "Keep the PDFs whole or cut them into pages first. Name them with a pattern, pick a folder and compression.";
     case "alternate-mix":
       return "Files take turns, in card order. Reverse a file for back sides scanned last page first. Pages are copied as they are, so text stays selectable.";
     case "nup":
@@ -1091,6 +1094,17 @@ export function OptionsPanel({
     case "nup":
       return (
         <NupPanel options={options} onOptions={onOptions} disabled={disabled} />
+      );
+
+    case "pdf-to-zip":
+      return (
+        <ZipPanel
+          options={options}
+          onOptions={onOptions}
+          files={files ?? []}
+          filePages={filePages ?? []}
+          disabled={disabled}
+        />
       );
 
     case "alternate-mix":

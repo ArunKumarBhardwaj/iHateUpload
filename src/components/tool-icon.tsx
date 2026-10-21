@@ -40,6 +40,7 @@ import {
   Unlock,
   TextCursorInput,
   Wrench,
+  FileArchive,
   Shuffle,
 } from "lucide-react";
 
@@ -63,6 +64,7 @@ export const FORMAT = {
   markdown: { color: "#3c4657", Icon: FileCode },
   csv: { color: "#2f9d55", Icon: FileSpreadsheet },
   html: { color: "#e8692c", Icon: FileCode },
+  zip: { color: "#7a5c3e", Icon: FileArchive },
 } satisfies Record<string, { color: string; Icon: LucideIcon }>;
 
 export type Format = keyof typeof FORMAT;
@@ -94,6 +96,7 @@ const CONVERT: Partial<Record<ToolId, [Format, Format]>> = {
   "pdf-to-word": ["pdf", "word"],
   "pdf-to-pptx": ["pdf", "ppt"],
   "pdf-to-excel": ["pdf", "excel"],
+  "pdf-to-zip": ["pdf", "zip"],
   "heic-to-jpg": ["heic", "jpg"],
   "webp-to-jpg": ["webp", "jpg"],
   "png-to-jpg": ["png", "jpg"],

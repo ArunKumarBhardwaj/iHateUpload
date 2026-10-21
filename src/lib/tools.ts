@@ -33,6 +33,7 @@ export type ToolId =
   | "flatten-pdf"
   | "repair-pdf"
   | "alternate-mix"
+  | "pdf-to-zip"
   | "png-to-pdf"
   | "ocr-pdf"
   | "word-to-pdf"
@@ -112,6 +113,7 @@ export type ToolDefinition = {
     | "flatten"
     | "nup"
     | "alternate-mix"
+    | "pdf-to-zip"
     | "page-size"
     | "watermark"
     | "page-numbers"
@@ -815,6 +817,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "alternate-mix",
+  },
+  {
+    id: "pdf-to-zip",
+    slug: "pdf-to-zip",
+    title: "PDF to ZIP",
+    shortTitle: "PDF → ZIP",
+    description:
+      "Pack PDFs into one ZIP, or cut each one into single pages or parts first. Name the files with a pattern. Stays in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: true,
+    actionLabel: "Create ZIP",
+    seoTitle: "PDF to ZIP Free — Bundle or Split PDFs into a ZIP, No Upload",
+    seoDescription:
+      "Put PDFs in a ZIP online free, or split every PDF into single pages inside the ZIP. Name pattern, folders and compression level, all in your browser. No upload.",
+    seoHowTo: [
+      "Add the PDFs. Card order is the order inside the ZIP.",
+      "Keep files whole, or cut them into single pages or parts. Set the name pattern, folder and compression.",
+      "Click Create ZIP and download the archive.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "pdf-to-zip",
   },
   {
     id: "page-size",

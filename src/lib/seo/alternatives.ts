@@ -277,6 +277,15 @@ export const COMPARE_ROWS: CompareRow[] = [
     evidence: "Same duplex, unequal and 3-file outputs on synthetic files; only ours does N per turn and stop-at-shortest.",
     checked: "2026-10-21",
   },
+  {
+    tool: "pdf-to-zip",
+    feature: "PDF to ZIP",
+    ours: "Whole files byte for byte, or split into single pages or N-page parts, name pattern, folders, 4 compression levels",
+    theirs: "Whole files only, per-file rename, 4 compression levels, one folder",
+    verdict: "better",
+    evidence: "Same three whole PDFs packed by both; only ours cuts them into pages (10 PDFs, right text on each).",
+    checked: "2026-10-21",
+  },
   // Even
   {
     tool: "merge-pdf",

@@ -384,6 +384,28 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
       a: "Yes. Choose header, footer or both, set size, color, bold and margin, limit it to a page range, and skip the first page.",
     },
   ],
+  "pdf-to-zip": [
+    {
+      q: "Are my PDFs uploaded to make the ZIP?",
+      a: "No. The archive is built in your browser tab. Nothing is sent anywhere.",
+    },
+    {
+      q: "Are my PDFs changed when they go in the ZIP?",
+      a: "Not when you keep files whole: each PDF is stored byte for byte, so it is identical to the original after you unzip it.",
+    },
+    {
+      q: "Can I split every PDF into single pages inside the ZIP?",
+      a: "Yes. Choose One PDF per page, or Every N pages, and each file is cut into parts that are real PDFs with selectable text. You can put each source file's parts in its own folder.",
+    },
+    {
+      q: "How are the files named?",
+      a: "With a pattern. {name} is the original name, {index} the file's number, {part} the part number padded to the same width, and {from} and {to} the page range. Duplicate names get a number instead of overwriting each other.",
+    },
+    {
+      q: "Does compression matter?",
+      a: "PDFs are already compressed, so ZIP compression saves little. Store is the fastest; Max is the smallest. The choice does not change the PDFs inside.",
+    },
+  ],
   "alternate-mix": [
     {
       q: "Are my PDFs uploaded to mix them?",

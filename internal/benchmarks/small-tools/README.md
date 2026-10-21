@@ -27,3 +27,17 @@ Ours: 14/14 checks, 0 POST/PUT, no page errors (each run ~60 ms). Theirs: ~110-1
 ## PDF to ZIP (their page: /pdf-to-zip)
 
 Their options: add PDFs, reorder, per-file rename and delete, ZIP name, 4 compression levels (store, fast, balanced, max), wrap in a subfolder. No page splitting.
+
+```
+node internal/benchmarks/small-tools/prove-zip.mjs 43162   # ours
+node internal/benchmarks/small-tools/rival-zip.mjs         # theirs
+```
+
+| Case | Ours | Theirs |
+|---|---|---|
+| 3 whole PDFs | 3 entries, byte-identical to the inputs, ~90 ms | 3 entries at the top level, ~77 ms |
+| One PDF per page | 10 real PDFs, each with the right page text, named `{name}_p{part}` in a folder (Max compression) | not offered |
+| Every 3 pages, folder per file, `{name} {from}-{to}` | `fronts/fronts 1-3.pdf`, `fronts/fronts 4-4.pdf`, ... | not offered |
+| Name pattern, duplicate-name handling | yes | rename per file by hand |
+
+Ours: 10/10 checks, 0 POST/PUT, no page errors.
