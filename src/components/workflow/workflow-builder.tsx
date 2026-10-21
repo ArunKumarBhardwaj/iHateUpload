@@ -702,9 +702,9 @@ export function WorkflowBuilder() {
             {run.outputs.length > 0 && (
               <>
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" onClick={() => void downloadZip()} className="h-10 px-4">
+                  <Button type="button" onClick={() => (run.outputs.length === 1 ? downloadBlob(run.outputs[0].blob, run.outputs[0].name) : void downloadZip())} className="h-10 px-4">
                     <Download />
-                    Download all as ZIP ({run.outputs.length})
+                    {run.outputs.length === 1 ? "Download" : `Download all as ZIP (${run.outputs.length})`}
                   </Button>
                 </div>
                 <ul className="max-h-80 space-y-2 overflow-auto">

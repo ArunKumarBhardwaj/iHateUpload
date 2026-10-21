@@ -169,6 +169,15 @@ export const COMPARE_ROWS: CompareRow[] = [
     checked: "2026-10-20",
   },
   {
+    slug: "pdf-workflows",
+    feature: "Workflows (chain steps) and batch",
+    ours: "Chain up to 12 steps (merge, compress, protect, OCR, watermark, image tools and more) and run them on any number of PDFs or images; merge and split handled; per-file by per-step progress; one failing file does not stop the rest; download as ZIP; built-in presets; save in the browser; share as a link that never holds files or passwords",
+    theirs: "Pipeline of 17 page operations with 7 presets, run on one PDF at a time",
+    verdict: "better",
+    evidence: "Their workflow page takes a single PDF (the file input is not multiple and accepts only application/pdf), so 20 PDFs or 20 images cannot be chained in one run, and it has no image-to-PDF step. Ours ran 20 synthetic PDFs through Merge, Compress, Protect in 3.9 s (60 pages, opens only with the password in pdf.js) and 20 JPGs through Images to PDF, Compress in 9.4 s (20 pages), with zero non-GET requests. Their page sent 11 POSTs to Microsoft Clarity during the visit.",
+    checked: "2026-10-21",
+  },
+  {
     slug: "repair-pdf",
     tool: "repair-pdf",
     feature: "Repair PDF",
