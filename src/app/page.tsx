@@ -107,6 +107,23 @@ export default function HomePage() {
           <div className="mt-8 sm:mt-10">
             <ToolCatalog all={ALL} groups={GROUPS} />
           </div>
+          <div className="mx-auto mt-8 flex max-w-3xl flex-col items-center gap-3 rounded-2xl border border-ink/10 bg-card px-6 py-5 text-center sm:flex-row sm:text-left">
+            <div className="flex-1">
+              <p className="text-base font-semibold text-ink">
+                Many files, several steps?
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Chain merge, compress, protect and more, then run them on a whole
+                batch at once. Still in this tab.
+              </p>
+            </div>
+            <Link
+              href="/tools/workflow"
+              className="inline-flex h-10 shrink-0 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground"
+            >
+              Build a workflow
+            </Link>
+          </div>
         </div>
       </section>
     </>

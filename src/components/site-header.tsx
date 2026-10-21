@@ -146,6 +146,12 @@ export function SiteHeader({ className }: { className?: string }) {
               onToggle={() => openSection(section.id)}
             />
           ))}
+          <Link
+            href="/tools/workflow"
+            className="rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium text-ink/70 transition-colors hover:bg-secondary hover:text-ink"
+          >
+            Workflow
+          </Link>
         </nav>
 
         <ToolSearch onOpen={() => setOpen(null)} />
@@ -167,6 +173,12 @@ export function SiteHeader({ className }: { className?: string }) {
               }
             />
           ))}
+          <Link
+            href="/tools/workflow"
+            className="inline-flex flex-1 items-center justify-center rounded-full px-3.5 py-1.5 font-sans text-[15px] font-medium text-ink/70 hover:bg-secondary hover:text-ink"
+          >
+            Workflow
+          </Link>
         </div>
       </nav>
 

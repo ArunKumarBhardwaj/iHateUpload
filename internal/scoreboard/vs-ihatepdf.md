@@ -25,15 +25,15 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 
 | | Count |
 |---|---|
-| ✅ We are better (measured) | 34 rows |
+| ✅ We are better (measured) | 35 rows |
 | 🟰 Equal (measured) | 22 rows |
 | ⚠️ They are better | 0 rows |
 | ❔ Shared, not compared yet | 1 rows |
 | ➕ Only we have | 15 tools (section 3) |
-| ❌ Only they have | 12 gap rows (section 4) + 4 platform/feature gaps (sections 1–2) |
+| ❌ Only they have | 11 gap rows (section 4) + 3 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
-Biggest gaps: workflows, on-device AI, blog content (113 posts vs none).
+Biggest gaps: on-device AI, blog content (113 posts vs none).
 
 ---
 
@@ -54,7 +54,7 @@ Biggest gaps: workflows, on-device AI, blog content (113 posts vs none).
 | Homepage: drop a file, get matching tools | Yes | No ("open a tool first") | ➕ | Our `home-drop.tsx`; their homepage text, 2026-10-12 |
 | Search with Cmd/Ctrl+K | Yes | Yes | 🟰 | Both sites, 2026-10-13 |
 | Recent files / starred tools | No | Yes (IndexedDB, localStorage) | ❌ | REA storage capture, 2026-10-12 |
-| Saved multi-step workflows / batch | No (one-step "Continue with" only) | Yes ("Chain steps, run once", batch panel) | ❌ | Bundle teardown, 2026-10-12 |
+| Workflows (chain steps) + batch | /tools/workflow: up to 12 steps from 41 allowed tools, any number of files, merge/split aware, per-file progress and failure isolation, ZIP, 8 presets, saved in browser, share link without files or passwords | 17-operation pipeline, 7 presets, one PDF per run (file input is single, PDF only), save/export toolbar | ✅ | 2026-10-21: 20 PDFs Merge, Compress, Protect 3.9 s (60 pages, needs password in pdf.js, 0 non-GET); 20 JPGs Images to PDF, Compress 9.4 s (20 pages). Theirs rejects multiple files at the input; their Run could not be driven in our harness, so no timing for them. internal/benchmarks/workflows/ |
 | Install as app / share target | Manifest, no share target | Manifest with share target (POST handler looks broken) | ❔ | Manifest read, 2026-10-12 |
 | SEO surface | 80 URLs: 54 tool pages, 5 compress-to-size pages (100 KB, 200 KB, 500 KB, 1 MB, 2 MB, target preset), 18 comparison pages (vs ihatepdf.cv overall + 16 per tool, each with dated evidence and their wins listed); FAQ, HowTo and Breadcrumb JSON-LD; no blog | 190 URLs, of which 113 blog posts and 77 other pages (3 compress-to pages: 100 KB, 200 KB, 2 MB; 3 alternative-to pages); FAQ JSON-LD | 🟰 | Their sitemap.xml pulled 2026-10-19. Ours: all 80 sitemap URLs 200, FAQPage JSON-LD on 59 pages matches visible text, canonicals match (scratch ld-check script); Lighthouse 12 SEO 100 on /compress-pdf-to-100kb, /tools/compress-pdf, /tools/ask-pdf, /alternatives/ihatepdf, /alternatives/ihatepdf/pdf-to-word, 2026-10-19. Non-blog pages 80 vs 77; their 113 blog posts are the gap left |
 
@@ -132,7 +132,6 @@ Priority is our guess at value for a privacy-first PDF site; "skip" means off-br
 | Tool | Priority | Notes |
 |---|---|---|
 | PDF to HTML | Medium | |
-| Workflows (chain steps) + batch | Medium | Extend "Continue with" |
 | Recent files / starred | Low | Local-only storage |
 | PDF to EPUB, eBook to PDF | Low | |
 | Create PDF (blank editor) | Low | |
