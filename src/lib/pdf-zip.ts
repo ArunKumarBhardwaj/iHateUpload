@@ -115,6 +115,9 @@ export async function buildPdfZip(
       continue;
     }
     const doc = await PDFDocument.load(file.bytes, { ignoreEncryption: true });
+    if (doc.isEncrypted) {
+      throw new Error(`${file.name} is password-protected. Unlock it first, or pack it whole.`);
+    }
     donors.push(doc);
     counts.push(doc.getPageCount());
   }

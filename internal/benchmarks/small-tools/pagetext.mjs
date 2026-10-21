@@ -14,4 +14,4 @@ export async function pageTexts(path) {
   return out;
 }
 
-if (process.argv[2]) console.log((await pageTexts(process.argv[2])).join(" "));
+if (import.meta.url === `file://${process.argv[1]}` && process.argv[2]) console.log((await pageTexts(process.argv[2])).join(" "));

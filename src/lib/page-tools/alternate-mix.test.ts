@@ -77,3 +77,17 @@ test("keeps link annotations on copied pages", async () => {
   const annots = out.getPage(0).node.lookup(PDFName.of("Annots"), PDFArray);
   expect(annots.size()).toBe(1);
 });
+
+test("a password-protected PDF is refused with a clear message", async () => {
+  const plain = await PDFDocument.create();
+  plain.addPage([100, 100]);
+  const lockedSrc = await PDFDocument.create();
+  lockedSrc.addPage([100, 100]);
+  lockedSrc.encrypt({ userPassword: "u", ownerPassword: "o", permissions: {} });
+  const locked = await PDFDocument.load(await lockedSrc.save(), { ignoreEncryption: true });
+  const sources = [
+    { pages: 1, take: 1, reverse: false },
+    { pages: 1, take: 1, reverse: false },
+  ];
+  await expect(buildAlternateMix([plain, locked], sources, "append")).rejects.toThrow(/Unlock it first/);
+});

@@ -43,6 +43,9 @@ export async function buildAlternateMix(
   leftover: MixLeftover,
   onProgress?: (ratio: number) => void,
 ): Promise<PDFDocument> {
+  if (donors.some((d) => d.isEncrypted)) {
+    throw new Error("One of the PDFs is password-protected. Unlock it first, then mix.");
+  }
   const plan = planAlternateMix(sources, leftover);
   const out = await PDFDocument.create();
   // Copy each donor's used pages once, in plan order, then place them.

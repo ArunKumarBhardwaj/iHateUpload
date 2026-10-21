@@ -89,3 +89,22 @@ test("compression levels: store is larger than max on compressible data", async 
 test("nothing to pack is an error", async () => {
   await expect(buildPdfZip([], S())).rejects.toThrow();
 });
+
+async function lockedPdf() {
+  const doc = await PDFDocument.create();
+  doc.addPage([200, 100]);
+  doc.encrypt({ userPassword: "u", ownerPassword: "o", permissions: {} });
+  return new Uint8Array(await doc.save());
+}
+
+test("splitting a password-protected PDF asks to unlock it instead of writing broken pages", async () => {
+  const locked = await lockedPdf();
+  await expect(buildPdfZip([{ name: "locked.pdf", bytes: locked }], S({ split: 1 }))).rejects.toThrow(/Unlock it first/);
+});
+
+test("a password-protected PDF is still packed whole, byte for byte", async () => {
+  const locked = await lockedPdf();
+  const { bytes } = await buildPdfZip([{ name: "locked.pdf", bytes: locked }], S());
+  const zip = await JSZip.loadAsync(bytes);
+  expect(new Uint8Array(await zip.file("locked.pdf")!.async("uint8array"))).toEqual(locked);
+});
