@@ -1,6 +1,6 @@
 import { getTool, type ToolDefinition, type ToolId } from "@/lib/tools";
 
-const CONTINUE_MAP: Partial<Record<ToolId, ToolId[]>> = {
+export const CONTINUE_MAP: Partial<Record<ToolId, ToolId[]>> = {
   "merge-pdf": ["compress-pdf", "protect-pdf", "rotate-pdf", "organize-pdf"],
   "compress-pdf": ["protect-pdf", "pdf-to-jpg"],
   "protect-pdf": ["unlock-pdf"],
@@ -61,7 +61,7 @@ const CONTINUE_MAP: Partial<Record<ToolId, ToolId[]>> = {
   "split-pdf": ["merge-pdf", "compress-pdf"],
 };
 
-function resultKinds(results: { type: string }[]): {
+export function resultKinds(results: { type: string }[]): {
   pdf: boolean;
   image: boolean;
 } {
@@ -74,6 +74,16 @@ function resultKinds(results: { type: string }[]): {
   return { pdf, image };
 }
 
+/** Whether a tool can take results of these kinds: the rule the "Continue with" panel and workflows share. */
+export function toolTakesKinds(
+  tool: Pick<ToolDefinition, "kind">,
+  kinds: { pdf: boolean; image: boolean },
+): boolean {
+  if (tool.kind === "pdf") return kinds.pdf;
+  if (tool.kind === "image") return kinds.image;
+  return false;
+}
+
 export function continueToolsFor(
   from: ToolId,
   results: { type: string }[],
@@ -84,9 +94,5 @@ export function continueToolsFor(
   return ids
     .map((id) => getTool(id))
     .filter((tool): tool is ToolDefinition => tool !== undefined)
-    .filter((tool) => {
-      if (tool.kind === "pdf") return pdf;
-      if (tool.kind === "image") return image;
-      return false;
-    });
+    .filter((tool) => toolTakesKinds(tool, { pdf, image }));
 }
