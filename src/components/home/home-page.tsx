@@ -41,7 +41,7 @@ export function HomePage({
           <span aria-hidden>
             <RollingVerb />
             <br />
-            <span className="text-ink/35">Nothing leaves this tab.</span>
+            <span className="text-ink/55">Nothing leaves this tab.</span>
           </span>
         </h1>
         <div className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
@@ -188,8 +188,9 @@ function RollingVerb() {
       <span
         ref={boxRef}
         className="relative inline-block py-[0.12em] align-baseline -my-[0.12em] whitespace-nowrap text-brand"
-        // Clips top and bottom only, so a wider outgoing word isn't cut off.
-        style={{ clipPath: "inset(0 -100vw)" }}
+        // Clips top and bottom only (bottom at the line, so incoming letters never
+        // show over the line below); a wider outgoing word isn't cut off.
+        style={{ clipPath: "inset(0 -100vw 0.02em)" }}
       >
         {VERBS.map((verb, i) => (
           <span
