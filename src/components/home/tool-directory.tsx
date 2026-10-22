@@ -130,6 +130,7 @@ export function ToolDirectory({ groups }: { groups: Group[] }) {
       <div className="-mx-5 mt-8 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
         <SegmentedTabs
           label="Tools by category"
+          stretch
           items={panels.map((panel) => ({ key: panel.id, label: panel.title }))}
           value={needle ? null : active}
           onChange={(key) => {

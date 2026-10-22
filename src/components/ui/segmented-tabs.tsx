@@ -8,19 +8,22 @@ import { cn } from "@/lib/utils";
  * A segmented control in the Apple style: one white thumb glides to the
  * selected tab. With `value` null (say, while a search overrides the tabs)
  * the thumb fades out in place and comes back without sliding in from the
- * edge. Arrow keys move between tabs.
+ * edge. Arrow keys move between tabs. With `stretch`, tabs share the full
+ * width evenly from 1280px up (they still scroll on narrower screens).
  */
 export function SegmentedTabs<K extends string>({
   items,
   value,
   onChange,
   label,
+  stretch = false,
   className,
 }: {
   items: readonly { key: K; label: string }[];
   value: K | null;
   onChange: (key: K) => void;
   label: string;
+  stretch?: boolean;
   className?: string;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
@@ -51,12 +54,24 @@ export function SegmentedTabs<K extends string>({
       place();
     }
     thumb.style.opacity = "1";
+    // Stretched tabs change width with the window, so follow them.
+    const observer = new ResizeObserver(() => {
+      thumb.style.transition = "none";
+      place();
+      void thumb.offsetWidth;
+      thumb.style.transition = "";
+    });
+    observer.observe(el, { box: "border-box" });
+    if (listRef.current) {
+      observer.observe(listRef.current, { box: "border-box" });
+    }
     // Keep the chosen tab in view when the row scrolls on small screens.
     const list = listRef.current?.parentElement;
     if (list && list.scrollWidth > list.clientWidth) {
       const left = el.offsetLeft - (list.clientWidth - el.offsetWidth) / 2;
       list.scrollTo({ left, behavior: "smooth" });
     }
+    return () => observer.disconnect();
   }, [value]);
 
   const move = (from: K, step: number) => {
@@ -73,6 +88,7 @@ export function SegmentedTabs<K extends string>({
       aria-label={label}
       className={cn(
         "relative flex w-max gap-0.5 rounded-full bg-ink/[0.05] p-1",
+        stretch && "xl:w-full",
         className,
       )}
     >
@@ -101,6 +117,7 @@ export function SegmentedTabs<K extends string>({
             }}
             className={cn(
               "relative z-10 shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:outline-offset-0",
+              stretch && "xl:flex-1 xl:px-2",
               selected ? "text-ink" : "text-ink/60 hover:text-ink",
             )}
           >
