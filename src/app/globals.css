@@ -134,6 +134,11 @@
     }
   }
 
+  /* A quick fade for text that swaps in place. */
+  .fade-in {
+    animation: fade-in 150ms var(--ease-out) both;
+  }
+
   /* Lists fade up in a short stagger; set --i to the item's index. */
   .enter {
     animation: enter 240ms var(--ease-out) both;
@@ -141,7 +146,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .enter {
+    .enter,
+    .fade-in {
       animation: none;
     }
 
@@ -188,6 +194,12 @@
   to {
     opacity: 0;
     transform: translateY(-105%);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
   }
 }
 

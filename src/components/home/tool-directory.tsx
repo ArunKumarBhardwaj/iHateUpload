@@ -141,9 +141,12 @@ export function ToolDirectory({ groups }: { groups: Group[] }) {
       </div>
 
       <p className="mt-4 text-[15px] text-ink/60" aria-live="polite">
-        {needle
-          ? `${matches.length} ${matches.length === 1 ? "tool matches" : "tools match"} “${query.trim()}”.`
-          : activePanel.description}
+        {/* Keyed so the line fades in each time it changes. */}
+        <span key={needle ? "search" : active} className="fade-in inline-block">
+          {needle
+            ? `${matches.length} ${matches.length === 1 ? "tool matches" : "tools match"} “${query.trim()}”.`
+            : activePanel.description}
+        </span>
       </p>
 
       <div className="mt-5 min-h-[13rem]">
