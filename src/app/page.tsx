@@ -21,6 +21,7 @@ export const metadata: Metadata = {
 const GROUPS = TOOL_GROUPS.map((group) => ({
   id: group.id,
   title: group.title,
+  description: group.description,
   tools: group.tools
     .map((id) => TOOLS.find((tool) => tool.id === id))
     .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined),

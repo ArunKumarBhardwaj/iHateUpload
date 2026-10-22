@@ -71,13 +71,13 @@ export type Format = keyof typeof FORMAT;
 
 /** Each job group owns one colour; action tools wear their group's colour. */
 export const GROUP_COLOR: Record<string, string> = {
-  smaller: "#18975a",
-  photo: "#e59a0b",
+  compress: "#18975a",
   "to-pdf": "#e5322d",
-  format: "#f2a516",
-  pages: "#ee6b2f",
-  "mark-up": "#7c4ddb",
-  private: "#2563eb",
+  "from-pdf": "#f2a516",
+  image: "#e59a0b",
+  organize: "#ee6b2f",
+  edit: "#7c4ddb",
+  security: "#2563eb",
   read: "#0e9384",
 };
 

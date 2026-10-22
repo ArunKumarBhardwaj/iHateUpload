@@ -6,10 +6,16 @@ import { ArrowRight, Search, X } from "lucide-react";
 
 import { ToolIcon } from "@/components/tool-icon";
 import { SegmentedTabs } from "@/components/ui/segmented-tabs";
+import { OLD_GROUP_IDS } from "@/lib/tool-groups";
 import type { ToolDefinition, ToolId } from "@/lib/tools";
 import { cn } from "@/lib/utils";
 
-type Group = { id: string; title: string; tools: ToolDefinition[] };
+type Group = {
+  id: string;
+  title: string;
+  description: string;
+  tools: ToolDefinition[];
+};
 
 const POPULAR: ToolId[] = [
   "compress-pdf",
@@ -27,11 +33,12 @@ const POPULAR: ToolId[] = [
 ];
 
 /**
- * Every tool, one job at a time: segmented tabs pick the job, a card grid
- * shows its tools, and the filter searches all of them at once. Every panel
- * is in the HTML (inactive ones `hidden`), so crawlers still see each link.
- * The job also lives in the URL hash, so footer links like /#private open
- * the right tab; picking a tab here doesn't touch the URL.
+ * Every tool, one category at a time: segmented tabs pick the category, a
+ * line says what's in it, a card grid shows its tools, and the filter
+ * searches all of them at once. Every panel is in the HTML (inactive ones
+ * `hidden`), so crawlers still see each link. The category also lives in
+ * the URL hash, so footer links like /#security open the right tab (old
+ * names like /#private still work); picking a tab doesn't touch the URL.
  */
 export function ToolDirectory({ groups }: { groups: Group[] }) {
   const hash = useSyncExternalStore(subscribeHash, readHash, () => "");
@@ -47,6 +54,7 @@ export function ToolDirectory({ groups }: { groups: Group[] }) {
       {
         id: "popular",
         title: "Popular",
+        description: "The tools people reach for most.",
         tools: POPULAR.map((id) => all.find((tool) => tool.id === id)).filter(
           (tool): tool is ToolDefinition => tool !== undefined,
         ),
@@ -56,28 +64,35 @@ export function ToolDirectory({ groups }: { groups: Group[] }) {
     [all, groups],
   );
 
-  const fromHash = panels.some((panel) => panel.id === hash) ? hash : "popular";
+  const wanted = OLD_GROUP_IDS[hash] ?? hash;
+  const fromHash = panels.some((panel) => panel.id === wanted) ? wanted : "popular";
   const active = picked && picked.hash === hash ? picked.key : fromHash;
+  const activePanel = panels.find((panel) => panel.id === active) ?? panels[0];
 
   const needle = query.trim().toLowerCase();
+  // The category name counts too, so "password" or "privacy" finds Unlock.
   const matches = needle
-    ? all.filter((tool) =>
-        `${tool.title} ${tool.shortTitle} ${tool.description}`
-          .toLowerCase()
-          .includes(needle),
+    ? groups.flatMap((group) =>
+        group.tools.filter((tool) =>
+          `${tool.title} ${tool.shortTitle} ${tool.description} ${group.title} ${group.description}`
+            .toLowerCase()
+            .includes(needle),
+        ),
       )
     : [];
 
   return (
     <div>
-      {/* Anchors so /#smaller, /#private… scroll here from any page. */}
-      {groups.map((group) => (
-        <span key={group.id} id={group.id} className="block scroll-mt-28" />
-      ))}
+      {/* Anchors so /#compress, /#security… (and the old names) scroll here. */}
+      {[...groups.map((group) => group.id), ...Object.keys(OLD_GROUP_IDS)].map(
+        (id) => (
+          <span key={id} id={id} className="block scroll-mt-28" />
+        ),
+      )}
 
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <h2 className="font-display text-4xl font-semibold tracking-[-0.03em] sm:text-5xl">
-          Every tool, by job
+          Every tool, by category
         </h2>
         <div className="relative w-full sm:w-72">
           <label htmlFor="tool-filter" className="sr-only">
@@ -114,7 +129,7 @@ export function ToolDirectory({ groups }: { groups: Group[] }) {
 
       <div className="-mx-5 mt-8 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
         <SegmentedTabs
-          label="Tools by job"
+          label="Tools by category"
           items={panels.map((panel) => ({ key: panel.id, label: panel.title }))}
           value={needle ? null : active}
           onChange={(key) => {
@@ -124,7 +139,13 @@ export function ToolDirectory({ groups }: { groups: Group[] }) {
         />
       </div>
 
-      <div className="mt-6 min-h-[13rem]">
+      <p className="mt-4 text-[15px] text-ink/60" aria-live="polite">
+        {needle
+          ? `${matches.length} ${matches.length === 1 ? "tool matches" : "tools match"} “${query.trim()}”.`
+          : activePanel.description}
+      </p>
+
+      <div className="mt-5 min-h-[13rem]">
         {panels.map((panel) => (
           <ToolGrid
             key={panel.id}

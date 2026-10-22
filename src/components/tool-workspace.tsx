@@ -66,7 +66,7 @@ function downloadLabel(results: ResultItem[]) {
 
 /** Tools whose whole point is a smaller file, so a saving is worth showing. */
 const SHRINK_TOOLS = new Set<string>(
-  TOOL_GROUPS.find((group) => group.id === "smaller")?.tools ?? [],
+  TOOL_GROUPS.find((group) => group.id === "compress")?.tools ?? [],
 );
 
 function dropLabel(tool: ToolDefinition) {

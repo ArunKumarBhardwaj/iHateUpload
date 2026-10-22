@@ -12,7 +12,12 @@ import { setHandoff } from "@/lib/handoff";
 import type { ToolDefinition, ToolId } from "@/lib/tools";
 import { cn, formatBytes } from "@/lib/utils";
 
-type Group = { id: string; title: string; tools: ToolDefinition[] };
+type Group = {
+  id: string;
+  title: string;
+  description: string;
+  tools: ToolDefinition[];
+};
 
 const PROOF = ["Zero bytes uploaded", "Works offline", "No account, no watermark"];
 

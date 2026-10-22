@@ -27,7 +27,7 @@ export function SiteFooter() {
           <FooterClaims />
         </div>
 
-        <FooterColumn title="Browse by job">
+        <FooterColumn title="Browse by category">
           {TOOL_GROUPS.map((group) => (
             <li key={group.id}>
               {/* A plain anchor so the hash change fires on the homepage too. */}
