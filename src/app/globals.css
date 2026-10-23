@@ -186,14 +186,14 @@
 @keyframes char-in {
   from {
     opacity: 0;
-    transform: translateY(105%);
+    transform: translateY(135%);
   }
 }
 
 @keyframes char-out {
   to {
     opacity: 0;
-    transform: translateY(-105%);
+    transform: translateY(-135%);
   }
 }
 
@@ -207,5 +207,81 @@
   from {
     opacity: 0;
     transform: translateY(6px);
+  }
+}
+
+/* Footer wordmark: a soft ink tone fading toward the bottom edge. Letters
+   wait below the clip until the footer is seen, then rise in a stagger. */
+.footer-mark .footer-letter {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ink) 15%, transparent) 20%,
+    color-mix(in srgb, var(--ink) 2%, transparent) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: transform 1000ms cubic-bezier(0.22, 1, 0.36, 1) calc(var(--c) * 40ms);
+}
+
+.footer-mark[data-state="armed"] .footer-letter {
+  transform: translateY(140%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer-mark .footer-letter {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Footer links: an underline that draws in from the left on hover. */
+.footer-link {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  transition: color 160ms var(--ease-out);
+}
+
+.footer-link > span:last-child {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 100% / 0 1px;
+  transition: background-size 260ms var(--ease-out);
+}
+
+.footer-link:hover {
+  color: var(--ink);
+}
+
+.footer-link:hover > span:last-child {
+  background-size: 100% 1px;
+}
+
+/* Footer ticker: two copies of the list slide left by one copy's width, so it
+   loops without a seam. Pauses under the pointer so a name can be clicked. */
+.ticker {
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.ticker-track {
+  animation: ticker 60s linear infinite;
+}
+
+.ticker:hover .ticker-track {
+  animation-play-state: paused;
+}
+
+@keyframes ticker {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+
+  .ticker {
+    overflow-x: auto;
   }
 }

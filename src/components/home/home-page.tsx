@@ -37,7 +37,7 @@ export function HomePage({
       <section className="mx-auto max-w-[84rem] px-5 pt-14 sm:px-8 sm:pt-20">
         <h1
           className={cn(
-            "font-display max-w-6xl text-[clamp(2.75rem,7.6vw,6.5rem)] leading-[0.92] font-semibold tracking-[-0.045em] text-balance",
+            "font-display max-w-6xl text-[clamp(2rem,min(max(2.75rem,7.6vw),calc((100vw-4rem)/7.3)),6.5rem)] leading-[0.92] font-semibold tracking-[-0.045em] text-balance",
           )}
         >
           <span className="sr-only">
@@ -192,10 +192,10 @@ function RollingVerb() {
     <>
       <span
         ref={boxRef}
-        className="relative inline-block py-[0.12em] align-baseline -my-[0.12em] whitespace-nowrap text-brand"
-        // Clips top and bottom only (bottom at the line, so incoming letters never
-        // show over the line below); a wider outgoing word isn't cut off.
-        style={{ clipPath: "inset(0 -100vw 0.02em)" }}
+        className="relative inline-block pt-[0.12em] pb-[0.26em] align-baseline -mt-[0.12em] -mb-[0.26em] whitespace-nowrap text-brand"
+        // Clips top and bottom only; the bottom pad leaves room for g and p tails,
+        // and incoming letters start below it. A wider outgoing word isn't cut off.
+        style={{ clipPath: "inset(0 -100vw)" }}
       >
         {VERBS.map((verb, i) => (
           <span
