@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Download, Eye, EyeOff, FileText, Loader2, Plus, RotateCcw, Send, X } from "lucide-react";
+import { ArrowUp, Download, Eye, EyeOff, FileText, Loader2, Plus, RotateCcw, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +54,15 @@ export function AskChat({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // The box grows with what is typed, up to a cap, then scrolls; the send button keeps its size.
+  useEffect(() => {
+    const box = inputRef.current;
+    if (!box) return;
+    box.style.height = "auto";
+    box.style.height = `${Math.min(box.scrollHeight, 200)}px`;
+  }, [draft]);
 
   // A saved key is read once, after hydration, so the first render matches the server's.
   useEffect(() => {
@@ -277,29 +286,51 @@ export function AskChat({
       ) : null}
 
       <form
-        className="flex gap-2"
+        className="border-input bg-background focus-within:ring-ring/40 flex cursor-text flex-col rounded-2xl border shadow-sm transition-shadow focus-within:ring-2"
         onSubmit={(e) => {
           e.preventDefault();
           if (canSend) void send(draft);
         }}
+        onMouseDown={(e) => {
+          // Anywhere in the box but the button puts the cursor in the text, without losing it first.
+          const target = e.target as HTMLElement;
+          if (target === inputRef.current || target.closest("button")) return;
+          e.preventDefault();
+          const box = inputRef.current;
+          if (!box) return;
+          box.focus();
+          box.setSelectionRange(box.value.length, box.value.length);
+        }}
       >
         <textarea
+          ref={inputRef}
           aria-label="Your question"
-          rows={2}
+          rows={1}
           value={draft}
-          placeholder="Type a question"
+          placeholder="Ask anything about your PDFs"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               if (canSend) void send(draft);
             }
           }}
-          className="border-input bg-background min-w-0 flex-1 rounded-xl border px-3 py-2.5 text-sm outline-none focus-visible:ring-2"
+          className="placeholder:text-muted-foreground max-h-[200px] min-h-[44px] w-full resize-none overflow-y-auto bg-transparent px-4 pt-3 pb-1 text-sm leading-6 outline-none"
         />
-        <Button type="submit" size="lg" className="h-auto" disabled={!canSend}>
-          <Send /> Ask
-        </Button>
+        <div className="flex items-center justify-between gap-2 px-3 pb-2.5">
+          <span className="text-muted-foreground hidden text-xs select-none sm:inline">
+            Enter to send, Shift + Enter for a new line
+          </span>
+          <Button
+            type="submit"
+            size="icon"
+            aria-label={busy ? "Answering" : "Send"}
+            className="ml-auto size-8 shrink-0 rounded-full"
+            disabled={!canSend}
+          >
+            {busy ? <Loader2 className="animate-spin" /> : <ArrowUp />}
+          </Button>
+        </div>
       </form>
       {turns.length > 0 ? (
         <div className="flex gap-2">
