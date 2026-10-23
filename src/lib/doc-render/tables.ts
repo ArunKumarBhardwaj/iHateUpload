@@ -1,6 +1,6 @@
 /** Spreadsheet-like grids (CSV, Excel) -> blocks for the shared layout engine. */
-import type { Align, Block, Cell, Row, TableBlock } from "../word-to-pdf/model";
-import type { CellStyle } from "./excel-styles";
+import type { Align, Block, Cell, Family, Row, TableBlock } from "../word-to-pdf/model";
+import type { CellStyle, PageSetup } from "./excel-styles";
 
 export interface GridCell {
   text: string;
@@ -8,6 +8,8 @@ export interface GridCell {
   num: boolean;
   /** the source cell's own formatting (Excel) */
   style?: CellStyle;
+  /** the displayed text before trimming, when it had leading or trailing spaces */
+  raw?: string;
   /** merged cells: the top-left cell carries the span, the rest are covered */
   colSpan?: number;
   rowSpan?: number;
@@ -24,6 +26,18 @@ export interface Grid {
   styled?: boolean;
   /** font size the source's cell sizes are relative to */
   baseSize?: number;
+  /** Excel: the sheet's own geometry and print settings, for printing it as Excel would */
+  sheet?: {
+    /** per column, in Excel's width units (characters of the default font, padding included) */
+    colWidths: number[];
+    /** per row, in points */
+    rowHeights: number[];
+    setup: PageSetup;
+    /** rows repeated at the top of every page */
+    titleRows: number[];
+    baseSize: number;
+    baseFamily: Family;
+  };
 }
 
 const NUM_RE = /^[-+(]?[$€£¥₹]?\s?\d[\d,.\s]*%?\)?$/;

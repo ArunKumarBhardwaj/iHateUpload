@@ -16,7 +16,9 @@ export function convertDocHint(o: Opts): string {
     case "markdown":
       return "Headings, lists, code, quotes and tables are drawn as real, selectable text. LaTeX formulas become sharp vector shapes. Images embedded as data are kept.";
     case "excel":
-      return "Every sheet you pick, with numbers right-aligned as Excel shows them and the header row repeated on each page.";
+      return o.excelLayout === "table"
+        ? "Every sheet you pick as a clean table, with numbers right-aligned as Excel shows them and the header row repeated on each page."
+        : "Every sheet you pick, printed as it is set up in Excel: print area, paper, scale and margins, with its own fonts, colours, borders and merged cells. Hindi and other Devanagari text is kept.";
     case "csv":
       return "Sort, search and hide columns in the preview, then print exactly that. The header row repeats on every page and the text stays selectable.";
     case "pptx":
@@ -145,9 +147,24 @@ export function ConvertOptions({
           </div>
         </div>
       ) : null}
+      {options.src === "excel" ? (
+        <Group<"workbook" | "table">
+          label="Layout"
+          value={options.excelLayout}
+          disabled={disabled}
+          onPick={(excelLayout) =>
+            // the clean table has always come with a title and page numbers
+            set(excelLayout === "table" ? { excelLayout, title: true, footer: true } : { excelLayout, title: false, footer: false })
+          }
+          items={[
+            ["workbook", "As set up in Excel"],
+            ["table", "Clean table"],
+          ]}
+        />
+      ) : null}
       {options.src === "pptx" ? (
         <Check label="Include slides marked hidden" checked={options.hiddenSlides} disabled={disabled} onChange={(hiddenSlides) => set({ hiddenSlides })} />
-      ) : (
+      ) : options.src === "excel" && options.excelLayout === "workbook" ? null : (
         <>
       <Group<DocPaper>
         label="Paper"
@@ -236,10 +253,12 @@ export function ConvertOptions({
             onChange={(title) => set({ title })}
           />
           <Check label="Page footer with file name and page numbers" checked={options.footer} disabled={disabled} onChange={(footer) => set({ footer })} />
-          <Check label="Shade every other row" checked={options.zebra} disabled={disabled} onChange={(zebra) => set({ zebra })} />
+          {options.src === "excel" && options.excelLayout === "workbook" ? null : (
+            <Check label="Shade every other row" checked={options.zebra} disabled={disabled} onChange={(zebra) => set({ zebra })} />
+          )}
         </>
       ) : null}
-      {options.src === "excel" ? (
+      {options.src === "excel" && options.excelLayout === "table" ? (
         <Group<"shrink" | "wrap">
           label="Wide sheets"
           value={options.fit}

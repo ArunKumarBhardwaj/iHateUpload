@@ -30,6 +30,11 @@ export interface DocConvertOptions {
   footer: boolean;
   /** Excel: shrink the text so every column fits the page width, or keep the size and wrap */
   fit: "shrink" | "wrap";
+  /**
+   * Excel: print each sheet as it is set up in Excel (print area, paper, scale, margins, its own
+   * fonts, borders, widths and row heights), or as a clean table with the options above
+   */
+  excelLayout: "workbook" | "table";
   /** Excel and CSV: shade every other row */
   zebra: boolean;
   /** CSV: sort by this column before printing */
@@ -58,9 +63,11 @@ export function defaultDocOptions(src: DocSource): DocConvertOptions {
     lineSpacing: 1,
     math: true,
     sheets: [],
-    title: true,
-    footer: true,
+    // Excel's own print has neither; the clean table layout turns them on
+    title: src !== "excel",
+    footer: src !== "excel",
     fit: "shrink",
+    excelLayout: "workbook",
     zebra: true,
     csvSort: null,
     csvFilter: "",

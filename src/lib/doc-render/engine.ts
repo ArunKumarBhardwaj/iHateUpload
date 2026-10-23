@@ -187,7 +187,8 @@ export function drawCmd(
       let x = c.x;
       for (const seg of fonts.segments(c.text, key)) {
         if (!seg.text) continue;
-        page.drawText(seg.text, { x, y: H - c.y, size: c.size, font: seg.face.pdfFont(), color });
+        if (seg.face.draw) seg.face.draw(page, seg.text, x, H - c.y, c.size, color);
+        else page.drawText(seg.text, { x, y: H - c.y, size: c.size, font: seg.face.pdfFont(), color });
         x += seg.face.advance(seg.text, c.size);
       }
       const w = x - c.x;

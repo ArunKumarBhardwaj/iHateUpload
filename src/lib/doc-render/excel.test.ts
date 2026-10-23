@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import JSZip from "jszip";
 
 import { quoteLiterals, workbookGrids } from "./excel";
+import { sheetPageSpec, sheetScale, sheetToBlocks } from "./excel-layout";
 import { readWorkbookStyles } from "./excel-styles";
 import { defaultDocOptions } from "./options";
 import { convertDoc } from "./process";
@@ -49,7 +50,7 @@ const SHEET = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <mergeCells count="1"><mergeCell ref="A1:D1"/></mergeCells>
 </worksheet>`;
 
-async function styledWorkbook(): Promise<ArrayBuffer> {
+async function styledWorkbook(sheet = SHEET, names = ""): Promise<ArrayBuffer> {
   const zip = new JSZip();
   zip.file(
     "[Content_Types].xml",
@@ -61,14 +62,14 @@ async function styledWorkbook(): Promise<ArrayBuffer> {
   );
   zip.file(
     "xl/workbook.xml",
-    `<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Report" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    `<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Report" sheetId="1" r:id="rId1"/></sheets>${names}</workbook>`,
   );
   zip.file(
     "xl/_rels/workbook.xml.rels",
     `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
   );
   zip.file("xl/styles.xml", STYLES);
-  zip.file("xl/worksheets/sheet1.xml", SHEET);
+  zip.file("xl/worksheets/sheet1.xml", sheet);
   return zip.generateAsync({ type: "arraybuffer" });
 }
 
@@ -81,7 +82,7 @@ describe("excel cell formatting", () => {
 
   test("reads fonts, fills, theme colours and alignment per cell", async () => {
     const styles = await readWorkbookStyles(await styledWorkbook());
-    const cells = styles?.sheets.get("Report");
+    const cells = styles?.sheets.get("Report")?.cells;
     expect(styles?.baseSize).toBe(11);
     expect(cells?.get("A1")).toEqual({ bold: true, size: 16, color: "FFFFFF", fill: "1F4E78", align: "center" });
     expect(cells?.get("A2")).toEqual({ italic: true, underline: true, color: "C00000" });
@@ -126,5 +127,143 @@ describe("excel cell formatting", () => {
     const data = new Uint8Array(XLSX.write(wb, { type: "array", bookType: "xlsx" }));
     const { sheets } = await workbookGrids(data);
     expect(sheets[0].grid.styled).toBe(false);
+  });
+});
+
+const BORDERS = `<borders count="2"><border/><border><left style="medium"><color rgb="FF000000"/></left><right style="thin"/><top style="thin"><color theme="4"/></top><bottom style="thick"/></border></borders>`;
+const BORDERED = STYLES.replace('<borders count="1"><border/></borders>', BORDERS).replace(
+  '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="right"/></xf>',
+  '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="top" wrapText="1"/></xf>',
+);
+
+/** A sheet printed in Excel's own layout: page setup, print area, row heights, overflowing text. */
+const LAYOUT = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+  <dimension ref="A1:F4"/>
+  <sheetFormatPr defaultRowHeight="15"/>
+  <cols><col min="1" max="4" width="10" customWidth="1"/><col min="5" max="5" width="40" customWidth="1"/></cols>
+  <sheetData>
+    <row r="1" ht="30" customHeight="1">${str("A1", 0, "A long line of text that runs on past its own cell")}<c r="B1" s="4"/></row>
+    <row r="2">${str("A2", 0, "Cut off at the next cell")}${str("B2", 0, "Next")}</row>
+    <row r="3">${str("A3", 4, "Wrapped in a bordered cell")}${str("C3", 0, "Gap:          wide")}</row>
+    <row r="4">${str("A4", 0, "prints")}${str("F4", 0, "outside the print area")}</row>
+  </sheetData>
+  <printOptions horizontalCentered="1"/>
+  <pageMargins left="0.5" right="0.5" top="1" bottom="1" header="0.3" footer="0.3"/>
+  <pageSetup paperSize="1" orientation="landscape" fitToWidth="1" fitToHeight="0"/>
+</worksheet>`;
+const PRINT_AREA = `<definedNames><definedName name="_xlnm.Print_Area" localSheetId="0">Report!$A$1:$E$4</definedName></definedNames>`;
+
+describe("excel in its own print layout", () => {
+  const grid = async () => (await workbookGrids(await styledWorkbook(LAYOUT, PRINT_AREA))).sheets[0].grid;
+
+  test("reads the page setup: paper, orientation, margins, fit to page", async () => {
+    const g = await grid();
+    const setup = g.sheet?.setup ?? {};
+    expect(setup).toMatchObject({ paperSize: 1, landscape: true, fitToPage: true, fitToWidth: 1, fitToHeight: 0, centerH: true });
+    const spec = sheetPageSpec(setup);
+    expect([spec.width, spec.height]).toEqual([792, 612]);
+    expect(spec.margin).toEqual({ left: 36, right: 36, top: 72, bottom: 72 });
+    // 4 x 10 + 40 width units = 80 x 5.25pt = 420pt, which fits: fit-to-page never enlarges
+    expect(sheetScale(g, spec)).toBe(1);
+  });
+
+  test("prints only the print area, with Excel's row heights", async () => {
+    const g = await grid();
+    expect(g.rows[0].length).toBe(5);
+    expect(g.rows.flat().map((c) => c.text)).not.toContain("outside the print area");
+    expect(g.sheet?.rowHeights).toEqual([30, 15, 15, 15]);
+  });
+
+  test("text overflows into empty cells, cuts off at a filled one, and keeps its spaces", async () => {
+    const g = await grid();
+    const [table] = sheetToBlocks(g, sheetPageSpec(g.sheet?.setup ?? {})) as Extract<import("../word-to-pdf/model").Block, { kind: "table" }>[];
+    const row = (i: number) => table.rows[i].cells;
+    // A1 runs over the empty C1 and D1 too
+    expect(row(0)[0].colSpan).toBeGreaterThan(1);
+    expect(row(0)[0].blocks[0]).toMatchObject({ oneLine: true });
+    // A2 can't: B2 has text
+    expect(row(1)[0].colSpan).toBe(1);
+    expect(row(1)[1].blocks[0]).toMatchObject({ kind: "para" });
+    expect(table.rows[0].minHeight).toBe(30);
+    // no gridlines unless the sheet prints them
+    expect(table.info?.borders).toBeNull();
+  });
+
+  test("cell borders, wrap text and vertical alignment come from the cell style", async () => {
+    const bytes = await (async () => {
+      const zip = await JSZip.loadAsync(await styledWorkbook(LAYOUT, PRINT_AREA));
+      zip.file("xl/styles.xml", BORDERED);
+      return zip.generateAsync({ type: "arraybuffer" });
+    })();
+    const styles = await readWorkbookStyles(bytes);
+    const a3 = styles?.sheets.get("Report")?.cells.get("A3");
+    expect(a3).toMatchObject({ align: "right", valign: "top", wrap: true });
+    expect(a3?.border).toEqual({
+      left: { width: 1, color: "000000" },
+      right: { width: 0.5, color: "000000" },
+      top: { width: 0.5, color: "4472C4" },
+      bottom: { width: 1.5, color: "000000" },
+    });
+    const g = (await workbookGrids(bytes)).sheets[0].grid;
+    const [table] = sheetToBlocks(g, sheetPageSpec(g.sheet?.setup ?? {})) as Extract<import("../word-to-pdf/model").Block, { kind: "table" }>[];
+    const cell = table.rows[2].cells[0];
+    expect(cell.edges?.bottom).toEqual({ width: 1.5, color: "000000" });
+    expect(cell.valign).toBe("top");
+    expect(cell.blocks[0]).toMatchObject({ oneLine: false, align: "right" });
+    // cells without a vertical alignment sit at the bottom, as in Excel
+    expect(table.rows[1].cells[1].valign).toBe("bottom");
+  });
+
+  test("the PDF uses the sheet's paper and keeps runs of spaces", async () => {
+    const { PDFDocument } = await import("@cantoo/pdf-lib");
+    const bytes = await styledWorkbook(LAYOUT, PRINT_AREA);
+    const out = await convertDoc("layout.xlsx", { text: async () => "", bytes: async () => bytes }, defaultDocOptions("excel"), { loadFont });
+    const page = (await PDFDocument.load(out.bytes)).getPage(0);
+    expect([Math.round(page.getWidth()), Math.round(page.getHeight())]).toEqual([792, 612]);
+    const text = norm((await pdfPages(out.bytes)).join(" "));
+    // A2 stops where B2 begins, at a whole word
+    expect(text).toContain("Next");
+    expect(text).not.toContain("next cell");
+    // Excel prints no sheet title or page footer of its own
+    expect(text).not.toContain("Page 1 of");
+    // the ten spaces after "Gap:" are kept: "wide" starts well past one space's width
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const doc = await pdfjs.getDocument({ data: out.bytes.slice(), useSystemFonts: false, verbosity: 0 }).promise;
+    const items = (await (await doc.getPage(1)).getTextContent()).items.filter((i) => "str" in i) as { str: string; transform: number[]; width: number }[];
+    const gap = items.find((i) => i.str.startsWith("Gap:"));
+    expect(gap).toBeDefined();
+    const wide = items.find((i) => i.str.trim() === "wide");
+    expect(wide).toBeDefined();
+    // "Gap:" is about 1.9em and ten spaces about 2.8em more; one collapsed space would put "wide" near 2.2em
+    const em = gap?.transform[0] ?? 1;
+    const start = (wide?.transform[4] ?? 0) - (gap?.transform[4] ?? 0);
+    expect(start / em).toBeGreaterThan(4);
+  });
+});
+
+describe("hindi text", () => {
+  const HINDI = "प्रमाणित किया जाता है कि आंगनवाड़ी (फर्नीचर-वर्तन) क्र॰";
+
+  test("is drawn with the Devanagari font, not replaced with '?'", async () => {
+    const sheet = SHEET.replace("Quarterly Report", HINDI);
+    const bytes = await styledWorkbook(sheet);
+    const out = await convertDoc("hindi.xlsx", { text: async () => "", bytes: async () => bytes }, defaultDocOptions("excel"), { loadFont });
+    expect(out.warnings.join(" ")).not.toContain("replaced with '?'");
+    const raw = new TextDecoder("latin1").decode(out.bytes);
+    expect(raw).toContain("NotoSansDevanagari");
+    // the shaped glyphs carry the original text for copy and paste
+    const { PDFDocument, PDFRawStream, decodePDFRawStream } = await import("@cantoo/pdf-lib");
+    const pdf = await PDFDocument.load(out.bytes);
+    const streams = pdf.context.enumerateIndirectObjects().flatMap(([, o]) => (o instanceof PDFRawStream ? [o] : []));
+    const content = streams.map((st) => {
+      try {
+        return new TextDecoder("latin1").decode(decodePDFRawStream(st).decode());
+      } catch {
+        return "";
+      }
+    });
+    expect(content.some((c) => c.includes("/Span <<") && c.includes("/ActualText"))).toBe(true);
   });
 });

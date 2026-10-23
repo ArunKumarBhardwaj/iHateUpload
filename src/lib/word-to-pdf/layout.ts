@@ -3,7 +3,7 @@
  * supplies a text measurer, so the same code runs against pdf-lib fonts and in unit tests.
  * Coordinates in the output are top-down from the page's top-left corner, in points.
  */
-import type { Align, Block, Family, Inline, InlineStyle, LineSpec, Para, TableBlock } from "./model";
+import type { Align, Block, Cell, Family, Inline, InlineStyle, LineSpec, Para, TableBlock } from "./model";
 import type { PageSpec } from "./page";
 
 export interface FontKey {
@@ -48,6 +48,8 @@ const LINK_COLOR = "0563C1";
 const BORDER_COLOR = "7F7F7F";
 const HEADER_FILL = "EDEDED";
 const CELL_PAD_X = 5;
+/** a one-line paragraph is shrunk to at most this fraction of its size before it is cut instead */
+const ONE_LINE_MIN_SCALE = 0.8;
 const CELL_PAD_Y = 3;
 const LIST_BASE = 24;
 const LIST_STEP = 24;
@@ -86,7 +88,7 @@ interface Resolved {
 
 type Atom =
   | { k: "w"; text: string; w: number; r: Resolved }
-  | { k: "s"; w: number; r: Resolved }
+  | { k: "s"; w: number; r: Resolved; /** more than one space, kept (spreadsheet cells) */ text?: string }
   | { k: "i"; w: number; h: number; data: Uint8Array; mime: string; href?: string; depth?: number; color?: string }
   | { k: "br" };
 
@@ -142,7 +144,9 @@ function atomise(p: Para, ctx: Ctx, avail: number): Atom[] {
       for (const tok of inl.text.split(/([ \t\r\n]+)/)) {
         if (!tok) continue;
         if (/^[ \t\r\n]+$/.test(tok)) {
-          atoms.push({ k: "s", w: ctx.measure(" ", r.key, r.size), r });
+          // a spreadsheet cell keeps runs of spaces, which people use to push text along
+          const n = p.oneLine ? tok.replace(/[\r\n]/g, "").length || 1 : 1;
+          atoms.push(n > 1 ? { k: "s", w: ctx.measure(" ", r.key, r.size) * n, r, text: " ".repeat(n) } : { k: "s", w: ctx.measure(" ", r.key, r.size), r });
         } else {
           const text = clean(tok);
           if (text) atoms.push({ k: "w", text, w: ctx.measure(text, r.key, r.size), r });
@@ -316,11 +320,11 @@ function lineItem(
           flush();
         }
       } else if (run && sameRun(run.r, a.r)) {
-        run.text += a.k === "w" ? a.text : " ";
+        run.text += a.k === "w" ? a.text : (a.text ?? " ");
         run.w += w;
       } else {
         flush();
-        run = { text: a.k === "w" ? a.text : " ", x, w, r: a.r };
+        run = { text: a.k === "w" ? a.text : (a.text ?? " "), x, w, r: a.r };
       }
       x += w;
     }
@@ -343,9 +347,35 @@ function paraItems(p: Para, width: number, ctx: Ctx): Item[] {
   const level = p.marker?.level ?? 0;
   const textX = p.marker ? (p.marker.base ?? LIST_BASE) + (p.marker.step ?? LIST_STEP) * level : p.indent;
   const avail = Math.max(20, width - textX - (p.box ? BOX_PAD : 0));
-  const atoms = atomise(p, ctx, avail);
-  const lines = breakLines(atoms, avail, ctx);
+  let atoms = atomise(p, ctx, avail);
+  let lines = breakLines(atoms, avail, ctx);
   const size = baseSizeOf(p);
+  if (p.oneLine && lines.length > 1 && !atoms.some((a) => a.k === "br")) {
+    const natural = breakLines(atoms, Number.POSITIVE_INFINITY, ctx)[0]?.width ?? 0;
+    const f = natural > 0 ? avail / natural : 1;
+    if (f < 1 && f >= ONE_LINE_MIN_SCALE) {
+      const smaller: Para = {
+        ...p,
+        inlines: p.inlines.map((i) => (i.kind === "text" ? { ...i, style: { ...i.style, size: (i.style.size ?? size) * f * 0.995 } } : i)),
+      };
+      atoms = atomise(smaller, ctx, avail);
+      lines = breakLines(atoms, avail, ctx);
+    }
+    if (lines.length > 1) {
+      // cut: whole words while they fit
+      const kept: Atom[] = [];
+      let w = 0;
+      for (const a of atoms) {
+        if (a.k === "br") break;
+        const aw = (a as { w: number }).w;
+        if (a.k !== "s" && w + aw > avail) break;
+        kept.push(a);
+        w += aw;
+      }
+      while (kept.length && kept[kept.length - 1].k === "s") w -= (kept.pop() as { w: number }).w;
+      lines = [{ atoms: kept, width: Math.max(0, w), hardBreak: false }];
+    }
+  }
   const items = lines.map((l, i) => lineItem(l, textX, avail, p.align, i === lines.length - 1, size, ctx, p.spacing?.line));
 
   if (p.marker?.label && items.length) {
@@ -461,8 +491,8 @@ function tableItems(t: TableBlock, width: number, ctx: Ctx): Item[] {
   );
   const useGrid = !!info && info.grid.length >= cellCols;
   const cols = useGrid ? (info as NonNullable<typeof info>).grid.length : cellCols;
-  const padX = info ? 5.4 : CELL_PAD_X;
-  const padY = info ? 2 : CELL_PAD_Y;
+  const padX = info?.pad?.x ?? (info ? 5.4 : CELL_PAD_X);
+  const padY = info?.pad?.y ?? (info ? 2 : CELL_PAD_Y);
   const pad = padX * 2;
   const border = info ? info.borders : { color: BORDER_COLOR, width: 0.5 };
   const mins = new Array<number>(cols).fill(8 + pad);
@@ -522,10 +552,10 @@ function tableItems(t: TableBlock, width: number, ctx: Ctx): Item[] {
   const occupied = new Array<number>(cols).fill(0);
   rows.forEach((row, ri) => {
     const cmds: Cmd[] = [];
-    const bodies: { x: number; items: Item[]; h: number }[] = [];
+    const bodies: { x: number; items: Item[]; h: number; valign?: Cell["valign"] }[] = [];
     let rowH = 0;
     let col = 0;
-    const placed: { col: number; span: number; fill?: string }[] = [];
+    const placed: { col: number; span: number; fill?: string; edges?: Cell["edges"] }[] = [];
     for (const cell of row.cells) {
       while (col < cols && occupied[col] > 0) col++;
       if (col >= cols) break;
@@ -534,20 +564,21 @@ function tableItems(t: TableBlock, width: number, ctx: Ctx): Item[] {
       const cctx: Ctx = { ...ctx, compact: true, bold: ctx.bold || (!info && cell.header) };
       const inner = flowItems(cell.blocks, w - pad, cctx);
       const h = inner.reduce((n, it) => n + it.before + it.h + it.after, 0);
-      bodies.push({ x: xs[col] + padX, items: inner, h });
+      bodies.push({ x: xs[col] + padX, items: inner, h, valign: cell.valign });
       rowH = Math.max(rowH, h);
-      placed.push({ col, span, fill: cell.fill ?? (!info && cell.header ? HEADER_FILL : undefined) });
+      placed.push({ col, span, fill: cell.fill ?? (!info && cell.header ? HEADER_FILL : undefined), edges: cell.edges });
       if (cell.rowSpan > 1) for (let k = 0; k < span; k++) occupied[col + k] = cell.rowSpan;
       col += span;
     }
     for (let k = 0; k < cols; k++) if (occupied[k] > 0 && !placed.some((c) => k >= c.col && k < c.col + c.span)) occupied[k]--;
-    const height = Math.max(rowH, BASE_SIZE * 1.22) + padY * 2;
+    const height = Math.max(info?.pad ? rowH : Math.max(rowH, BASE_SIZE * 1.22), (row.minHeight ?? 0) - padY * 2) + padY * 2;
     // fills first so text draws on top
     placed.forEach((c) => {
       if (c.fill) cmds.push({ t: "rect", x: xs[c.col], y: 0, w: xs[c.col + c.span] - xs[c.col], h: height, fill: c.fill });
     });
     bodies.forEach((b) => {
-      let y = padY;
+      const spare = height - padY * 2 - b.h;
+      let y = padY + (spare > 0 ? (b.valign === "bottom" ? spare : b.valign === "middle" ? spare / 2 : 0) : 0);
       for (const it of b.items) {
         y += it.before;
         for (const c of it.cmds) cmds.push(shift(c, b.x, y));
@@ -565,6 +596,19 @@ function tableItems(t: TableBlock, width: number, ctx: Ctx): Item[] {
       if (ri === 0) cmds.push({ t: "line", x1: 0, y1: 0, x2: total, y2: 0, width: border.width, color: border.color });
       cmds.push({ t: "line", x1: 0, y1: height, x2: total, y2: height, width: border.width, color: border.color });
     }
+    placed.forEach((c) => {
+      const e = c.edges;
+      if (!e) return;
+      const x1 = xs[c.col];
+      const x2 = xs[c.col + c.span];
+      const line = (edge: { color: string; width: number } | undefined, a: number, b: number, d: number, f: number) => {
+        if (edge) cmds.push({ t: "line", x1: a, y1: b, x2: d, y2: f, width: edge.width, color: edge.color });
+      };
+      line(e.top, x1, 0, x2, 0);
+      line(e.bottom, x1, height, x2, height);
+      line(e.left, x1, 0, x1, height);
+      line(e.right, x2, 0, x2, height);
+    });
     items.push({ h: height, before: 0, after: 0, cmds, isHeader: row.header });
   });
   const headers = items.filter((i) => i.isHeader);

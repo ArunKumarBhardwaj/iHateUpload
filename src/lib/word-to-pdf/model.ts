@@ -29,6 +29,12 @@ export interface TableInfo {
   /** null = no borders */
   borders: { color: string; width: number } | null;
   fills: (string | undefined)[][];
+  /** cell padding in points, when not the default */
+  pad?: { x: number; y: number };
+}
+export interface Edge {
+  color: string;
+  width: number;
 }
 export type Align = "left" | "center" | "right" | "justify";
 
@@ -67,6 +73,11 @@ export interface Para {
   docxStyled?: boolean;
   /** preformatted text: spaces are kept and lines are never re-wrapped at spaces */
   pre?: boolean;
+  /**
+   * keep on one line, as a spreadsheet cell without "wrap text": text a little too wide is set
+   * slightly smaller, anything wider is cut at the last whole word that fits
+   */
+  oneLine?: boolean;
   /** a horizontal rule instead of text */
   rule?: boolean;
   /** vertical bar colour drawn left of the paragraph (block quotes) */
@@ -83,10 +94,16 @@ export interface Cell {
   rowSpan: number;
   header: boolean;
   fill?: string;
+  /** this cell's own edges (drawn in addition to the table's borders) */
+  edges?: { top?: Edge; right?: Edge; bottom?: Edge; left?: Edge };
+  /** vertical placement of the content in a row taller than it; top by default */
+  valign?: "top" | "middle" | "bottom";
 }
 export interface Row {
   header: boolean;
   cells: Cell[];
+  /** the row is at least this tall, in points */
+  minHeight?: number;
 }
 export interface TableBlock {
   kind: "table";

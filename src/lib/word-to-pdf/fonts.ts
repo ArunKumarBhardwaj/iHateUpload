@@ -4,9 +4,28 @@
  *  - Calibri and Cambria text uses bundled metric-compatible Carlito and Caladea (embedded) so line breaks match Word.
  *  - A word whose glyphs the chosen face lacks switches, for that word only, to an embedded
  *    Liberation Sans (Latin, Greek, Cyrillic). Currency signs it lacks (₹, ₽, ₺, ...) come from a
- *    small DejaVu Sans subset. Glyphs nobody has (CJK, Arabic, ...) become "?" and are reported.
+ *    small DejaVu Sans subset, and Hindi and other Devanagari text from Noto Sans Devanagari, which
+ *    is shaped by fontkit (conjuncts, matras) and drawn glyph by glyph at the shaped positions.
+ *    Glyphs nobody has (CJK, Arabic, ...) become "?" and are reported.
  */
-import { StandardFonts, type PDFDocument, type PDFFont } from "@cantoo/pdf-lib";
+import {
+  PDFHexString,
+  PDFName,
+  PDFOperator,
+  StandardFonts,
+  beginText,
+  endText,
+  popGraphicsState,
+  pushGraphicsState,
+  setFillingColor,
+  setFontAndSize,
+  setTextMatrix,
+  showText,
+  type Color,
+  type PDFDocument,
+  type PDFFont,
+  type PDFPage,
+} from "@cantoo/pdf-lib";
 
 import type { FontKey } from "./layout";
 import type { Family } from "./model";
@@ -26,7 +45,8 @@ export function normalise(text: string): string {
   return text
     .replace(/[   ]/g, " ")
     .replace(/[ -  - ]/g, " ")
-    .replace(/[​-‏­⁠﻿]/g, "")
+    // ZWNJ and ZWJ (U+200C, U+200D) stay: they choose Devanagari half forms
+    .replace(/[​‎‏­⁠﻿]/g, "")
     .replace(/[\u0000-\u001f\u007f]/g, "");
 }
 
@@ -50,8 +70,15 @@ const FILES: Record<string, string> = {
   caladea: "Caladea",
   uni: "LiberationSans",
   cur: "DejaVuCurrency",
+  deva: "NotoSansDevanagari",
 };
-type Bundled = "carlito" | "caladea" | "uni" | "cur";
+type Bundled = "carlito" | "caladea" | "uni" | "cur" | "deva";
+/** Noto Sans Devanagari ships upright weights only; italics use them */
+const fileFor = (name: Bundled, v: string) =>
+  `${FILES[name]}-${name === "deva" ? (v.startsWith("1") ? "Bold" : "Regular") : SUFFIX[v]}.ttf`;
+/** Devanagari, Devanagari Extended and Vedic Extensions */
+export const isDevanagari = (cp: number) =>
+  (cp >= 0x0900 && cp <= 0x097f) || (cp >= 0xa8e0 && cp <= 0xa8ff) || (cp >= 0x1cd0 && cp <= 0x1cff);
 /** the Currency Symbols block, which the DejaVuCurrency subset covers */
 const isCurrency = (cp: number) => cp >= 0x20a0 && cp <= 0x20c0;
 const SUFFIX: Record<string, string> = { "0-0": "Regular", "1-0": "Bold", "0-1": "Italic", "1-1": "BoldItalic" };
@@ -64,6 +91,8 @@ interface Face {
   pdfFont(): PDFFont;
   /** embed (async) if not yet embedded */
   ready(): Promise<void>;
+  /** draws shaped text itself (complex scripts); faces without it go through page.drawText */
+  draw?(page: PDFPage, text: string, x: number, y: number, size: number, color: Color): void;
 }
 
 interface Kit {
@@ -72,7 +101,11 @@ interface Kit {
   ascent: number;
   descent: number;
   lineGap: number;
-  layout(t: string): { advanceWidth: number };
+  layout(t: string): {
+    advanceWidth: number;
+    glyphs: { id: number }[];
+    positions: { xAdvance: number; xOffset: number; yOffset: number }[];
+  };
 }
 
 export interface Seg {
@@ -89,6 +122,7 @@ export class FontSet {
   private missing = new Set<number>();
   private hasUni = false;
   private hasCur = false;
+  private hasDeva = false;
   private fontkit?: { create(bytes: Uint8Array): unknown };
 
   constructor(doc: PDFDocument) {
@@ -142,15 +176,27 @@ export class FontSet {
         }),
       );
       if (needCur) this.hasCur = await this.loadFamily("cur", loadFont);
+      const needDeva = list.some((r) => Array.from(r.text).some((ch) => isDevanagari(ch.codePointAt(0) as number)));
+      if (needDeva) {
+        this.hasDeva = await this.loadFamily("deva", loadFont);
+        if (!this.hasDeva) this.warnings.push("Could not load the Hindi font, so Devanagari text was replaced with '?'.");
+      }
     }
   }
 
   private async loadFamily(name: Bundled, loadFont: (f: string) => Promise<Uint8Array>) {
     try {
-      this.fontkit ??= (await import("@pdf-lib/fontkit")).default as unknown as { create(b: Uint8Array): unknown };
+      if (!this.fontkit) {
+        // fontkit's Indic shaper is compiled to regenerator generators and expects this global
+        const g = globalThis as { regeneratorRuntime?: unknown };
+        g.regeneratorRuntime ??= (await import("regenerator-runtime")).default;
+        this.fontkit = (await import("@pdf-lib/fontkit")).default as unknown as { create(b: Uint8Array): unknown };
+      }
+      const files = new Map<string, Promise<Uint8Array>>();
       for (const v of Object.keys(SUFFIX)) {
-        const bytes = await loadFont(`${FILES[name]}-${SUFFIX[v]}.ttf`);
-        this.bytes.set(`${name}-${v}`, bytes);
+        const file = fileFor(name, v);
+        if (!files.has(file)) files.set(file, loadFont(file));
+        this.bytes.set(`${name}-${v}`, await (files.get(file) as Promise<Uint8Array>));
       }
       return true;
     } catch {
@@ -166,6 +212,8 @@ export class FontSet {
     const bytes = this.bytes.get(id) as Uint8Array;
     const kit = (this.fontkit as { create(b: Uint8Array): unknown }).create(bytes) as unknown as Kit;
     let pdf: PDFFont | undefined;
+    // italic and upright share one file: share one embedded copy too
+    const twin = [...this.faces.values()].find((f) => f.id.startsWith(`${name}-`) && this.bytes.get(f.id) === bytes);
     const doc = this.doc;
     const fk = this.fontkit as { create(b: Uint8Array): unknown };
     f = {
@@ -179,12 +227,46 @@ export class FontSet {
       },
       ready: async () => {
         if (pdf) return;
+        if (twin) {
+          await twin.ready();
+          pdf = twin.pdfFont();
+          return;
+        }
         // fontkit's glyph subsetter garbles some faces (Caladea, Carlito Bold Italic), so embed the
         // already-small bundled files whole
         doc.registerFontkit(fk as never);
         pdf = await doc.embedFont(bytes, { subset: false });
       },
     };
+    if (name === "deva") {
+      // pdf-lib draws glyphs at their plain advances, which leaves gaps and misplaced matras in
+      // shaped Devanagari. Place each glyph where fontkit's shaping put it instead.
+      f.draw = (page, text, x, y, size, color) => {
+        const font = f?.pdfFont() as PDFFont;
+        const run = kit.layout(text);
+        const k = size / kit.unitsPerEm;
+        const key = page.node.newFontDictionary(font.name, font.ref);
+        // ActualText keeps copy and paste right: ligature glyphs have no single character to map back to
+        const actual = page.doc.context.obj({ ActualText: PDFHexString.fromText(text) });
+        const ops = [
+          // an inline property list; pdf-lib types operator operands without dictionaries
+          PDFOperator.of("BDC" as never, [PDFName.of("Span"), actual as never]),
+          pushGraphicsState(),
+          setFillingColor(color),
+          beginText(),
+          setFontAndSize(key, size),
+        ];
+        let pen = 0;
+        run.glyphs.forEach((g, i) => {
+          const p = run.positions[i];
+          ops.push(setTextMatrix(1, 0, 0, 1, x + (pen + p.xOffset) * k, y + p.yOffset * k));
+          ops.push(showText(PDFHexString.of(g.id.toString(16).padStart(4, "0"))));
+          pen += p.xAdvance;
+        });
+        ops.push(endText(), popGraphicsState(), PDFOperator.of("EMC" as never));
+        page.pushOperators(...ops);
+      };
+    }
     this.faces.set(id, f);
     return f;
   }
@@ -230,6 +312,7 @@ export class FontSet {
     // the whole word switches face so its letters match; only glyphs that face lacks go further
     const face = this.hasUni ? this.embedded("uni", this.variant(key)) : primary;
     const cur = this.hasCur ? this.embedded("cur", this.variant(key)) : undefined;
+    const deva = this.hasDeva ? this.embedded("deva", this.variant(key)) : undefined;
     const segs: Seg[] = [];
     const push = (f: Face, t: string) => {
       const last = segs[segs.length - 1];
@@ -238,7 +321,12 @@ export class FontSet {
     };
     for (const ch of word) {
       const cp = ch.codePointAt(0) as number;
-      if (face.has(cp)) push(face, ch);
+      if (cp === 0x200c || cp === 0x200d) {
+        if (deva && segs[segs.length - 1]?.face === deva) push(deva, ch);
+        continue;
+      }
+      if (deva && isDevanagari(cp)) push(deva, ch);
+      else if (face.has(cp)) push(face, ch);
       else if (cur?.has(cp)) push(cur, ch);
       else {
         push(face, "?");

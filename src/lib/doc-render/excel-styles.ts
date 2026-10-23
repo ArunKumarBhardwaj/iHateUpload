@@ -7,8 +7,11 @@
 import JSZip from "jszip";
 
 import { parseHtml, type HNode } from "../word-to-pdf/html";
+import type { Family } from "../word-to-pdf/model";
 
 export interface CellStyle {
+  /** the closest bundled face to the cell's font, when it isn't the workbook's default font */
+  family?: Family;
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
@@ -20,13 +23,49 @@ export interface CellStyle {
   /** hex RRGGBB background */
   fill?: string;
   align?: "left" | "center" | "right" | "justify";
+  valign?: "top" | "middle" | "bottom";
+  /** wrap text: without it Excel keeps text on one line, overflowing or clipped */
+  wrap?: boolean;
+  border?: { top?: Edge; right?: Edge; bottom?: Edge; left?: Edge };
+}
+
+export interface Edge {
+  color: string;
+  /** points */
+  width: number;
+}
+
+/** A sheet's print settings, as Excel's Page Layout tab has them. */
+export interface PageSetup {
+  /** OOXML paperSize code: 1 Letter, 5 Legal, 8 A3, 9 A4, ... */
+  paperSize?: number;
+  landscape?: boolean;
+  /** percent */
+  scale?: number;
+  /** fit to this many pages wide / tall (0 = no limit); only when fitToPage is on */
+  fitToWidth?: number;
+  fitToHeight?: number;
+  fitToPage?: boolean;
+  /** inches */
+  margins?: { left: number; right: number; top: number; bottom: number };
+  gridLines?: boolean;
+  centerH?: boolean;
+  /** Excel's default row height and column width (in its width units), when the sheet sets them */
+  defaultRowHeight?: number;
+  defaultColWidth?: number;
+}
+
+export interface SheetStyles {
+  cells: Map<string, CellStyle>;
+  setup: PageSetup;
 }
 
 export interface WorkbookStyles {
   /** the workbook's default font size, which cell sizes are relative to */
   baseSize: number;
-  /** sheet name -> cell reference (e.g. "B4") -> style */
-  sheets: Map<string, Map<string, CellStyle>>;
+  /** the closest bundled face to the workbook's default font */
+  baseFamily: Family;
+  sheets: Map<string, SheetStyles>;
 }
 
 type X = Extract<HNode, { tag: string }>;
@@ -106,6 +145,17 @@ interface Font {
   strike: boolean;
   size?: number;
   color?: string;
+  family: Family;
+}
+
+/** Bundled faces with the same metrics as Office's fonts, so columns fit as they do in Excel. */
+export function familyOf(name: string | undefined): Family {
+  const n = (name ?? "").toLowerCase();
+  if (n.startsWith("calibri")) return "carlito";
+  if (n.startsWith("cambria")) return "caladea";
+  if (/times|georgia|garamond|book antiqua|palatino|serif/.test(n) && !n.includes("sans")) return "serif";
+  if (/courier|consolas|mono|lucida console/.test(n)) return "mono";
+  return "sans";
 }
 
 function readFont(e: X, theme: string[]): Font {
@@ -117,6 +167,7 @@ function readFont(e: X, theme: string[]): Font {
     strike: flag(kid(e, "strike")),
     size: Number.isFinite(sz) && sz > 0 ? sz : undefined,
     color: colorOf(kid(e, "color"), theme),
+    family: familyOf(kid(e, "name")?.attrs.val),
   };
 }
 
@@ -144,12 +195,14 @@ const ALIGN: Record<string, CellStyle["align"]> = {
 };
 
 /** The style each cellXfs entry stands for, against the workbook's default font. */
-function readXfs(xml: string, theme: string[]): { xfs: (CellStyle | undefined)[]; baseSize: number } {
+function readXfs(xml: string, theme: string[]): { xfs: (CellStyle | undefined)[]; baseSize: number; baseFamily: Family } {
   const root = parseXml(xml);
   const fonts = kids(find(root, "fonts"), "font").map((f) => readFont(f, theme));
   const fills = kids(find(root, "fills"), "fill").map((f) => readFill(f, theme));
+  const borders = kids(find(root, "borders"), "border").map((b) => readBorder(b, theme));
   const base = fonts[0];
   const baseSize = base?.size ?? 11;
+  const baseFamily = base?.family ?? "sans";
   const xfs = kids(find(root, "cellXfs"), "xf").map((xf): CellStyle | undefined => {
     const s: CellStyle = {};
     const font = fonts[Number(xf.attrs.fontid ?? 0)];
@@ -159,16 +212,52 @@ function readXfs(xml: string, theme: string[]): { xfs: (CellStyle | undefined)[]
       if (font.underline) s.underline = true;
       if (font.strike) s.strike = true;
       if (font.size && font.size !== baseSize) s.size = font.size;
+      if (font.family !== baseFamily) s.family = font.family;
       // black is what the PDF uses anyway
       if (font.color && font.color !== "000000") s.color = font.color;
     }
     const fill = fills[Number(xf.attrs.fillid ?? 0)];
     if (fill && fill !== "FFFFFF") s.fill = fill;
-    const h = kid(xf, "alignment")?.attrs.horizontal;
+    const al = kid(xf, "alignment");
+    const h = al?.attrs.horizontal;
     if (h && ALIGN[h]) s.align = ALIGN[h];
+    const v = al?.attrs.vertical;
+    if (v === "top") s.valign = "top";
+    else if (v === "center" || v === "distributed" || v === "justify") s.valign = "middle";
+    if (al?.attrs.wraptext === "1" || al?.attrs.wraptext === "true" || al?.attrs.shrinktofit === "1") s.wrap = true;
+    const border = borders[Number(xf.attrs.borderid ?? 0)];
+    if (border) s.border = border;
     return Object.keys(s).length ? s : undefined;
   });
-  return { xfs, baseSize };
+  return { xfs, baseSize, baseFamily };
+}
+
+/** Line widths in points for Excel's border styles. */
+const EDGE_WIDTH: Record<string, number> = {
+  hair: 0.25,
+  thin: 0.5,
+  dotted: 0.5,
+  dashed: 0.5,
+  dashDot: 0.5,
+  dashDotDot: 0.5,
+  medium: 1,
+  mediumDashed: 1,
+  mediumDashDot: 1,
+  mediumDashDotDot: 1,
+  slantDashDot: 1,
+  double: 1.5,
+  thick: 1.5,
+};
+
+function readBorder(e: X, theme: string[]): CellStyle["border"] {
+  const out: NonNullable<CellStyle["border"]> = {};
+  for (const side of ["top", "right", "bottom", "left"] as const) {
+    const el = kid(e, side) ?? (side === "left" ? kid(e, "start") : side === "right" ? kid(e, "end") : undefined);
+    const style = el?.attrs.style;
+    if (!el || !style || style === "none") continue;
+    out[side] = { width: EDGE_WIDTH[style] ?? 0.5, color: colorOf(kid(el, "color"), theme) ?? "000000" };
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 function resolveTarget(target: string): string {
@@ -180,6 +269,48 @@ function resolveTarget(target: string): string {
     else if (p && p !== ".") out.push(p);
   }
   return out.join("/");
+}
+
+const num = (v: string | undefined) => (v !== undefined && v !== "" && Number.isFinite(Number(v)) ? Number(v) : undefined);
+const yes = (v: string | undefined) => v === "1" || v === "true";
+
+/** Page setup elements, read from the sheet XML outside sheetData (which can be huge). */
+function readSetup(xml: string): PageSetup {
+  const end = xml.lastIndexOf("</sheetData>");
+  const head = xml.slice(0, Math.max(0, xml.indexOf("<sheetData")));
+  const tail = end >= 0 ? xml.slice(end) : "";
+  const tag = (src: string, name: string) => {
+    const m = new RegExp(`<(?:[\\w-]+:)?${name}\\b([^>]*?)\\/?>`).exec(src);
+    if (!m) return undefined;
+    const attrs: Record<string, string> = {};
+    for (const a of m[1].matchAll(/([\w:]+)="([^"]*)"/g)) attrs[a[1].toLowerCase()] = a[2];
+    return attrs;
+  };
+  const out: PageSetup = {};
+  const fit = tag(head, "pageSetUpPr");
+  if (fit && yes(fit.fittopage)) out.fitToPage = true;
+  const fmt = tag(head, "sheetFormatPr");
+  out.defaultRowHeight = num(fmt?.defaultrowheight);
+  out.defaultColWidth = num(fmt?.defaultcolwidth);
+  const ps = tag(tail, "pageSetup");
+  if (ps) {
+    out.paperSize = num(ps.papersize);
+    if (ps.orientation === "landscape") out.landscape = true;
+    out.scale = num(ps.scale);
+    out.fitToWidth = num(ps.fittowidth);
+    out.fitToHeight = num(ps.fittoheight);
+  }
+  const pm = tag(tail, "pageMargins");
+  if (pm) {
+    const [l, r, t, b] = [pm.left, pm.right, pm.top, pm.bottom].map(num);
+    if (l !== undefined && r !== undefined && t !== undefined && b !== undefined) out.margins = { left: l, right: r, top: t, bottom: b };
+  }
+  const po = tag(tail, "printOptions");
+  if (po) {
+    if (yes(po.gridlines)) out.gridLines = true;
+    if (yes(po.horizontalcentered)) out.centerH = true;
+  }
+  return out;
 }
 
 const CELL_RE = /<(?:[\w-]+:)?c\s([^>]*?)\/?>/g;
@@ -199,13 +330,13 @@ export async function readWorkbookStyles(data: ArrayBuffer | Uint8Array): Promis
   if (!wbXml || !relsXml) return null;
   const themePath = Object.keys(zip.files).find((p) => /^xl\/theme\/theme\d*\.xml$/.test(p));
   const theme = readTheme(themePath ? await text(themePath) : undefined);
-  const { xfs, baseSize } = stylesXml ? readXfs(stylesXml, theme) : { xfs: [], baseSize: 11 };
+  const { xfs, baseSize, baseFamily } = stylesXml ? readXfs(stylesXml, theme) : { xfs: [], baseSize: 11, baseFamily: "sans" as Family };
 
   const rels = new Map<string, string>();
   for (const r of kids(find(parseXml(relsXml), "Relationships"), "Relationship")) {
     if (r.attrs.id && r.attrs.target) rels.set(r.attrs.id, resolveTarget(r.attrs.target));
   }
-  const sheets = new Map<string, Map<string, CellStyle>>();
+  const sheets = new Map<string, SheetStyles>();
   for (const s of kids(find(parseXml(wbXml), "sheets"), "sheet")) {
     const part = rels.get(s.attrs["r:id"] ?? "");
     const xml = part ? await text(part) : undefined;
@@ -219,7 +350,7 @@ export async function readWorkbookStyles(data: ArrayBuffer | Uint8Array): Promis
         if (style) cells.set(r, style);
       }
     }
-    sheets.set(s.attrs.name ?? "", cells);
+    sheets.set(s.attrs.name ?? "", { cells, setup: xml ? readSetup(xml) : {} });
   }
-  return { baseSize, sheets };
+  return { baseSize, baseFamily, sheets };
 }

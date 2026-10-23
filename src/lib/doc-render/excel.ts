@@ -1,7 +1,8 @@
 /** Excel workbook -> grids, one per visible sheet, using each cell's displayed (number formatted) text and formatting. */
 import type { CellObject, WorkSheet } from "xlsx";
 
-import { readWorkbookStyles, type CellStyle } from "./excel-styles";
+import type { Family } from "../word-to-pdf/model";
+import { readWorkbookStyles, type PageSetup, type SheetStyles } from "./excel-styles";
 import { looksNumeric, type Grid, type GridCell } from "./tables";
 
 export interface SheetGrid {
@@ -59,10 +60,46 @@ function displayText(XLSX: XlsxModule, cell: CellObject): string {
   return String(cell.v);
 }
 
-function sheetToGrid(XLSX: XlsxModule, sheet: WorkSheet, styles: Map<string, CellStyle> | undefined, baseSize: number): Grid {
+type Range = { s: { r: number; c: number }; e: { r: number; c: number } };
+
+/** A sheet's print area and print-title rows, from the workbook's defined names. */
+function printNames(XLSX: XlsxModule, wb: import("xlsx").WorkBook, index: number): { area?: Range; titles?: [number, number] } {
+  const out: { area?: Range; titles?: [number, number] } = {};
+  for (const n of wb.Workbook?.Names ?? []) {
+    if (n.Sheet !== index || !n.Ref) continue;
+    // "'Sheet 1'!$B$1:$E$37" or "Sheet1!$A$1:$D$9,Sheet1!$F$1:$G$9": the first area is used
+    const first = n.Ref.split(",")[0].replace(/^.*!/, "").replace(/\$/g, "");
+    if (n.Name === "_xlnm.Print_Area") {
+      try {
+        const r = XLSX.utils.decode_range(first);
+        if (r.e.r >= r.s.r && r.e.c >= r.s.c && r.s.r >= 0 && r.s.c >= 0) out.area = r;
+      } catch {
+        // an unreadable name prints the whole sheet
+      }
+    } else if (n.Name === "_xlnm.Print_Titles") {
+      const rows = n.Ref.split(",").map((p) => p.replace(/^.*!/, "").replace(/\$/g, "")).find((p) => /^\d+:\d+$/.test(p));
+      if (rows) {
+        const [a, b] = rows.split(":").map((v) => Number(v) - 1);
+        out.titles = [a, b];
+      }
+    }
+  }
+  return out;
+}
+
+function sheetToGrid(
+  XLSX: XlsxModule,
+  sheet: WorkSheet,
+  sheetStyles: SheetStyles | undefined,
+  baseSize: number,
+  baseFamily: Family,
+  names: { area?: Range; titles?: [number, number] } = {},
+): Grid {
+  const styles = sheetStyles?.cells;
   const ref = sheet["!ref"];
   if (!ref) return { rows: [], header: false };
-  const range = XLSX.utils.decode_range(ref);
+  const used = XLSX.utils.decode_range(ref);
+  const range = names.area ?? used;
   const cols = sheet["!cols"] ?? [];
   const rowsMeta = sheet["!rows"] ?? [];
   const keepCols: number[] = [];
@@ -78,11 +115,13 @@ function sheetToGrid(XLSX: XlsxModule, sheet: WorkSheet, styles: Map<string, Cel
       const addr = XLSX.utils.encode_cell({ r, c });
       const cell = sheet[addr] as CellObject | undefined;
       const style = styles?.get(addr);
-      if (style && (style.fill || style.bold || style.italic || style.color || style.size)) styled = true;
+      if (style && (style.fill || style.bold || style.italic || style.color || style.size || style.border)) styled = true;
       const out: GridCell = { text: "", num: false };
       if (style) out.style = style;
       if (!cell || cell.v === undefined || cell.v === null) return out;
-      out.text = displayText(XLSX, cell).trim();
+      const shown = displayText(XLSX, cell);
+      out.text = shown.trim();
+      if (out.text && shown !== out.text) out.raw = shown;
       out.num = cell.t === "n" || (cell.t === "d" ? false : looksNumeric(out.text) && cell.t !== "s");
       return out;
     }),
@@ -108,11 +147,14 @@ function sheetToGrid(XLSX: XlsxModule, sheet: WorkSheet, styles: Map<string, Cel
     }
   }
 
-  // trim empty rows at the end and empty columns at the right (a merged cell with text counts as filled)
-  const filled = (c: GridCell) => !!c.text || !!c.style?.fill;
-  while (rows.length > mergeBottom && rows[rows.length - 1].every((c) => !filled(c))) rows.pop();
-  let width = mergeRight;
-  for (const r of rows) for (let c = r.length - 1; c >= width; c--) if (filled(r[c])) width = Math.max(width, c + 1);
+  // trim empty rows at the end and empty columns at the right (a merged cell with text counts as
+  // filled, and so does a bordered one, as Excel prints those). A print area is printed as it is.
+  const filled = (c: GridCell) => !!c.text || !!c.style?.fill || !!c.style?.border;
+  let width = names.area ? keepCols.length : mergeRight;
+  if (!names.area) {
+    while (rows.length > mergeBottom && rows[rows.length - 1].every((c) => !filled(c))) rows.pop();
+    for (const r of rows) for (let c = r.length - 1; c >= width; c--) if (filled(r[c])) width = Math.max(width, c + 1);
+  }
   const trimmed = rows.map((r) =>
     r.slice(0, width).map((cell, c) => (cell.colSpan && c + cell.colSpan > width ? { ...cell, colSpan: width - c } : cell)),
   );
@@ -132,6 +174,19 @@ function sheetToGrid(XLSX: XlsxModule, sheet: WorkSheet, styles: Map<string, Cel
   });
   const hasWidths = colChars.some((w) => w !== undefined);
   const grid: Grid = { rows: trimmed, header: trimmed.length > 1, styled };
+  // the sheet as Excel prints it: widths in Excel's units, row heights in points, page setup
+  const setup: PageSetup = sheetStyles?.setup ?? {};
+  const defW = setup.defaultColWidth ?? 9.140625;
+  grid.sheet = {
+    colWidths: keepCols.slice(0, width).map((c) => cols[c]?.width ?? defW),
+    rowHeights: keepRows.slice(0, trimmed.length).map((r) => rowsMeta[r]?.hpt ?? setup.defaultRowHeight ?? 15),
+    setup,
+    titleRows: names.titles
+      ? keepRows.slice(0, trimmed.length).flatMap((r, i) => ((names.titles as [number, number])[0] <= r && r <= (names.titles as [number, number])[1] ? [i] : []))
+      : [],
+    baseSize,
+    baseFamily,
+  };
   if (!hasWidths) {
     // widest content per column bounds columns the file gave no width for
     grid.colChars = Array.from({ length: width }, (_, c) => Math.min(40, Math.max(6, textLen(c) * 1.05)));
@@ -152,7 +207,13 @@ export async function workbookGrids(data: ArrayBuffer | Uint8Array): Promise<{ s
   const wb = XLSX.read(data, { type: "array", cellDates: false, cellStyles: true, cellNF: true });
   const styles = await readWorkbookStyles(data);
   const all = visibleSheetNames(wb);
-  return { all, sheets: all.map((name) => ({ name, grid: sheetToGrid(XLSX, wb.Sheets[name], styles?.sheets.get(name), styles?.baseSize ?? 11) })) };
+  return {
+    all,
+    sheets: all.map((name) => ({
+      name,
+      grid: sheetToGrid(XLSX, wb.Sheets[name], styles?.sheets.get(name), styles?.baseSize ?? 11, styles?.baseFamily ?? "sans", printNames(XLSX, wb, wb.SheetNames.indexOf(name))),
+    })),
+  };
 }
 
 /** Sheet names without parsing every cell, for the sheet picker. */

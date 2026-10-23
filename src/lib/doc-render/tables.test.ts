@@ -73,8 +73,10 @@ describe("excel to pdf", () => {
   const bytes = workbook();
   const data = { text: async () => "", bytes: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer };
 
+  const table = { ...defaultDocOptions("excel"), excelLayout: "table" as const, title: true, footer: true };
+
   test("all visible sheets, formatted numbers, repeated header, footer", async () => {
-    const out = await convertDoc("book.xlsx", data, defaultDocOptions("excel"), { loadFont });
+    const out = await convertDoc("book.xlsx", data, table, { loadFont });
     const pages = (await pdfPages(out.bytes)).map(norm);
     const all = pages.join(" ");
     expect(all).toContain("$1,000.50");
@@ -89,7 +91,7 @@ describe("excel to pdf", () => {
   });
 
   test("sheet picker keeps only the chosen sheet", async () => {
-    const out = await convertDoc("book.xlsx", data, { ...defaultDocOptions("excel"), sheets: ["Second"] }, { loadFont });
+    const out = await convertDoc("book.xlsx", data, { ...table, sheets: ["Second"] }, { loadFont });
     const all = norm((await pdfPages(out.bytes)).join(" "));
     expect(all).toContain("Only");
     expect(all).not.toContain("Region 1");

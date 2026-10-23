@@ -3,6 +3,7 @@ import type { FileItem, ResultItem } from "@/lib/job";
 import type { ToolOptions } from "@/lib/tool-options";
 
 import { workbookGrids } from "./excel";
+import { sheetPageSpec, sheetToBlocks } from "./excel-layout";
 import { pageSpec, renderFlow, type FlowOptions } from "./flow";
 import { markdownToDoc } from "./markdown";
 import { findMathSpans } from "./math-art";
@@ -26,7 +27,7 @@ export async function convertDoc(
   o: DocConvertOptions,
   engine: Pick<FlowOptions, "loadFont" | "rasterise"> = {},
 ): Promise<DocOutput> {
-  const spec = pageSpec(o.paper, o.landscape, MARGIN_PT[o.margin]);
+  let spec = pageSpec(o.paper, o.landscape, MARGIN_PT[o.margin]);
   const width = spec.width - spec.margin.left - spec.margin.right;
   let blocks: Block[] = [];
   let refine: ((pages: LaidOutPage[]) => boolean) | undefined;
@@ -61,6 +62,18 @@ export async function convertDoc(
   } else if (o.src === "excel") {
     const { sheets } = await workbookGrids(await data.bytes());
     const chosen = o.sheets.length ? sheets.filter((s) => o.sheets.includes(s.name)) : sheets;
+    if (!chosen.length) throw new Error("This workbook has no sheets to print.");
+    if ((o.excelLayout ?? "workbook") === "workbook") {
+      // one page setup per PDF: the first sheet's
+      const setup = chosen[0].grid.sheet?.setup;
+      if (setup) spec = sheetPageSpec(setup);
+      chosen.forEach((s, i) => {
+        if (i) blocks.push({ kind: "pagebreak" });
+        blocks.push(...sheetToBlocks(s.grid, spec, o.title ? s.name : undefined));
+      });
+      footer = o.footer ? { text: name, pageNumbers: true } : undefined;
+      return renderFlow(blocks, spec, { ...engine, footer, refine, title });
+    }
     chosen.forEach((s, i) => {
       if (i) blocks.push({ kind: "pagebreak" });
       blocks.push(
