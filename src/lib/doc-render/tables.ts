@@ -1,10 +1,17 @@
 /** Spreadsheet-like grids (CSV, Excel) -> blocks for the shared layout engine. */
 import type { Align, Block, Cell, Row, TableBlock } from "../word-to-pdf/model";
+import type { CellStyle } from "./excel-styles";
 
 export interface GridCell {
   text: string;
   /** right-aligned numbers */
   num: boolean;
+  /** the source cell's own formatting (Excel) */
+  style?: CellStyle;
+  /** merged cells: the top-left cell carries the span, the rest are covered */
+  colSpan?: number;
+  rowSpan?: number;
+  covered?: boolean;
 }
 
 export interface Grid {
@@ -13,6 +20,10 @@ export interface Grid {
   colChars?: (number | undefined)[];
   /** the first row is a header, repeated on every page */
   header: boolean;
+  /** the sheet has its own fills and fonts: draw those instead of the default header and stripes */
+  styled?: boolean;
+  /** font size the source's cell sizes are relative to */
+  baseSize?: number;
 }
 
 const NUM_RE = /^[-+(]?[$€£¥₹]?\s?\d[\d,.\s]*%?\)?$/;
@@ -145,7 +156,8 @@ export function gridToBlocks(grid: Grid, opt: TableOptions): Block[] {
     const charW = 0.55;
     widths = Array.from({ length: cols }, (_, c) => {
       const ch = grid.colChars?.[c] ?? 8.43;
-      return Math.min(Math.max(ch * charW * size + 10, 22), 320);
+      // + both cell paddings (5.4pt each) and a little slack so a word that fits in Excel isn't broken here
+      return Math.min(Math.max(ch * charW * size + 14, 22), 320);
     });
     const total = widths.reduce((a, b) => a + b, 0);
     if (total > opt.width && opt.fit === "shrink") size = Math.max(5, size * (opt.width / total));
@@ -172,28 +184,48 @@ export function gridToBlocks(grid: Grid, opt: TableOptions): Block[] {
     return out;
   }
 
+  const styled = !!grid.styled;
+  const base = grid.baseSize ?? 11;
   const rows: Row[] = grid.rows.map((r, ri) => {
     const isHead = grid.header && ri === 0;
-    const fill = isHead ? HEADER_FILL : opt.zebra && ri % 2 === (grid.header ? 0 : 1) ? ZEBRA_FILL : undefined;
-    const cells: Cell[] = Array.from({ length: cols }, (_, c) => {
+    const auto = styled ? undefined : isHead ? HEADER_FILL : opt.zebra && ri % 2 === (grid.header ? 0 : 1) ? ZEBRA_FILL : undefined;
+    const cells: Cell[] = [];
+    for (let c = 0; c < cols; c++) {
       const cell = r[c];
-      const align: Align = cell?.num && !isHead ? "right" : isHead && cell?.num ? "right" : "left";
-      return {
+      if (cell?.covered) continue;
+      const st = cell?.style;
+      const align: Align = st?.align ?? (cell?.num ? "right" : "left");
+      const cellSize = st?.size ? Math.max(4, Math.min(size * 3, (size * st.size) / base)) : size;
+      cells.push({
         header: isHead,
-        colSpan: 1,
-        rowSpan: 1,
-        fill,
+        colSpan: cell?.colSpan ?? 1,
+        rowSpan: cell?.rowSpan ?? 1,
+        fill: st?.fill ?? auto,
         blocks: [
           {
             kind: "para",
-            inlines: cell?.text ? [{ kind: "text", text: cell.text, style: textStyle(size, isHead) }] : [],
+            inlines: cell?.text
+              ? [
+                  {
+                    kind: "text",
+                    text: cell.text,
+                    style: {
+                      ...textStyle(cellSize, !!st?.bold || (isHead && !styled)),
+                      italic: !!st?.italic,
+                      underline: !!st?.underline,
+                      strike: !!st?.strike,
+                      color: st?.color,
+                    },
+                  },
+                ]
+              : [],
             align,
             heading: 0,
             indent: 0,
           },
         ],
-      };
-    });
+      });
+    }
     return { header: isHead, cells };
   });
   const table: TableBlock = { kind: "table", rows };

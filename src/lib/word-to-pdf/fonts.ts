@@ -3,8 +3,8 @@
  *  - Arial/Times/Courier-like text uses the PDF standard fonts (not embedded, tiny files).
  *  - Calibri and Cambria text uses bundled metric-compatible Carlito and Caladea (embedded) so line breaks match Word.
  *  - A word whose glyphs the chosen face lacks switches, for that word only, to an embedded
- *    Liberation Sans (Latin, Greek, Cyrillic). Glyphs nobody has (CJK, Arabic, ...) become "?"
- *    and are reported.
+ *    Liberation Sans (Latin, Greek, Cyrillic). Currency signs it lacks (₹, ₽, ₺, ...) come from a
+ *    small DejaVu Sans subset. Glyphs nobody has (CJK, Arabic, ...) become "?" and are reported.
  */
 import { StandardFonts, type PDFDocument, type PDFFont } from "@cantoo/pdf-lib";
 
@@ -49,7 +49,11 @@ const FILES: Record<string, string> = {
   carlito: "Carlito",
   caladea: "Caladea",
   uni: "LiberationSans",
+  cur: "DejaVuCurrency",
 };
+type Bundled = "carlito" | "caladea" | "uni" | "cur";
+/** the Currency Symbols block, which the DejaVuCurrency subset covers */
+const isCurrency = (cp: number) => cp >= 0x20a0 && cp <= 0x20c0;
 const SUFFIX: Record<string, string> = { "0-0": "Regular", "1-0": "Bold", "0-1": "Italic", "1-1": "BoldItalic" };
 
 interface Face {
@@ -84,6 +88,7 @@ export class FontSet {
   private faces = new Map<string, Face>();
   private missing = new Set<number>();
   private hasUni = false;
+  private hasCur = false;
   private fontkit?: { create(bytes: Uint8Array): unknown };
 
   constructor(doc: PDFDocument) {
@@ -129,10 +134,18 @@ export class FontSet {
           "Could not load the Unicode font, so characters outside Western European text were replaced with '?'.",
         );
       }
+      const uni = this.hasUni ? this.embedded("uni", "0-0") : undefined;
+      const needCur = list.some((r) =>
+        Array.from(normalise(r.text)).some((ch) => {
+          const cp = ch.codePointAt(0) as number;
+          return isCurrency(cp) && !this.primary(r.key).has(cp) && !uni?.has(cp);
+        }),
+      );
+      if (needCur) this.hasCur = await this.loadFamily("cur", loadFont);
     }
   }
 
-  private async loadFamily(name: "carlito" | "caladea" | "uni", loadFont: (f: string) => Promise<Uint8Array>) {
+  private async loadFamily(name: Bundled, loadFont: (f: string) => Promise<Uint8Array>) {
     try {
       this.fontkit ??= (await import("@pdf-lib/fontkit")).default as unknown as { create(b: Uint8Array): unknown };
       for (const v of Object.keys(SUFFIX)) {
@@ -209,22 +222,30 @@ export class FontSet {
     return this.primary(key).lineFactor;
   }
 
-  /** The face and text to draw for one space-free word. */
-  private resolve(word: string, key: FontKey): Seg {
+  /** The faces and text to draw for one space-free word. */
+  private resolve(word: string, key: FontKey): Seg[] {
     const primary = this.primary(key);
     const cps = Array.from(word, (c) => c.codePointAt(0) as number);
-    if (cps.every((cp) => primary.has(cp))) return { face: primary, text: word };
+    if (cps.every((cp) => primary.has(cp))) return [{ face: primary, text: word }];
+    // the whole word switches face so its letters match; only glyphs that face lacks go further
     const face = this.hasUni ? this.embedded("uni", this.variant(key)) : primary;
-    let out = "";
+    const cur = this.hasCur ? this.embedded("cur", this.variant(key)) : undefined;
+    const segs: Seg[] = [];
+    const push = (f: Face, t: string) => {
+      const last = segs[segs.length - 1];
+      if (last && last.face === f) last.text += t;
+      else segs.push({ face: f, text: t });
+    };
     for (const ch of word) {
       const cp = ch.codePointAt(0) as number;
-      if (face.has(cp)) out += ch;
+      if (face.has(cp)) push(face, ch);
+      else if (cur?.has(cp)) push(cur, ch);
       else {
-        out += "?";
+        push(face, "?");
         this.missing.add(cp);
       }
     }
-    return { face, text: out };
+    return segs;
   }
 
   /** Split text into runs of one face each, exactly as it will be measured and drawn. */
@@ -233,10 +254,12 @@ export class FontSet {
     for (const tok of normalise(text).split(/( +)/)) {
       if (!tok) continue;
       const isSpace = tok[0] === " ";
-      const prev = segs[segs.length - 1];
-      const seg: Seg = isSpace ? { face: prev?.face ?? this.primary(key), text: tok } : this.resolve(tok, key);
-      if (prev && prev.face === seg.face) prev.text += seg.text;
-      else segs.push(seg);
+      const parts: Seg[] = isSpace ? [{ face: segs[segs.length - 1]?.face ?? this.primary(key), text: tok }] : this.resolve(tok, key);
+      for (const seg of parts) {
+        const prev = segs[segs.length - 1];
+        if (prev && prev.face === seg.face) prev.text += seg.text;
+        else segs.push(seg);
+      }
     }
     return segs;
   }
