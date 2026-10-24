@@ -24,6 +24,7 @@ import {
   partNote,
   planByBookmarks,
   planByText,
+  sanitizeFileName,
   readOutline,
   readPageTexts,
   type SplitPart,
@@ -811,6 +812,27 @@ export async function processSplitPdf(
       note,
     });
   };
+
+  if (options.mode === "smart") {
+    const { readSmartPages } = await import("@/lib/smart-split/read");
+    const { findDocuments, smartDocs } = await import("@/lib/smart-split/detect");
+    const pages = await readSmartPages(item.file, (done, total) => onProgress((done / total) * 0.8));
+    const plan = findDocuments(pages);
+    const docs = smartDocs(plan, pages, { off: options.smartOff, on: options.smartOn, dropBlank: options.dropBlank });
+    if (docs.length < 2) throw new Error("Only one document was found in this PDF. Switch on a suggested cut, or split by ranges.");
+    const names = uniqueNames(
+      docs.map((doc, i) => `${base}-${String(i + 1).padStart(Math.max(2, String(docs.length).length), "0")}-${sanitizeFileName(doc.label, 60)}.pdf`),
+    );
+    for (let i = 0; i < docs.length; i++) {
+      const { pages: list, reasons } = docs[i];
+      const span = list.length === 1 ? `Page ${list[0] + 1}` : `Pages ${list[0] + 1}-${list.at(-1)! + 1}`;
+      push(await savePageSubset(donor, list), names[i], i === 0 ? span : `${span}. ${reasons[0] ?? ""}`.trim());
+      onProgress(0.8 + ((i + 1) / docs.length) * 0.2);
+    }
+    const dropped = plan.blanks.length && options.dropBlank ? plan.blanks.length : 0;
+    if (dropped) results[0].note = `${results[0].note ?? ""} ${dropped} blank page${dropped === 1 ? "" : "s"} left out.`.trim();
+    return results;
+  }
 
   if (options.mode === "bookmarks" || options.mode === "text") {
     const data = new Uint8Array(await item.file.arrayBuffer());

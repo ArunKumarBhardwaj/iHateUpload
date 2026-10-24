@@ -261,7 +261,11 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
     },
     {
       q: "How can I split a PDF?",
-      a: "Every page, by page ranges, in half, by file size in MB, by bookmarks, or by text, which starts a new file at each page containing a phrase you enter.",
+      a: "Every page, by page ranges, in half, by file size in MB, by bookmarks, by text, which starts a new file at each page containing a phrase you enter, or Find documents.",
+    },
+    {
+      q: "Can it split a combined scan into separate documents?",
+      a: "Yes. Find documents reads every page in your browser, with OCR for scans, and cuts where a new document starts: a page 1, a new title or letterhead, a new invoice or account number, a letter greeting, a change of page size or a blank separator sheet. Each cut shows why it was made, you can switch any off, and near misses are offered as extra cuts. Blank sheets are left out. Nothing is uploaded and no AI service is used.",
     },
     {
       q: "How do I get the results?",

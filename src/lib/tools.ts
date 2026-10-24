@@ -397,14 +397,14 @@ export const TOOLS: ToolDefinition[] = [
     title: "Split PDF",
     shortTitle: "Split PDF",
     description:
-      "Split one PDF by page, range, half, or size. Download what you need.",
+      "Split one PDF by page, range, half or size, or let it find where each document starts in a combined scan.",
     accept: "application/pdf,.pdf",
     multiple: false,
     ordered: false,
     actionLabel: "Split PDF",
     seoTitle: "Split PDF Online Free — No Upload",
     seoDescription:
-      "Split PDF online free into separate pages. Extract pages in your browser — no upload, no signup.",
+      "Split PDF online free into separate pages, or smart-split a combined scan into its documents. Runs in your browser — no upload, no signup.",
     seoHowTo: [
       "Choose the PDF you want to split.",
       "Pick how to split, then click Split PDF to build the files locally.",

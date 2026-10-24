@@ -189,6 +189,8 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
         ? "Cut at the PDF's own bookmarks. The files below are exactly what you will get."
         : options.mode === "text"
           ? "Start a new file at every page that contains your text. The files below update as you type."
+          : options.mode === "smart"
+            ? "Finds where each document starts in a combined PDF or scan, from page numbers, titles, letterheads, reference numbers and blank sheets. Scans are read with OCR in this tab; nothing is uploaded."
           : "Pick how to cut the PDF. Each piece is its own file.";
     case "metadata":
       return "Every property the PDF carries, ready to edit or clear. Nothing leaves this tab.";

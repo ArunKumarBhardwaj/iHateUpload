@@ -17,6 +17,8 @@ import {
 } from "@/lib/split-plan";
 import type { ToolOptions } from "@/lib/tool-options";
 
+import { SmartSplitPanel } from "./smart-split-panel";
+
 type SplitOptions = Extract<ToolOptions, { kind: "split" }>;
 
 const OPTION_BUTTON = "h-10 sm:h-7";
@@ -155,6 +157,9 @@ export function SplitExtras({
       : null;
   }, [ready, options, pageCount, depth, baseName]);
 
+  if (options.mode === "smart") {
+    return <SmartSplitPanel options={options} onOptions={onOptions} file={file} disabled={disabled} />;
+  }
   if (!active) return null;
 
   if (source?.status === "failed") {

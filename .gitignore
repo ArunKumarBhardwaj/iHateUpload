@@ -82,3 +82,5 @@ internal/benchmarks/pdf-to-markdown/out/
 internal/benchmarks/translate/out/
 internal/benchmarks/summarize/out/
 internal/benchmarks/summarize/fx/
+internal/benchmarks/smart-split/out/
+internal/benchmarks/smart-split/fx/

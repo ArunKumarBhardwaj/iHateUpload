@@ -90,7 +90,8 @@ export type SplitMode =
   | "half"
   | "size"
   | "bookmarks"
-  | "text";
+  | "text"
+  | "smart";
 
 export type PdfImageDpi = 72 | 150 | 300 | 600;
 
@@ -165,6 +166,11 @@ export type ToolOptions =
       regex: boolean;
       matchCase: boolean;
       wholeWord: boolean;
+      /** Smart mode: found document starts switched off, near misses switched on, page numbers zero-based. */
+      smartOff: number[];
+      smartOn: number[];
+      /** Smart mode: leave blank separator sheets out. */
+      dropBlank: boolean;
     }
   | {
       kind: "pdf-image";
@@ -657,6 +663,7 @@ export const SPLIT_MODES: { id: SplitMode; title: string }[] = [
   { id: "size", title: "By size" },
   { id: "bookmarks", title: "By bookmarks" },
   { id: "text", title: "By text" },
+  { id: "smart", title: "Find documents" },
 ];
 
 export const PDF_IMAGE_DPIS: { id: PdfImageDpi; title: string }[] = [
@@ -733,6 +740,9 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         regex: false,
         matchCase: false,
         wholeWord: false,
+        smartOff: [],
+        smartOn: [],
+        dropBlank: true,
       };
     case "pdf-image":
       return {
