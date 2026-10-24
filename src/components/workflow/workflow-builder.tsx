@@ -462,7 +462,7 @@ export function WorkflowBuilder() {
                 ))}
               </div>
             )}
-            <label className="block">
+            <label className="relative block w-full max-w-xs">
               <span className="sr-only">Add a step</span>
               <select
                 aria-label="Add a step"
@@ -471,7 +471,7 @@ export function WorkflowBuilder() {
                 onChange={(e) => {
                   if (e.target.value) addStep(e.target.value as ToolId);
                 }}
-                className="h-9 w-full max-w-xs rounded-lg border border-ink/15 bg-background px-2 text-sm text-ink"
+                className="h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-transparent pr-9 pl-3 text-sm text-ink outline-none transition-colors hover:border-ink/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
               >
                 <option value="">{suggested.length ? "More tools…" : "Choose a tool…"}</option>
                 {rest.map((id) => (
@@ -480,6 +480,10 @@ export function WorkflowBuilder() {
                   </option>
                 ))}
               </select>
+              <ChevronDown
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
+              />
             </label>
           </div>
         )}
