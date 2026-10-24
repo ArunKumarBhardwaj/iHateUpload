@@ -73,8 +73,10 @@ for (const doc of DOCS) {
   const dst = await pdfText(out + doc + "-es.pdf");
   const numbers = [...new Set(src.text.match(/\d[\d.,:/%$-]*\d|\d/g) ?? [])];
   const kept = numbers.filter((n) => dst.text.includes(n)).length / Math.max(1, numbers.length);
-  // English words of 5+ letters that survive (names and brands survive too, so this is never 0).
-  const words = [...new Set((src.text.match(/\b[a-z]{5,}\b/g) ?? []))];
+  // English words of 5+ letters that survive, counted only in real sentences (two or more English
+  // function words): the corpus pads pages with random word lists that have nothing to translate.
+  const sentences = src.text.split(/(?<=[.!?:])\s+/).filter((s) => (s.match(/\b(the|and|with|of|to|for|is|are|on|by|your|our)\b/gi) ?? []).length >= 2);
+  const words = [...new Set(sentences.join(" ").match(/\b[a-z]{5,}\b/g) ?? [])];
   const left = words.filter((w) => new RegExp(`\\b${w}\\b`).test(dst.text)).length / Math.max(1, words.length);
   const spanish = (dst.text.match(SPANISH) ?? []).length;
   rows.push({ doc, pages: `${src.pages}->${dst.pages}`, numbersKept: +kept.toFixed(2), englishLeft: +left.toFixed(2), spanishWords: spanish });

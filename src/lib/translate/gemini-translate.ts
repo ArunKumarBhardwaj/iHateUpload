@@ -36,9 +36,11 @@ export function buildTranslateBody(target: string, texts: string[]) {
   const { name } = targetLanguage(target);
   const system =
     `Translate each string in the JSON list into ${name}. Reply with a JSON list of strings of exactly the same ` +
-    "length and order, one translation per string. Keep numbers, amounts, dates, names of people and companies, " +
-    "email addresses, web addresses, codes and IDs as they are, and any list marker (•, 1., a)) at the start. Keep a string that is already in " +
-    `${name}, or has nothing to translate, unchanged. Do not merge, split, explain or add notes.`;
+    "length and order, one translation per string. Translate every string fully, including headings, titles, " +
+    "labels, job titles and short phrases. Leave unchanged only names of people, places and companies, numbers, " +
+    "dates, codes and IDs, email and web addresses, and any list marker (•, 1., a)) at the start. Write amounts " +
+    `exactly as in the source, with the currency symbol in the same place. If a string is already in ${name}, ` +
+    "return it as it is. Do not merge, split, explain or add notes.";
   return {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: JSON.stringify(texts) }] }],
