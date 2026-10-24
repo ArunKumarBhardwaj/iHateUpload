@@ -1,8 +1,9 @@
 import { VERSIONED_ASSET } from "./wasm-assets";
 
 export const CACHE = "ihateupload-static-v2";
-export const IMMUTABLE = /\.(?:woff2?|png|svg|ico|webmanifest)$/;
-export const CODE = /\.(?:js|css|mjs|wasm)$/;
+export const IMMUTABLE = /\.(?:woff2?|png|svg|ico)$/;
+/** Fetched fresh when online. The manifest is here so installed apps see new features like the share target. */
+export const CODE = /\.(?:js|css|mjs|wasm|webmanifest)$/;
 
 export type CachePolicy = "skip" | "network-first" | "cache-first";
 

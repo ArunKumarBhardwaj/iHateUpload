@@ -70,8 +70,8 @@
 
   // src/lib/sw-cache.ts
   var CACHE = "ihateupload-static-v2";
-  var IMMUTABLE = /\.(?:woff2?|png|svg|ico|webmanifest)$/;
-  var CODE = /\.(?:js|css|mjs|wasm)$/;
+  var IMMUTABLE = /\.(?:woff2?|png|svg|ico)$/;
+  var CODE = /\.(?:js|css|mjs|wasm|webmanifest)$/;
   function cachePolicy(input) {
     if (input.method !== "GET")
       return "skip";

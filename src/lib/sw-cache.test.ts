@@ -78,7 +78,7 @@ test("cache-first for fonts, images, and the manifest", () => {
       url: `${origin}/site.webmanifest`,
       origin,
     }),
-  ).toBe("cache-first");
+  ).toBe("network-first");
 });
 
 test("leaves HTML tool routes uncached", () => {
