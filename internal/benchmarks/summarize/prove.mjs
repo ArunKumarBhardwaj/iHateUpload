@@ -150,7 +150,10 @@ else check("figures in the summaries are in the PDFs (>= 95%), and any that are 
 if (!stub) {
   const spanish = (longMd.match(/\b(de|la|el|los|las|para|por|con|una|del|que|en)\b/gi) ?? []).length;
   const regions = ["North", "South", "East", "West", "Central", "Coastal"].filter((r) => longMd.includes(r) || longMd.includes(r.slice(0, 4))).length;
-  check("the long report's summary is in Spanish and covers the whole file", spanish > 20 && longRow.points >= 6, `${spanish} Spanish words, ${longRow.points} points, ${regions}/6 regions named`);
+  // A line with 3+ English function words is an English sentence left in a Spanish summary.
+  const english = longMd.split("\n").slice(3).filter((l) => (l.match(/\b(the|and|of|on|in|to|was|were|reached|last|year)\b/g) ?? []).length >= 3);
+  const revenue = (longMd.split("## Key points")[1] ?? "").split("\n").filter((l) => /\$\d/.test(l)).length;
+  check("the long report's summary is all Spanish and covers the whole file", spanish > 20 && english.length === 0 && longRow.points >= 6, `${spanish} Spanish words, ${english.length} English lines, ${longRow.points} points, ${regions}/6 regions named, ${revenue} revenue points`);
 }
 check("only text was sent: POSTs to /api/summarize only, no PDF bytes", posts.every((p) => p === "/api/summarize") && !pdfBytesSent, `${posts.length} requests`);
 check("no page errors", errors.length === 0, errors.join(" | "));

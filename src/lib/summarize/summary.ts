@@ -224,7 +224,9 @@ export function summaryMarkdown(
   }
   if (summary.sections.length) {
     out.push("", "## Section by section");
-    for (const s of summary.sections) out.push("", `### ${s.heading}${cite(s.pages)}`, "", mark(s.summary));
+    // A section's two pages are its first and last: the model gives [1, 20] for pages 1 to 20.
+    const span = (pages: number[]) => (pages.length === 2 ? Array.from({ length: pages[1] - pages[0] + 1 }, (_, i) => pages[0] + i) : pages);
+    for (const s of summary.sections) out.push("", `### ${s.heading}${cite(span(s.pages))}`, "", mark(s.summary));
   }
   if (unchecked.size) {
     out.push("", `> ⚠ Not found in the PDF: ${[...unchecked].join(", ")}. Check ${unchecked.size === 1 ? "this figure" : "these figures"} before relying on ${unchecked.size === 1 ? "it" : "them"}.`);

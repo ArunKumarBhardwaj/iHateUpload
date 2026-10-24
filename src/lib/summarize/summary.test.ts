@@ -22,7 +22,10 @@ const sample: Summary = {
     { text: "Tax is charged at 8.25%.", pages: [1] },
     { text: "Late payment adds a fee of $95.", pages: [2, 3, 4] },
   ],
-  sections: [{ heading: "Line items", summary: "Three line items for office chairs.", pages: [1] }],
+  sections: [
+    { heading: "Line items", summary: "Three line items for office chairs.", pages: [1] },
+    { heading: "Terms", summary: "Payment terms.", pages: [2, 4] },
+  ],
 };
 
 test("the request asks for JSON with pages, in the length and language chosen", () => {
@@ -79,6 +82,7 @@ test("the Markdown cites pages, marks figures not in the PDF, and says who wrote
   expect(markdown).toContain("- Late payment adds a fee of $95. (pp. 2–4)");
   expect(markdown).toContain("- The total with tax is $5,209.53. ⚠\n");
   expect(markdown).toContain("### Line items (p. 1)");
+  expect(markdown).toContain("### Terms (pp. 2–4)");
   expect(markdown).toContain("> ⚠ Not found in the PDF: 5,209.53.");
   expect(unchecked).toEqual(["5,209.53"]);
 });
