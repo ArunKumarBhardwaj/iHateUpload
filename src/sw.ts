@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 
+import { receiveShare, SHARE_ACTION } from "./lib/share-inbox";
 import { CACHE, cacheFirst, cachePolicy, networkFirst } from "./lib/sw-cache";
 
 declare const self: ServiceWorkerGlobalScope;
@@ -25,6 +26,11 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
+  // A file shared from another app: answered here, on the device. It never reaches the network.
+  if (request.method === "POST" && new URL(request.url).pathname === SHARE_ACTION) {
+    event.respondWith(receiveShare(request));
+    return;
+  }
   const policy = cachePolicy({
     method: request.method,
     mode: request.mode,
