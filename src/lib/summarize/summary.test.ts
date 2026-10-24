@@ -28,7 +28,7 @@ const sample: Summary = {
 test("the request asks for JSON with pages, in the length and language chosen", () => {
   const body = buildSummaryBody("--- Page 1 ---\nHello", { length: "short", language: "fr" });
   const system = body.systemInstruction.parts[0].text;
-  expect(system).toContain("Write in French");
+  expect(system).toContain("section summary in French");
   expect(system).toContain("points: 3 to 5");
   expect(system).toContain("exactly as the document writes it");
   expect(body.generationConfig.responseMimeType).toBe("application/json");
@@ -38,6 +38,10 @@ test("the request asks for JSON with pages, in the length and language chosen", 
   );
   // A part of a long document is always summarized in detail, so the merge has enough to work from.
   expect(buildSummaryBody("x", { length: "short", language: "auto" }, "part").systemInstruction.parts[0].text).toContain("points: 8 to 15");
+  // Parts stay in the document's language; only the merge writes the language asked for.
+  expect(buildSummaryBody("x", { length: "short", language: "es" }, "part").systemInstruction.parts[0].text).not.toContain("Spanish");
+  expect(buildSummaryBody("x", { length: "short", language: "es" }, "combine").systemInstruction.parts[0].text).toContain("in Spanish");
+  expect(buildSummaryBody("x", { length: "short", language: "es" }, "combine").systemInstruction.parts[0].text).toContain("say each fact once");
 });
 
 test("a reply is parsed, cited pages it does not have are dropped, and junk is refused", () => {

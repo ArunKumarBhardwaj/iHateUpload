@@ -38,13 +38,14 @@ const SIZE: Record<SummaryLength, string> = {
 function languageLine(language: string) {
   return language === "auto"
     ? "Write in the language the document is written in."
-    : `Write in ${targetLanguage(language).name}, whatever language the document is in.`;
+    : `Write the title, overview, every point, heading and section summary in ${targetLanguage(language).name}, translating as you go, whatever language the text is in.`;
 }
 
 export function buildSummaryBody(text: string, request: SummaryRequest, stage: SummaryStage = "whole") {
   const source =
     stage === "combine"
-      ? "The notes below summarize consecutive parts of one document, each with the pages it came from. Merge them into one summary of the whole document."
+      ? "The notes below summarize consecutive parts of one document, each with the pages it came from. Merge them into one summary of the whole document: " +
+        "say each fact once, joining points that repeat across parts and keeping all their pages, and make a section that runs across two parts one section with the pages of both."
       : stage === "part"
         ? "The text below is one part of a longer document. Summarize this part; another step merges the parts."
         : "Summarize the document below for a reader who has not seen it.";
@@ -55,7 +56,8 @@ export function buildSummaryBody(text: string, request: SummaryRequest, stage: S
     "points: the key facts, decisions, amounts, dates, deadlines and obligations, one sentence each, with the page numbers each one comes from.",
     "sections: the main parts in order, each with a heading, a short summary and its pages.",
     "Copy every number, amount, date, percentage and name exactly as the document writes it. Do not work out new totals. Do not add advice or opinions.",
-    languageLine(request.language),
+    // Parts stay in the document's language; the merge writes the one language asked for, so it never mixes two.
+    languageLine(stage === "part" ? "auto" : request.language),
     stage === "part" ? SIZE.detailed : SIZE[request.length],
   ].join(" ");
   return {
