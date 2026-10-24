@@ -210,7 +210,8 @@ const LIST_TYPE: Record<string, string | undefined> = {
   upperRoman: "I",
 };
 
-function markerText(p: ParagraphBlock, counts: Map<string, number>): string {
+/** The visible marker of a list paragraph (•, 3., b)), counting items per list and level in `counts`. */
+export function markerText(p: ParagraphBlock, counts: Map<string, number>): string {
   const list = p.list;
   if (!list) return "";
   if (list.kind === "bullet") return list.glyph || "•";

@@ -284,7 +284,13 @@ function withoutInstructions(data: Uint8Array): Uint8Array {
  * Empties every glyph outside `keep` (and their composite parts) but keeps the
  * glyph count, so the cmap, hmtx and the PDF's codes stay valid.
  */
-export function zeroUnusedGlyphs(font: Uint8Array, keep: Set<number>, cmap?: Map<number, number>): Uint8Array {
+export function zeroUnusedGlyphs(
+  font: Uint8Array,
+  keep: Set<number>,
+  cmap?: Map<number, number>,
+  /** Tables to keep that would otherwise go, e.g. "name" for fontkit. */
+  keepTables: string[] = [],
+): Uint8Array {
   const sfnt = readSfnt(font);
   const head = sfnt?.tables.get("head");
   const loca = sfnt?.tables.get("loca");
@@ -341,7 +347,7 @@ export function zeroUnusedGlyphs(font: Uint8Array, keep: Set<number>, cmap?: Map
   tables.set("head", newHead);
   tables.set("loca", newLoca);
   tables.set("glyf", newGlyf);
-  for (const t of DROP) tables.delete(t);
+  for (const t of DROP) if (!keepTables.includes(t)) tables.delete(t);
   const post = tables.get("post");
   if (post && post.length >= 32) {
     // Version 3: no glyph names; the PDF finds glyphs through the cmap.

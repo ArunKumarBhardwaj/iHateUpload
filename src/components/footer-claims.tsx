@@ -5,12 +5,13 @@ import { usePathname } from "next/navigation";
 
 /** The footer's privacy claims, which are false for the one tool that talks to Gemini. */
 export function FooterClaims() {
-  const onAsk = usePathname() === "/tools/ask-pdf";
+  const path = usePathname();
+  const onAsk = path === "/tools/ask-pdf" || path === "/tools/translate-pdf";
   return (
     <>
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
         {onAsk
-          ? "On this page your PDFs stay in your browser, but their extracted text goes to Google Gemini to answer you."
+          ? "On this page your PDFs stay in your browser, but their extracted text goes to Google Gemini."
           : "PDF and image tools that run in your browser. Your files never leave your device."}
       </p>
       <ul className="mt-5 space-y-2 text-sm text-ink">

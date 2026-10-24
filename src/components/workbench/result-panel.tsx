@@ -49,6 +49,7 @@ export function ResultPanel({
   continueTargets,
   onContinue,
   workflowHref,
+  builtNote = "Built on this device. Nothing was uploaded.",
 }: {
   results: ResultItem[];
   showSaving: boolean;
@@ -56,6 +57,8 @@ export function ResultPanel({
   onContinue: (tool: ToolDefinition) => void;
   /** Where "save these steps as a workflow" goes; absent for tools a workflow cannot run. */
   workflowHref?: string;
+  /** The privacy line under the title, for tools that send text elsewhere. */
+  builtNote?: string;
 }) {
   const delta = showSaving ? sizeDelta(results) : null;
   const answer = results.find((result) => result.previewText)?.previewText;
@@ -77,7 +80,7 @@ export function ResultPanel({
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
           {answer
-            ? "Built on this device. Nothing was uploaded."
+            ? builtNote
             : delta ? (
               <>
                 {formatBytes(delta.before)} → {formatBytes(delta.after)}{" "}
@@ -86,7 +89,7 @@ export function ResultPanel({
                 </span>
               </>
             ) : (
-              "Built on this device. Nothing was uploaded."
+              builtNote
             )}
         </p>
       </div>

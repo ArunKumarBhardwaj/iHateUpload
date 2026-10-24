@@ -21,6 +21,7 @@ import {
   Layers,
   ListOrdered,
   Layers2,
+  Languages,
   Archive,
   LayoutGrid,
   Lock,
@@ -148,6 +149,7 @@ const ACTION: Partial<Record<ToolId, LucideIcon>> = {
   "extract-text": FileType,
   "compare-pdfs": Columns2,
   "ask-pdf": MessageCircleQuestionMark,
+  "translate-pdf": Languages,
 };
 
 export function groupOf(id: ToolId) {

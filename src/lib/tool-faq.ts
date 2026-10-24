@@ -108,6 +108,28 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
       a: "Yes. The file is a standard .pptx, so PowerPoint, Keynote, Google Slides and LibreOffice Impress all open it.",
     },
   ],
+  "translate-pdf": [
+    {
+      q: "Is my PDF uploaded to translate it?",
+      a: "The PDF file never leaves your browser. Only its text is sent to Google Gemini to be translated: through our server, which holds the key, or straight from your browser to Google if you use your own Gemini key. The translated PDF is built in your tab.",
+    },
+    {
+      q: "Does the translation keep the layout?",
+      a: "Yes. The original words are deleted from each paragraph and table cell, and the translation is drawn in the same place, made smaller only when it would not fit. Pictures, lines, colours and tables stay as they were.",
+    },
+    {
+      q: "Which languages can I translate into?",
+      a: "English, Spanish, French, German, Portuguese, Italian, Dutch, Polish, Turkish, Indonesian, Vietnamese, Swedish, Danish, Norwegian, Finnish, Czech, Romanian, Hungarian, Russian, Ukrainian, Greek, Hindi, Marathi and Nepali. The source can be any language Gemini reads.",
+    },
+    {
+      q: "Is it free? Is there a limit?",
+      a: "Yes, it is free with no sign-up. Our shared key translates up to about 30 pages of text per file; for longer files pick fewer pages, or paste your own free Gemini key, which has no limit here.",
+    },
+    {
+      q: "Does it work on scanned PDFs?",
+      a: "Yes. Pages with no text are read with OCR first; the translation is drawn on a white patch over the scanned words.",
+    },
+  ],
   "pdf-to-markdown": [
     {
       q: "Is my PDF uploaded to make the Markdown?",

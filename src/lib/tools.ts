@@ -50,6 +50,7 @@ export type ToolId =
   | "edit-metadata"
   | "bates-numbering"
   | "ask-pdf"
+  | "translate-pdf"
   | "heic-to-jpg"
   | "heic-to-pdf"
   | "compress-image"
@@ -127,6 +128,7 @@ export type ToolDefinition = {
     | "metadata"
     | "ocr"
     | "ask"
+    | "translate"
     | "scan"
     | "image-crop"
     | "image-turn"
@@ -1122,6 +1124,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: false,
     kind: "pdf",
     ui: "metadata",
+  },
+  {
+    id: "translate-pdf",
+    slug: "translate-pdf",
+    title: "Translate PDF",
+    shortTitle: "Translate",
+    description:
+      "Translate a PDF into 24 languages and keep its layout: the words change, the pictures, tables and colours stay. Gemini does the translating.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Translate PDF",
+    seoTitle: "Translate PDF Free — Keep the Layout, 24 Languages",
+    seoDescription:
+      "Translate PDF documents free into Spanish, French, German, Hindi and 20 more languages, keeping the layout, tables and pictures. Text goes to Google Gemini; the PDF itself never leaves your browser.",
+    seoHowTo: [
+      "Drop one or more PDFs into the workspace. The file stays on your device.",
+      "Pick the language. The text is sent to Google Gemini through our server, or straight from your browser with your own key.",
+      "Click Translate PDF and download the translated copy, laid out like the original.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "translate",
   },
   {
     id: "ask-pdf",

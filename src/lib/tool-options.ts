@@ -339,6 +339,15 @@ export type ToolOptions =
   | { kind: "ocr"; language: string; output: OcrOutput; skipTextPages: boolean }
   | { kind: "ask"; question: string }
   | {
+      kind: "translate";
+      /** Language code from TARGET_LANGUAGES. */
+      target: string;
+      /** Our server's key, or the person's own key sent straight to Google. */
+      mode: "server" | "own";
+      key: string;
+      range: string;
+    }
+  | {
       kind: "scan";
       filter: ScanFilter;
       brightness: number;
@@ -909,6 +918,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       };
     case "ask":
       return { kind: "ask", question: "" };
+    case "translate":
+      return { kind: "translate", target: "es", mode: "server", key: "", range: "" };
     case "scan":
       return {
         kind: "scan",
@@ -960,6 +971,8 @@ export function optionsReady(
     case "pdf-to-markdown":
     case "pdf-to-pdfa":
       return true;
+    case "translate":
+      return options.mode === "server" || options.key.trim().length > 20;
     case "flatten":
       return (
         options.mode === "form" ||

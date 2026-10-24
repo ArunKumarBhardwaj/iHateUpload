@@ -11,6 +11,7 @@ import { OrganizePanel } from "@/components/workbench/page-tools/organize-panel"
 import { PageSizePanel } from "@/components/workbench/page-tools/page-size-panel";
 import { NupPanel } from "@/components/workbench/page-tools/nup-panel";
 import { ZipPanel } from "@/components/workbench/page-tools/zip-panel";
+import { TARGET_LANGUAGES } from "@/lib/translate/languages";
 import { MixPanel } from "@/components/workbench/page-tools/mix-panel";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
 import { SplitExtras } from "@/components/workbench/split-extras";
@@ -198,6 +199,10 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
         : options.layout === "pages"
           ? "Each page becomes a sheet, with its text and tables in the order they appear. Pages with no text are read with OCR."
           : "Every table goes on one sheet, one under another, each under its title. Pages with no text are read with OCR.";
+    case "translate":
+      return options.mode === "own"
+        ? "The PDF stays here. Its text goes from this tab straight to Google Gemini with your key; our server sees nothing."
+        : "The PDF stays here. Its text goes through our server to Google Gemini to be translated. The new PDF is built in this tab.";
     case "pdf-to-markdown":
       return options.output === "zip"
         ? "index.md plus an images folder, linked from the text. Headings, lists, tables and links come through; scans are read with OCR."
@@ -649,6 +654,73 @@ export function OptionsPanel({
               </span>
             </label>
           ) : null}
+        </div>
+      );
+
+    case "translate":
+      return (
+        <div className="space-y-4">
+          <Field label="Translate into" htmlFor="tr-target">
+            <select
+              id="tr-target"
+              className="border-input bg-background h-10 w-full rounded-xl border px-3 text-sm"
+              value={options.target}
+              disabled={disabled}
+              onChange={(e) => onOptions({ ...options, target: e.target.value })}
+            >
+              {TARGET_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Who translates</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["server", "Our server (free, no key)"],
+                  ["own", "My own Gemini key"],
+                ] as const
+              ).map(([mode, title]) => (
+                <Button
+                  key={mode}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.mode === mode ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, mode })}
+                >
+                  {title}
+                </Button>
+              ))}
+            </div>
+            {options.mode === "own" ? (
+              <Input
+                type="password"
+                aria-label="Gemini API key"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Paste your Gemini API key"
+                value={options.key}
+                disabled={disabled}
+                onChange={(e) => onOptions({ ...options, key: e.target.value })}
+              />
+            ) : null}
+          </div>
+          <Field label="Pages" htmlFor="tr-range">
+            <Input
+              id="tr-range"
+              value={options.range}
+              disabled={disabled}
+              onChange={(e) => onOptions({ ...options, range: e.target.value })}
+              placeholder="All pages, or e.g. 1-3, 7"
+              inputMode="text"
+              autoComplete="off"
+            />
+          </Field>
         </div>
       );
 
