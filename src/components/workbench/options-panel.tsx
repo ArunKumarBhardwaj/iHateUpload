@@ -137,6 +137,28 @@ export function optionsNeedCanvas(options: ToolOptions): boolean {
   );
 }
 
+/** What a batch does with settings drawn on the first file's preview. Null when nothing differs. */
+export function batchHint(options: ToolOptions, fileCount: number): string | null {
+  if (fileCount < 2) return null;
+  const others = fileCount - 1;
+  const rest = `the other ${others} file${others === 1 ? "" : "s"}`;
+  switch (options.kind) {
+    case "crop":
+      return options.applyAll
+        ? `The preview shows the first file. The same crop applies to every page of ${rest}.`
+        : `A different crop per page works on one PDF. Pick All pages to crop all ${fileCount}.`;
+    case "redact":
+      return `The preview shows the first file. Boxes you draw are blacked out at the same spot in ${rest}, and the kinds of data you accept are found again in each of them.`;
+    case "extract-images":
+      return `The grid shows the first file. The size filter applies to ${rest} too; every image that passes it is kept.`;
+    case "ocr":
+    case "pdf-image":
+      return `All ${fileCount} files use these settings, one after another.`;
+    default:
+      return null;
+  }
+}
+
 /** One sentence telling the reader what the panel next to it is asking for. */
 export function optionsHint(options: ToolOptions, actionLabel: string): string {
   switch (options.kind) {

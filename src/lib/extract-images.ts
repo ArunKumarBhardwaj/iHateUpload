@@ -7,6 +7,7 @@ import {
   type ImageScan,
 } from "@/lib/pdf-images";
 import type { ToolOptions } from "@/lib/tool-options";
+import { batchBaseNames } from "@/lib/batch";
 
 const cache = new WeakMap<File, Promise<ImageScan>>();
 
@@ -91,35 +92,52 @@ export async function processExtractImages(
   onProgress: (ratio: number) => void,
   options: ToolOptions,
 ): Promise<ResultItem[]> {
-  const item = files[0];
-  if (!item) throw new Error("Choose a PDF to pull images from.");
+  if (!files[0]) throw new Error("Choose a PDF to pull images from.");
   const opts =
     options.kind === "extract-images"
       ? options
       : { minEdge: 0, excluded: [] as string[] };
-  onProgress(0.1);
-  const scan = await scanFileImages(item.file);
-  if (scan.images.length === 0) {
-    throw new Error("This PDF has no embedded images to extract.");
+  const bases = batchBaseNames(files.map((f) => f.name));
+  const results: ResultItem[] = [];
+  const skipped: string[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    let scan: ImageScan;
+    try {
+      scan = await scanFileImages(item.file);
+    } catch (error) {
+      if (files.length === 1) throw error;
+      skipped.push(`${item.name} (could not be read)`);
+      continue;
+    }
+    const shown = filterBySize(scan.images, opts.minEdge);
+    // The grid shows the first file, so its unticked images only apply there.
+    const picked = i === 0 ? shown.filter((image) => !opts.excluded.includes(image.id)) : shown;
+    if (files.length === 1) {
+      if (scan.images.length === 0) throw new Error("This PDF has no embedded images to extract.");
+      if (picked.length === 0) throw new Error("No image passes the size filter. Lower it or select more.");
+    }
+    if (picked.length === 0) {
+      skipped.push(`${item.name} (no images${scan.images.length ? " pass the size filter" : ""})`);
+      continue;
+    }
+    for (const image of picked) {
+      const blob = new Blob([image.bytes as BlobPart], { type: IMAGE_MIME[image.format] });
+      results.push({
+        id: crypto.randomUUID(),
+        name: imageFileName(bases[i], image, shown.indexOf(image)),
+        size: blob.size,
+        blob,
+        originalSize: item.size,
+        note: `${image.width} x ${image.height} px`,
+      });
+    }
+    onProgress((i + 1) / files.length);
   }
-  const shown = filterBySize(scan.images, opts.minEdge);
-  const picked = shown.filter((image) => !opts.excluded.includes(image.id));
-  if (picked.length === 0) {
-    throw new Error("No image passes the size filter. Lower it or select more.");
+  if (results.length === 0) throw new Error("None of these PDFs has an image to extract.");
+  if (skipped.length) {
+    const last = results[results.length - 1];
+    last.note = `${last.note} · Skipped: ${skipped.join(", ")}.`;
   }
-  const base = item.name.replace(/\.[^.]+$/, "");
-  onProgress(1);
-  return picked.map((image) => {
-    const blob = new Blob([image.bytes as BlobPart], {
-      type: IMAGE_MIME[image.format],
-    });
-    return {
-      id: crypto.randomUUID(),
-      name: imageFileName(base, image, shown.indexOf(image)),
-      size: blob.size,
-      blob,
-      originalSize: item.size,
-      note: `${image.width} x ${image.height} px`,
-    };
-  });
+  return results;
 }

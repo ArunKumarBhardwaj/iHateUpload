@@ -209,14 +209,14 @@ export const TOOLS: ToolDefinition[] = [
     description:
       "Export every PDF page as a JPG image. Useful for sharing or editing.",
     accept: "application/pdf,.pdf",
-    multiple: false,
+    multiple: true,
     ordered: false,
     actionLabel: "Convert to JPG",
     seoTitle: "PDF to JPG Converter Free — No Upload",
     seoDescription:
-      "Convert PDF to JPG online free. Export every page as an image in your browser — no upload, no watermark.",
+      "Convert PDF to JPG online free, many PDFs at once. Export every page as an image in your browser — no upload, no watermark.",
     seoHowTo: [
-      "Drop a PDF file into the workspace.",
+      "Drop one PDF or many into the workspace.",
       "Pick a resolution and JPG quality, or switch to PNG, then click Convert to JPG.",
       "Download the images, or all pages as one zip.",
     ],
@@ -324,14 +324,14 @@ export const TOOLS: ToolDefinition[] = [
     description:
       "Export every PDF page as a PNG image. Stays in this tab.",
     accept: "application/pdf,.pdf",
-    multiple: false,
+    multiple: true,
     ordered: false,
     actionLabel: "Convert to PNG",
     seoTitle: "PDF to PNG Converter Free — No Upload",
     seoDescription:
-      "Convert PDF to PNG online free. Export every page as a PNG in your browser — no upload.",
+      "Convert PDF to PNG online free, many PDFs at once. Export every page as a PNG in your browser — no upload.",
     seoHowTo: [
-      "Drop a PDF file into the workspace.",
+      "Drop one PDF or many into the workspace.",
       "Pick a resolution (72 to 600 DPI), then click Convert to PNG.",
       "Download the images, or all pages as one zip.",
     ],
@@ -577,16 +577,16 @@ export const TOOLS: ToolDefinition[] = [
     description:
       "Trim margins on every page. The crop box stays on this device.",
     accept: "application/pdf,.pdf",
-    multiple: false,
+    multiple: true,
     ordered: false,
     actionLabel: "Crop PDF",
     seoTitle: "Crop PDF Online Free — No Upload",
     seoDescription:
       "Crop PDF pages online free. Trim margins in your browser — no upload, no watermark.",
     seoHowTo: [
-      "Choose the PDF you want to crop.",
+      "Choose one PDF or several. The same crop applies to every file.",
       "Drag the crop box to the area you want to keep.",
-      "Download the cropped PDF.",
+      "Download the cropped PDFs, one by one or as a zip.",
     ],
     showInNav: true,
     kind: "pdf",
@@ -600,16 +600,16 @@ export const TOOLS: ToolDefinition[] = [
     description:
       "Find emails, phones, cards, Aadhaar, PAN and more, or draw boxes. The covered pixels are destroyed in this tab.",
     accept: "application/pdf,.pdf",
-    multiple: false,
+    multiple: true,
     ordered: false,
     actionLabel: "Redact PDF",
     seoTitle: "Redact PDF Online Free — No Upload",
     seoDescription:
       "Redact a PDF online free. Auto-find emails, phones, cards, Aadhaar, PAN, IBAN and SSN, or draw boxes. Pixels are destroyed in your browser — no upload.",
     seoHowTo: [
-      "Choose the PDF you need to redact.",
+      "Choose one PDF or several. The first one is shown for review.",
       "Scan for personal info and untick anything to keep, or draw boxes over what must disappear.",
-      "Download the redacted PDF. The covered content is gone.",
+      "Download the redacted PDFs. Boxes you drew and the kinds of data you accepted are blacked out in every file.",
     ],
     showInNav: true,
     kind: "pdf",
@@ -669,14 +669,14 @@ export const TOOLS: ToolDefinition[] = [
     description:
       "Pull embedded images out of a PDF at their native size. Stays in this tab.",
     accept: "application/pdf,.pdf",
-    multiple: false,
+    multiple: true,
     ordered: false,
     actionLabel: "Extract images",
     seoTitle: "Extract Images from PDF Free — No Upload",
     seoDescription:
-      "Extract images from a PDF online free. Pull embedded pictures in your browser — no upload.",
+      "Extract images from PDFs online free, many files at once. Pull embedded pictures in your browser — no upload.",
     seoHowTo: [
-      "Choose a PDF that contains images.",
+      "Choose one PDF or several that contain images.",
       "Click Extract images. Each picture is saved at its own size.",
       "Download the image, or a zip if there are several.",
     ],
@@ -1037,14 +1037,14 @@ export const TOOLS: ToolDefinition[] = [
     description:
       "Make a scanned PDF searchable. Hindi keeps its letters. Tesseract runs in this tab. Slow on long scans.",
     accept: "application/pdf,.pdf",
-    multiple: false,
+    multiple: true,
     ordered: false,
     actionLabel: "Make searchable",
     seoTitle: "OCR PDF Online Free — Searchable Scans, No Upload",
     seoDescription:
-      "OCR a PDF online free. Make scanned pages searchable, including Hindi. Runs in your browser — no upload, no Premium.",
+      "OCR PDFs online free, many at once. Make scanned pages searchable, including Hindi. Runs in your browser — no upload, no Premium.",
     seoHowTo: [
-      "Choose a scanned or image-only PDF.",
+      "Choose one scanned PDF or a whole batch.",
       "Pick the language. Optionally keep a text file too.",
       "Download the searchable PDF. Original pages stay as images with invisible words on top.",
     ],

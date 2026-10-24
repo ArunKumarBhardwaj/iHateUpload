@@ -9,6 +9,7 @@ import type { PDFPageProxy } from "pdfjs-dist";
 
 import type { ScanPdfPage } from "@/lib/scan/build-pdf";
 import type { FileItem, ResultItem } from "@/lib/job";
+import type { PiiCategory } from "@/lib/pii-detect";
 import { stripInvisibleText } from "@/lib/page-ops";
 import { mapPixel } from "@/lib/page-tools/colour";
 import { recolourPages, withoutText } from "@/lib/page-tools/invert";
@@ -65,6 +66,9 @@ import {
 import { batesLabel, batesPlacement, batesReady } from "@/lib/bates";
 import { parseHexColor, watermarkStamps } from "@/lib/watermark";
 import { createOcrWorker } from "@/lib/tesseract";
+import { batchBaseNames } from "@/lib/batch";
+
+export { batchBaseNames };
 
 type ProgressFn = (ratio: number) => void;
 
@@ -87,6 +91,22 @@ function resultFrom(
     originalSize,
     ...extra,
   };
+}
+
+/** Notes which files of a batch failed on the last result, or throws when none worked. */
+function finishBatch(results: ResultItem[], failed: string[], none: string): ResultItem[] {
+  if (results.length === 0) throw new Error(failed.length ? `${none} (${failed.join(", ")})` : none);
+  if (failed.length > 0) {
+    const last = results[results.length - 1];
+    last.note = `${last.note ?? ""} Skipped: ${failed.join(", ")}.`.trim();
+  }
+  return results;
+}
+
+/** Why a file in a batch was skipped, in a few words. */
+function failReason(name: string, error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  return /password|encrypt/i.test(message) ? `${name} (locked)` : `${name} (${message || "could not be read"})`;
 }
 
 async function loadPdf(file: File) {
@@ -272,20 +292,65 @@ export function redactionBoxes(
     .map(({ pageIndex, x, y, w, h }) => ({ pageIndex, x, y, w, h }));
 }
 
+/** The kinds of personal data accepted on the first file, looked for again in the rest of a batch. */
+export function redactCategoriesForBatch(
+  options: Extract<ToolOptions, { kind: "redact" }>,
+): Set<PiiCategory> {
+  return new Set(options.findings.filter((f) => f.accepted).map((f) => f.category));
+}
+
 export async function processRedactPdf(
   files: FileItem[],
   onProgress: ProgressFn,
   options: ToolOptions,
 ): Promise<ResultItem[]> {
   if (options.kind !== "redact") throw new Error("Redact PDF needs boxes.");
-  const item = files[0];
-  if (!item) throw new Error("Choose a PDF to redact.");
-  const boxes = redactionBoxes(options);
-  if (boxes.length === 0) {
+  if (!files[0]) throw new Error("Choose a PDF to redact.");
+  const first = redactionBoxes(options);
+  const categories = redactCategoriesForBatch(options);
+  if (options.custom.trim()) categories.add("custom");
+  if (first.length === 0) {
     throw new Error("Draw a box or accept a finding to redact.");
   }
+  const bases = batchBaseNames(files.map((f) => f.name));
+  const results: ResultItem[] = [];
+  const failed: string[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const item = files[i];
+    const step = (r: number) => onProgress((i + r) / files.length);
+    try {
+      let boxes = first;
+      let found = 0;
+      if (i > 0) {
+        // Drawn boxes go to the same spot; the accepted kinds of data are found again in this file.
+        boxes = options.boxes.filter((b) => b.w > 0.004 && b.h > 0.004);
+        if (categories.size > 0) {
+          const { scanPdfForPii } = await import("@/lib/pii-scan");
+          const hits = await scanPdfForPii(item.file, { custom: options.custom, categories });
+          found = hits.length;
+          boxes = [...boxes, ...hits.map(({ pageIndex, x, y, w, h }) => ({ pageIndex, x, y, w, h }))];
+        }
+      }
+      const result = await redactOne(item, boxes, options, step, `${bases[i]}-redacted.pdf`);
+      if (i > 0) result.note = categories.size > 0 ? `${found} item${found === 1 ? "" : "s"} found and blacked out` : `${boxes.length} drawn box${boxes.length === 1 ? "" : "es"} applied`;
+      results.push(result);
+    } catch (error) {
+      if (files.length === 1) throw error;
+      failed.push(failReason(item.name, error));
+    }
+  }
+  return finishBatch(results, failed, "None of these PDFs could be redacted.");
+}
 
+async function redactOne(
+  item: FileItem,
+  boxes: PageBox[],
+  options: Extract<ToolOptions, { kind: "redact" }>,
+  onProgress: ProgressFn,
+  name: string,
+): Promise<ResultItem> {
   const source = await loadPdf(item.file);
+  if (source.isEncrypted) throw new Error("This PDF is password-protected.");
   const out = await PDFDocument.create();
   const boxed = new Map<number, PageBox[]>();
   for (const box of boxes) {
@@ -365,14 +430,7 @@ export async function processRedactPdf(
   }
   const blob = pdfBlob(await out.save({ useObjectStreams: true }));
   onProgress(1);
-  return [
-    resultFrom(
-      item,
-      blob,
-      replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-redacted.pdf"),
-      item.size,
-    ),
-  ];
+  return resultFrom(item, blob, name, item.size);
 }
 
 export async function processCropPdf(
@@ -381,9 +439,32 @@ export async function processCropPdf(
   options: ToolOptions,
 ): Promise<ResultItem[]> {
   if (options.kind !== "crop") throw new Error("Crop PDF needs a crop box.");
-  const item = files[0];
-  if (!item) throw new Error("Choose a PDF to crop.");
+  if (!files[0]) throw new Error("Choose a PDF to crop.");
+  if (files.length > 1 && !options.applyAll) {
+    throw new Error("A different crop per page works on one PDF at a time. Pick All pages to crop several PDFs.");
+  }
+  const bases = batchBaseNames(files.map((f) => f.name));
+  const results: ResultItem[] = [];
+  const failed: string[] = [];
+  for (let i = 0; i < files.length; i++) {
+    try {
+      results.push(await cropOne(files[i], options, `${bases[i]}-cropped.pdf`));
+    } catch (error) {
+      if (files.length === 1) throw error;
+      failed.push(failReason(files[i].name, error));
+    }
+    onProgress((i + 1) / files.length);
+  }
+  return finishBatch(results, failed, "None of these PDFs could be cropped.");
+}
+
+async function cropOne(
+  item: FileItem,
+  options: Extract<ToolOptions, { kind: "crop" }>,
+  name: string,
+): Promise<ResultItem> {
   const doc = await loadPdf(item.file);
+  if (doc.isEncrypted) throw new Error("This PDF is password-protected.");
   const whole = (r: { x: number; y: number; w: number; h: number }) =>
     r.x <= 0.0005 && r.y <= 0.0005 && r.w >= 0.999 && r.h >= 0.999;
   const rectFor = (index: number) =>
@@ -399,18 +480,8 @@ export async function processCropPdf(
     const r = rectFor(index);
     return r && !whole(r) ? r : null;
   });
-  onProgress(0.7);
   stripPdfMetadata(doc);
-  const blob = pdfBlob(await doc.save({ useObjectStreams: true }));
-  onProgress(1);
-  return [
-    resultFrom(
-      item,
-      blob,
-      replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-cropped.pdf"),
-      item.size,
-    ),
-  ];
+  return resultFrom(item, pdfBlob(await doc.save({ useObjectStreams: true })), name, item.size);
 }
 
 function stampPoint(
@@ -797,37 +868,59 @@ export async function processOcrPdf(
   options: ToolOptions,
 ): Promise<ResultItem[]> {
   if (options.kind !== "ocr") throw new Error("OCR needs a language.");
-  const item = files[0];
-  if (!item) throw new Error("Choose a PDF to make searchable.");
+  if (!files[0]) throw new Error("Choose a PDF to make searchable.");
   const wantPdf = options.output !== "text";
   const wantText = options.output !== "pdf";
   const scale = 2;
   const { PSM } = await import("tesseract.js");
   const { getDocument } = await loadPdfJs();
-  const data = new Uint8Array(await item.file.arrayBuffer());
-  const src = await getDocument({ data: data.slice() }).promise;
-  const sourcePdf = wantPdf ? await loadPdf(item.file) : null;
-  const out = wantPdf ? await PDFDocument.create() : null;
-  let ghostFont: Awaited<ReturnType<PDFDocument["embedFont"]>> | null = null;
+  const bases = batchBaseNames(files.map((f) => f.name));
+  // One worker for the whole batch: loading the language data is the slow part.
+  let fileIndex = 0;
   let pageCursor = 0;
-  const texts: string[] = [];
+  let pageTotal = 1;
   const worker = await createOcrWorker(options.language, {
     logger: (message) => {
       if (message.status !== "recognizing text") return;
-      onProgress(
-        Math.min(0.96, (pageCursor + message.progress) / src.numPages),
-      );
+      onProgress(Math.min(0.96, (fileIndex + (pageCursor + message.progress) / pageTotal) / files.length));
     },
   });
   await worker.setParameters({
     user_defined_dpi: String(Math.round(72 * scale)),
     tessedit_pageseg_mode: PSM.AUTO,
   });
+  const results: ResultItem[] = [];
+  const failed: string[] = [];
+  try {
+    for (fileIndex = 0; fileIndex < files.length; fileIndex++) {
+      const item = files[fileIndex];
+      try {
+        results.push(...(await ocrOne(item, bases[fileIndex])));
+      } catch (error) {
+        if (files.length === 1) throw error;
+        failed.push(failReason(item.name, error));
+      }
+    }
+  } finally {
+    await worker.terminate();
+  }
+  onProgress(1);
+  return finishBatch(results, failed, "None of these PDFs could be read.");
+
+  async function ocrOne(item: FileItem, base: string): Promise<ResultItem[]> {
+  const data = new Uint8Array(await item.file.arrayBuffer());
+  const src = await getDocument({ data: data.slice() }).promise;
+  pageTotal = src.numPages;
+  const sourcePdf = wantPdf ? await loadPdf(item.file) : null;
+  const out = wantPdf ? await PDFDocument.create() : null;
+  let ghostFont: Awaited<ReturnType<PDFDocument["embedFont"]>> | null = null;
+  const texts: string[] = [];
+  const step = (pageNum: number) => onProgress((fileIndex + pageNum / src.numPages) / files.length);
   try {
     for (let pageNum = 1; pageNum <= src.numPages; pageNum++) {
       pageCursor = pageNum - 1;
       const page = await src.getPage(pageNum);
-      if (options.skipTextPages) {
+      if (options.kind === "ocr" && options.skipTextPages) {
         const existing = await page.getTextContent();
         const already = selectableLength(existing);
         if (already > 40) {
@@ -839,7 +932,7 @@ export async function processOcrPdf(
             texts.push(existingText(existing));
           }
           page.cleanup();
-          onProgress(pageNum / src.numPages);
+          step(pageNum);
           continue;
         }
       }
@@ -928,24 +1021,23 @@ export async function processOcrPdf(
       canvas.width = 0;
       canvas.height = 0;
       page.cleanup();
-      onProgress(pageNum / src.numPages);
+      step(pageNum);
     }
   } finally {
-    await worker.terminate();
     await src.loadingTask.destroy();
   }
-  const results: ResultItem[] = [];
+  const fileResults: ResultItem[] = [];
   if (out) {
     if (out.getPageCount() < 1) {
       throw new Error("OCR produced no pages.");
     }
     stripPdfMetadata(out);
     const blob = pdfBlob(await out.save({ useObjectStreams: true }));
-    results.push(
+    fileResults.push(
       resultFrom(
         item,
         blob,
-        replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-ocr.pdf"),
+        `${base}-ocr.pdf`,
         item.size,
       ),
     );
@@ -953,18 +1045,19 @@ export async function processOcrPdf(
   if (wantText) {
     const body = texts.filter(Boolean).join("\n\n");
     const blob = new Blob([body], { type: "text/plain" });
-    results.push(
+    fileResults.push(
       resultFrom(
         item,
         blob,
-        replaceExt(item.name, "txt").replace(/\.txt$/i, "-ocr.txt"),
+        `${base}-ocr.txt`,
         item.size,
-        { previewText: body.slice(0, 4000) },
+        // The text panel shows one file; the rest are downloads.
+        fileIndex === 0 ? { previewText: body.slice(0, 4000) } : undefined,
       ),
     );
   }
-  onProgress(1);
-  return results;
+  return fileResults;
+  }
 }
 
 function selectableLength(content: { items: unknown[] }) {

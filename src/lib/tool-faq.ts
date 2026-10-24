@@ -48,6 +48,10 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
   ],
   "pdf-to-jpg": [
     {
+      q: "Can I convert several PDFs to JPG at once?",
+      a: "Yes. Drop as many PDFs as you like. Every page of each becomes a JPG named after its file, and you can save them all as one zip.",
+    },
+    {
       q: "Is my PDF sent anywhere to make the images?",
       a: "No. Each page is drawn in your browser and saved as an image on your device.",
     },
@@ -145,6 +149,10 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
     },
   ],
   "pdf-to-png": [
+    {
+      q: "Can I convert several PDFs to PNG at once?",
+      a: "Yes. Drop as many PDFs as you like. Every page of each becomes a PNG named after its file, and you can save them all as one zip.",
+    },
     {
       q: "Are my pages uploaded to be turned into PNG?",
       a: "No. The pages are rendered in your browser and saved on your device.",
@@ -320,6 +328,10 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
   ],
   "crop-pdf": [
     {
+      q: "Can I crop many PDFs the same way?",
+      a: "Yes. Add several PDFs and set the crop on the first one; the same crop is applied to every page of every file. A different crop per page works on one PDF at a time.",
+    },
+    {
       q: "Is my PDF uploaded to crop it?",
       a: "No. Cropping is done in your browser, so the file stays on your device.",
     },
@@ -333,6 +345,10 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
     },
   ],
   "redact-pdf": [
+    {
+      q: "Can I redact several PDFs at once?",
+      a: "Yes. Review the first file: boxes you draw are blacked out at the same spot in every file, and the kinds of personal data you accept, such as emails or PAN numbers, are found again in each of the others and blacked out too.",
+    },
     {
       q: "Is my PDF sent anywhere to find sensitive data?",
       a: "No. Scanning and redaction both run in your browser, and the document never leaves your device.",
@@ -379,6 +395,10 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
     },
   ],
   "extract-images": [
+    {
+      q: "Can I pull images out of several PDFs at once?",
+      a: "Yes. Add as many PDFs as you like. Every image that passes the size filter is saved, named after its file, and you can download them all as one zip.",
+    },
     {
       q: "Does my PDF leave my device?",
       a: "No. The embedded pictures are pulled out in your browser.",
@@ -643,6 +663,10 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
     },
   ],
   "ocr-pdf": [
+    {
+      q: "Can I OCR several PDFs at once?",
+      a: "Yes. Add a whole batch. The language data loads once and each file gets its own searchable PDF. No daily limit, no file cap and no upload.",
+    },
     {
       q: "Is my scan uploaded for OCR?",
       a: "No. The Tesseract OCR engine runs in your browser tab, so your pages stay on your device.",

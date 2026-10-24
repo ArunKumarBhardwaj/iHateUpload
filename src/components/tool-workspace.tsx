@@ -10,6 +10,7 @@ import { ScanStudio } from "@/components/workbench/scan-studio";
 import { FileList } from "@/components/workbench/file-list";
 import {
   OptionsPanel,
+  batchHint,
   optionsHint,
   optionsNeedCanvas,
 } from "@/components/workbench/options-panel";
@@ -448,7 +449,8 @@ export function ToolWorkspace({
                   onAddMore={() => inputRef.current?.click()}
                   disabled={locked}
                 />
-              ) : optionsInCanvas ? (
+              ) : optionsInCanvas && !tool.multiple ? (
+                // One-file tools name their file; batch tools list them all above the preview.
                 <div className="flex items-center gap-3 rounded-xl border border-ink/10 bg-secondary px-3 py-2.5">
                   <SourceIcon className="size-4 shrink-0 text-signal" />
                   <span
@@ -568,6 +570,9 @@ export function ToolWorkspace({
                 </h2>
                 <div className="mt-2 space-y-2 rounded-lg border border-ink/10 bg-secondary px-3 py-2.5 text-sm text-muted-foreground">
                   <p>{optionsHint(options, tool.actionLabel)}</p>
+                  {batchHint(options, files.length) ? (
+                    <p className="font-medium text-ink">{batchHint(options, files.length)}</p>
+                  ) : null}
                   {largeJob && (
                     <p className="font-medium text-ink">
                       This file is large for this device. Stay on Light, or

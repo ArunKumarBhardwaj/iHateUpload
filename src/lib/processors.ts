@@ -35,6 +35,7 @@ import {
   type ToolOptions,
 } from "@/lib/tool-options";
 import { formatBytes } from "@/lib/utils";
+import { batchBaseNames } from "@/lib/batch";
 
 type ProgressFn = (ratio: number) => void;
 
@@ -943,51 +944,72 @@ async function processPdfToImages(
   if (options.kind !== "pdf-image") {
     throw new Error("PDF to image needs a resolution.");
   }
-  const item = files[0];
-  if (!item) throw new Error("Choose a PDF to convert.");
+  if (!files[0]) throw new Error("Choose a PDF to convert.");
 
   const png = options.format === "png";
   const quality = jpegQualityValue(options.quality);
   const limits = currentCanvasLimits();
   const { getDocument } = await loadPdfJs();
-  const data = new Uint8Array(await item.file.arrayBuffer());
-  const pdf = await getDocument({ data }).promise;
-  const base = item.name.replace(/\.[^.]+$/, "");
+  const bases = batchBaseNames(files.map((f) => f.name));
   const results: ResultItem[] = [];
+  const skipped: string[] = [];
 
-  try {
-    const wanted = resolvePageRange(options.range, pdf.numPages);
-    for (let done = 0; done < wanted.length; done++) {
-      const pageNum = wanted[done] + 1;
-      const page = await pdf.getPage(pageNum);
-      const size = page.getViewport({ scale: 1 });
-      let plan = planPageRender(size.width, size.height, options.dpi, limits);
-      // Past the safe size, prove this browser can really hold the canvas.
-      if (
-        plan.width * plan.height > SAFE_CANVAS.maxPixels ||
-        Math.max(plan.width, plan.height) > SAFE_CANVAS.maxEdge
-      ) {
-        if (!canvasHoldsSize(plan.width, plan.height)) {
-          plan = planPageRender(size.width, size.height, options.dpi);
-        }
-      }
-      const blob = await renderPdfPage(page, plan, (canvas) =>
-        png ? canvasToPngBlob(canvas) : canvasToJpegBlob(canvas, quality),
-      );
-      results.push({
-        id: crypto.randomUUID(),
-        name: `${base}-page-${pageNum}.${png ? "png" : "jpg"}`,
-        size: blob.size,
-        blob,
-        originalSize: item.size,
-        note: pageRenderNote(pageNum, plan, options.dpi),
-      });
-      onProgress((done + 1) / wanted.length);
+  for (let f = 0; f < files.length; f++) {
+    const item = files[f];
+    let pdf;
+    try {
+      pdf = await getDocument({ data: new Uint8Array(await item.file.arrayBuffer()) }).promise;
+    } catch (error) {
+      if (files.length === 1) throw error;
+      skipped.push(`${item.name} (${(error as { name?: string }).name === "PasswordException" ? "locked" : "could not be read"})`);
+      continue;
     }
-  } finally {
-    await pdf.loadingTask.destroy();
+    try {
+      // The page range applies to each file; a file without those pages is skipped.
+      let wanted: number[];
+      try {
+        wanted = resolvePageRange(options.range, pdf.numPages);
+      } catch (error) {
+        if (files.length === 1) throw error;
+        skipped.push(`${item.name} (no pages in that range)`);
+        continue;
+      }
+      for (let done = 0; done < wanted.length; done++) {
+        const pageNum = wanted[done] + 1;
+        const page = await pdf.getPage(pageNum);
+        const size = page.getViewport({ scale: 1 });
+        let plan = planPageRender(size.width, size.height, options.dpi, limits);
+        // Past the safe size, prove this browser can really hold the canvas.
+        if (
+          plan.width * plan.height > SAFE_CANVAS.maxPixels ||
+          Math.max(plan.width, plan.height) > SAFE_CANVAS.maxEdge
+        ) {
+          if (!canvasHoldsSize(plan.width, plan.height)) {
+            plan = planPageRender(size.width, size.height, options.dpi);
+          }
+        }
+        const blob = await renderPdfPage(page, plan, (canvas) =>
+          png ? canvasToPngBlob(canvas) : canvasToJpegBlob(canvas, quality),
+        );
+        results.push({
+          id: crypto.randomUUID(),
+          name: `${bases[f]}-page-${pageNum}.${png ? "png" : "jpg"}`,
+          size: blob.size,
+          blob,
+          originalSize: item.size,
+          note: pageRenderNote(pageNum, plan, options.dpi),
+        });
+        onProgress((f + (done + 1) / wanted.length) / files.length);
+      }
+    } finally {
+      await pdf.loadingTask.destroy();
+    }
   }
-
+  if (results.length === 0) throw new Error(`None of these PDFs could be converted (${skipped.join(", ")}).`);
+  if (skipped.length) {
+    const last = results[results.length - 1];
+    last.note = `${last.note ?? ""} · Skipped: ${skipped.join(", ")}.`;
+  }
   return results;
 }
 
