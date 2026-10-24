@@ -29,7 +29,7 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 | 🟰 Equal (measured) | 22 rows |
 | ⚠️ They are better | 0 rows |
 | ❔ Shared, not compared yet | 1 rows |
-| ➕ Only we have | 19 tools (section 3) |
+| ➕ Only we have | 20 tools (section 3) |
 | ❌ Only they have | 10 gap rows (section 4) + 3 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
@@ -126,6 +126,7 @@ Biggest gaps: on-device AI, blog content (113 posts vs none).
 | Extract Pages (as its own tool) | they do it inside Split |
 | Translate PDF (24 languages, layout kept, text via Gemini, own-key option, batch) | Not in their sitemap, 2026-10-24. Premium on iLovePDF after 1 free run; on the shared invoice ours kept 27/27 numbers and every text size, theirs 26/27 with shrunken lines. Live: 6/6 corpus docs, every number kept. internal/benchmarks/translate |
 | Summarize PDF (short/standard/detailed, page citations, figure check, 25 languages, batch, OCR) | Not in their sitemap, 2026-10-24. iLovePDF: Standard AI free (2 runs seen), Advanced AI Premium, no citations or figure check, site language only. Live: 8/8 checks, 95/95 figures found, 120-page report merged from parts. internal/benchmarks/summarize |
+| Smart split: Find documents in Split PDF (typed and scanned stacks, OCR, reasons per cut, blank sheets left out) | Their sitemap has split by text, bookmarks, size and half only, 2026-10-24. iLovePDF Smart split needs sign-up and 90 AI credits for a 9-page scan. Live: typed 16/16 bundles exact, scans 13/16, 0 wrong cuts, no upload. internal/benchmarks/smart-split |
 | PDF to Markdown (GFM: headings, nested lists, pipe tables, links; zip with pictures; OCR; batch) | Not in their sitemap (they have Markdown to PDF only), 2026-10-24. Premium on iLovePDF after 2 free runs; on the shared invoice their table was one cell, ours 4 columns. Ours on 20 docs: text 0.99, headings 0.87, tables 1.00, lists 0.89, links 1.00. internal/benchmarks/pdf-to-markdown |
 | PDF to PDF/A (1b, 2b, 3b; batch, in the browser) | Not in their sitemap, 2026-10-24. Premium on iLovePDF (one free try, then a sign-up wall). Ours: 33/33 veraPDF-valid on an 11-file synthetic corpus, production build, 0 uploads. internal/benchmarks/pdfa |
 | Drop-a-file tool suggester on the homepage | section 1 |
