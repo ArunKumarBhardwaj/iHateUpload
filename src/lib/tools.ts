@@ -28,6 +28,7 @@ export type ToolId =
   | "pdf-to-word"
   | "pdf-to-pptx"
   | "pdf-to-html"
+  | "pdf-to-markdown"
   | "pdf-to-excel"
   | "watermark-pdf"
   | "page-numbers"
@@ -95,6 +96,7 @@ export type ToolDefinition = {
     | "pdf-to-word"
     | "pdf-to-pptx"
     | "pdf-to-html"
+    | "pdf-to-markdown"
     | "pdf-to-excel"
     | "organize"
     | "resize"
@@ -292,6 +294,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "pdf-to-html",
+  },
+  {
+    id: "pdf-to-markdown",
+    slug: "pdf-to-markdown",
+    title: "PDF to Markdown",
+    shortTitle: "PDF → Markdown",
+    description:
+      "Turn a PDF into clean Markdown: # headings, lists, pipe tables, links and pictures. Ready for GitHub, Notion, Obsidian or an AI prompt.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Convert to Markdown",
+    seoTitle: "PDF to Markdown Converter Free — Tables, Headings, No Upload",
+    seoDescription:
+      "Convert PDF to Markdown online free, many files at once. Real headings, nested lists, GitHub tables, links and pictures; scans read with OCR. Runs in your browser — no upload, no sign-up.",
+    seoHowTo: [
+      "Drop one or more PDF files into the workspace.",
+      "Pick one .md file, or a zip that keeps the pictures, and the pages.",
+      "Click Convert to Markdown, copy the text or download the files.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "pdf-to-markdown",
   },
   {
     id: "pdf-to-excel",

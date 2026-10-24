@@ -108,6 +108,28 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
       a: "Yes. The file is a standard .pptx, so PowerPoint, Keynote, Google Slides and LibreOffice Impress all open it.",
     },
   ],
+  "pdf-to-markdown": [
+    {
+      q: "Is my PDF uploaded to make the Markdown?",
+      a: "No. The PDF is read and the Markdown is written in your browser tab. Nothing is sent anywhere, so it is safe for contracts and notes.",
+    },
+    {
+      q: "What comes through as Markdown?",
+      a: "Headings become # to ######, paragraphs keep bold, italic and struck text, lists become - and 1. items with their nesting, tables become GitHub pipe tables, and web links stay links. Text that would read as Markdown, like a line starting with #, is escaped.",
+    },
+    {
+      q: "What about pictures?",
+      a: "One .md file has nowhere to keep them, so they are left out and the result says how many. Pick Zip with pictures to get index.md plus an images folder, linked from the Markdown.",
+    },
+    {
+      q: "Does it work on scanned PDFs?",
+      a: "Yes. Pages with no text are read with OCR in your browser, in the language you pick.",
+    },
+    {
+      q: "Can I convert many PDFs at once?",
+      a: "Yes. Add as many as you like; each becomes its own .md or zip. No daily limit and no sign-up.",
+    },
+  ],
   "pdf-to-html": [
     {
       q: "Is my PDF uploaded to make the HTML?",

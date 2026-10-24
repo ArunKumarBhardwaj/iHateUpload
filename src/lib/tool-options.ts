@@ -196,6 +196,14 @@ export type ToolOptions =
       range: string;
     }
   | {
+      kind: "pdf-to-markdown";
+      /** One .md with pictures left out, or a .zip with index.md and images/. */
+      output: "md" | "zip";
+      language: string;
+      /** Empty or "all" converts every page. */
+      range: string;
+    }
+  | {
       kind: "pdf-to-excel";
       layout: PdfToExcelLayout;
       /** Excel workbook, or one CSV per sheet. */
@@ -727,6 +735,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "pdf-to-word", mode: "editable", language: "eng", embedFonts: true };
     case "pdf-to-html":
       return { kind: "pdf-to-html", mode: "reflow", output: "html", language: "eng", range: "" };
+    case "pdf-to-markdown":
+      return { kind: "pdf-to-markdown", output: "md", language: "eng", range: "" };
     case "pdf-to-pptx":
       return { kind: "pdf-to-pptx", mode: "editable", size: "match", language: "eng", range: "" };
     case "pdf-to-excel":
@@ -947,6 +957,7 @@ export function optionsReady(
     case "pdf-to-excel":
     case "pdf-to-pptx":
     case "pdf-to-html":
+    case "pdf-to-markdown":
     case "pdf-to-pdfa":
       return true;
     case "flatten":

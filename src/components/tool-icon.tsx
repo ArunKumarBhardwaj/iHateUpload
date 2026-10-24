@@ -97,6 +97,7 @@ const CONVERT: Partial<Record<ToolId, [Format, Format]>> = {
   "pdf-to-word": ["pdf", "word"],
   "pdf-to-pptx": ["pdf", "ppt"],
   "pdf-to-html": ["pdf", "html"],
+  "pdf-to-markdown": ["pdf", "markdown"],
   "pdf-to-excel": ["pdf", "excel"],
   "pdf-to-zip": ["pdf", "zip"],
   "heic-to-jpg": ["heic", "jpg"],
