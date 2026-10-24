@@ -155,6 +155,10 @@ export async function runTool(
       return import("@/lib/pdf-to-pptx/process").then((engine) =>
         engine.processPdfToPptx(files, onProgress, options),
       );
+    case "pdf-to-pdfa":
+      return import("@/lib/pdfa/process").then((engine) =>
+        engine.processPdfToPdfA(files, onProgress, options),
+      );
     case "pdf-to-excel":
       return import("@/lib/pdf-to-excel/process").then((engine) =>
         engine.processPdfToExcel(files, onProgress, options),

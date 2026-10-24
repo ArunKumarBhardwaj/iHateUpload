@@ -406,6 +406,28 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
       a: "Yes. Choose header, footer or both, set size, color, bold and margin, limit it to a page range, and skip the first page.",
     },
   ],
+  "pdf-to-pdfa": [
+    {
+      q: "Is my PDF uploaded to convert it to PDF/A?",
+      a: "No. The conversion runs in your browser tab, so contracts, records and filings never leave your device.",
+    },
+    {
+      q: "Which PDF/A should I pick?",
+      a: "PDF/A-2b unless you were told otherwise: most courts, tax portals and archives accept it. Pick 1b when a system asks for PDF/A-1, and 3b when the PDF must keep attachments, as e-invoices like ZUGFeRD and Factur-X do.",
+    },
+    {
+      q: "Is the result really valid PDF/A?",
+      a: "We check our output with veraPDF, the open validator archives use. Fonts the PDF only named are embedded, colours get an sRGB profile, the XMP metadata names the PDF/A part, and scripts, hidden annotations and other things the standard forbids are removed.",
+    },
+    {
+      q: "Will my text stay selectable?",
+      a: "Yes, almost always. Only a page that cannot be fixed any other way, such as one whose font is missing with no stand-in, or see-through drawing in PDF/A-1b, is redrawn as a picture with an invisible text layer, so it still looks the same and you can search and copy it. The result says which pages, if any.",
+    },
+    {
+      q: "Can I convert many PDFs at once, for free?",
+      a: "Yes. Add as many as you like. There is no daily limit, no file cap and no sign-up.",
+    },
+  ],
   "pdf-to-zip": [
     {
       q: "Are my PDFs uploaded to make the ZIP?",

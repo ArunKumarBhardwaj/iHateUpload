@@ -47,6 +47,7 @@ export const TOOL_GROUPS: {
       "pdf-to-excel",
       "pdf-to-html",
       "pdf-to-zip",
+      "pdf-to-pdfa",
       "extract-images",
     ],
   },

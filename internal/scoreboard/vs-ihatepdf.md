@@ -29,7 +29,7 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 | 🟰 Equal (measured) | 22 rows |
 | ⚠️ They are better | 0 rows |
 | ❔ Shared, not compared yet | 1 rows |
-| ➕ Only we have | 15 tools (section 3) |
+| ➕ Only we have | 16 tools (section 3) |
 | ❌ Only they have | 10 gap rows (section 4) + 3 platform/feature gaps (sections 1–2) |
 
 Biggest wins: Compress PDF, PDF to Word (editable), page speed, accessibility, privacy hygiene, all image tools.
@@ -124,6 +124,7 @@ Biggest gaps: on-device AI, blog content (113 posts vs none).
 | Delete Blank Pages | not in their sitemap |
 | Insert Blank Pages | not in their sitemap |
 | Extract Pages (as its own tool) | they do it inside Split |
+| PDF to PDF/A (1b, 2b, 3b; batch, in the browser) | Not in their sitemap, 2026-10-24. Premium on iLovePDF (one free try, then a sign-up wall). Ours: 33/33 veraPDF-valid on an 11-file synthetic corpus, production build, 0 uploads. internal/benchmarks/pdfa |
 | Drop-a-file tool suggester on the homepage | section 1 |
 
 ## 4. Only they have (our gap list)

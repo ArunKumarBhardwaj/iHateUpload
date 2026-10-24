@@ -226,6 +226,12 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
         : "Every page becomes a picture, so nothing underneath can be copied, edited or clicked.";
     case "invert":
       return "Pick a look. Text-keeping mode recolours without redrawing, so text stays selectable and the file stays small.";
+    case "pdf-to-pdfa":
+      return options.level === "1b"
+        ? "PDF/A-1b is the strictest. Pages with see-through drawing or JPEG 2000 pictures become pictures with searchable text."
+        : options.level === "3b"
+          ? "Like 2b, and attachments stay inside the file. Pick it for e-invoices such as ZUGFeRD and Factur-X."
+          : "The one most portals and archives ask for. Text stays selectable; fonts are embedded and scripts removed.";
     case "pdf-to-zip":
       return "Keep the PDFs whole or cut them into pages first. Name them with a pattern, pick a folder and compression.";
     case "alternate-mix":
@@ -1182,6 +1188,34 @@ export function OptionsPanel({
     case "nup":
       return (
         <NupPanel options={options} onOptions={onOptions} disabled={disabled} />
+      );
+
+    case "pdf-to-pdfa":
+      return (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-ink">Conformance</p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["2b", "PDF/A-2b — recommended"],
+                ["1b", "PDF/A-1b — strictest"],
+                ["3b", "PDF/A-3b — keeps attachments"],
+              ] as const
+            ).map(([level, title]) => (
+              <Button
+                key={level}
+                type="button"
+                size="sm"
+                className={OPTION_BUTTON}
+                variant={options.level === level ? "default" : "outline"}
+                disabled={disabled}
+                onClick={() => onOptions({ ...options, level })}
+              >
+                {title}
+              </Button>
+            ))}
+          </div>
+        </div>
       );
 
     case "pdf-to-zip":

@@ -35,6 +35,7 @@ export type ToolId =
   | "repair-pdf"
   | "alternate-mix"
   | "pdf-to-zip"
+  | "pdf-to-pdfa"
   | "png-to-pdf"
   | "ocr-pdf"
   | "word-to-pdf"
@@ -116,6 +117,7 @@ export type ToolDefinition = {
     | "nup"
     | "alternate-mix"
     | "pdf-to-zip"
+    | "pdfa"
     | "page-size"
     | "watermark"
     | "page-numbers"
@@ -980,6 +982,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "none",
+  },
+  {
+    id: "pdf-to-pdfa",
+    slug: "pdf-to-pdfa",
+    title: "PDF to PDF/A",
+    shortTitle: "PDF/A",
+    description:
+      "Make an archive-ready PDF/A-1b, 2b or 3b. Fonts are embedded, colours tagged and scripts removed, in this tab.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Convert to PDF/A",
+    seoTitle: "PDF to PDF/A Converter Online Free — No Upload",
+    seoDescription:
+      "Convert PDF to PDF/A-1b, PDF/A-2b or PDF/A-3b online free, many files at once. Fonts embedded, veraPDF-valid output, made in your browser. No upload, no sign-up.",
+    seoHowTo: [
+      "Choose one or more PDFs. They stay on your device.",
+      "Pick PDF/A-2b (most portals), 1b (strict, older systems) or 3b (keeps attachments). Click Convert to PDF/A.",
+      "Download the archive copies. Each one says what was changed to make it conform.",
+    ],
+    showInNav: false,
+    kind: "pdf",
+    ui: "pdfa",
   },
   {
     id: "flatten-pdf",

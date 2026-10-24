@@ -26,6 +26,7 @@ export const CONTINUE_MAP: Partial<Record<ToolId, ToolId[]>> = {
   "reverse-pages": ["compress-pdf", "organize-pdf"],
   // A ZIP is not a PDF, so there is nothing to continue with.
   "pdf-to-zip": [],
+  "pdf-to-pdfa": ["protect-pdf", "compress-pdf"],
   "alternate-mix": ["compress-pdf", "organize-pdf", "protect-pdf"],
   "delete-blank": ["compress-pdf", "merge-pdf"],
   "insert-blank": ["compress-pdf", "page-numbers"],

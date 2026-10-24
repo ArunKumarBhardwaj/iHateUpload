@@ -74,3 +74,5 @@ internal/benchmarks/small-tools/fx/
 /internal/benchmarks/pdf-to-html/results/
 /internal/benchmarks/pdf-to-html/results-fx/
 /internal/benchmarks/pdf-to-html/fx/*.pdf
+internal/benchmarks/pdfa/fx/
+internal/benchmarks/pdfa/out/

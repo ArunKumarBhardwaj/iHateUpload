@@ -272,6 +272,7 @@ export type ToolOptions =
   | { kind: "invert"; mode: InvertMode; engine: InvertEngine; dpi: number; keepHues: boolean }
   | ({ kind: "nup" } & NupSettings)
   | ({ kind: "pdf-to-zip"; zipName: string } & PdfZipSettings)
+  | { kind: "pdf-to-pdfa"; level: "1b" | "2b" | "3b" }
   | {
       kind: "alternate-mix";
       /** Pages each file gives per turn, by file id. Missing means 1. */
@@ -811,6 +812,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "nup", ...DEFAULT_NUP };
     case "pdf-to-zip":
       return { kind: "pdf-to-zip", zipName: "pdfs", ...DEFAULT_PDF_ZIP };
+    case "pdfa":
+      return { kind: "pdf-to-pdfa", level: "2b" };
     case "alternate-mix":
       return { kind: "alternate-mix", take: {}, reverse: [], leftover: "append" };
     case "flatten":
@@ -944,6 +947,7 @@ export function optionsReady(
     case "pdf-to-excel":
     case "pdf-to-pptx":
     case "pdf-to-html":
+    case "pdf-to-pdfa":
       return true;
     case "flatten":
       return (
