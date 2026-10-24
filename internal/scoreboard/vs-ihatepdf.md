@@ -25,7 +25,7 @@ ihatepdf.cv is the rival that matters most: like us it processes files in the br
 
 | | Count |
 |---|---|
-| ✅ We are better (measured) | 36 rows |
+| ✅ We are better (measured) | 37 rows |
 | 🟰 Equal (measured) | 22 rows |
 | ⚠️ They are better | 0 rows |
 | ❔ Shared, not compared yet | 1 rows |
@@ -45,6 +45,7 @@ Biggest gaps: on-device AI, blog content (113 posts vs none).
 | Session recording / heavy analytics on tool pages | None (Vercel Analytics page views only) | Microsoft Clarity session recorder (`_cltk` key during a compress run) | ✅ | REA storage capture, 2026-10-12 |
 | PDF libraries | pdf.js 6.2 and maintained `@cantoo/pdf-lib`, bundled; Tesseract worker, core and language data, and pdf.js WASM decoders served from our own origin | pdf.js 3.11.174 and pdf-lib 1.17.1 loaded from public CDNs, no SRI | ✅ | Bundle teardown, 2026-10-12; Playwright on a production build: zero non-origin requests during OCR, 2026-10-20 |
 | Works offline | Yes (service worker caches code, WASM codecs, and OCR worker, core and language data on first use) | Yes (service worker) | 🟰 | Both service workers read, 2026-10-12; offline OCR re-run after one online run, 2026-10-20 |
+| Share to the installed app, Open with | Share sheet takes PDFs, images, HEIC, Word, Excel, PowerPoint, CSV, Markdown and HTML; the service worker answers the share on the device (IndexedDB inbox, then /share suggests tools); "Open with iHateUpload" on desktop (file_handlers); without a service worker the server turns the share away unread | Manifest share_target for PDFs only, posting to "/"; their service worker handles only GET requests, so the shared file goes to their server; no file_handlers | ✅ | Ours: internal/benchmarks/share-target/prove.mjs, 9/9 on ihateupload.com 2026-10-24 (deploy 763bed2), answered by the service worker, nothing sent. Theirs: manifest.json and sw.js read 2026-10-24; not tested on a phone |
 | Page speed (Lighthouse mobile) | Home 98, tool page 85–100 | Home 93, Compress 81 | ✅ | Lighthouse 12, 2026-10-12 / 2026-10-13 |
 | Accessibility (Lighthouse) | 100 on home and tool pages | 93–95 | ✅ | Lighthouse 12, 2026-10-13 |
 | Best practices (Lighthouse) | 96–100 | 79 | ✅ | Lighthouse 12, 2026-10-12 |
