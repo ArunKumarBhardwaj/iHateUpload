@@ -16,3 +16,29 @@ How it works: the shared document engine finds each paragraph and table cell (li
 batches as a JSON list, then on the original PDF the old glyphs in each box are deleted and the translation is drawn in the same
 box (Liberation Sans, Caladea for serif sources, Noto Sans Devanagari for Hindi/Marathi/Nepali), shrunk only when the free space
 around it runs out. Scans get a white patch under the new words.
+
+## Results (live, 2026-10-24, real Gemini through our server)
+
+| doc | pages | numbers kept | English left in real sentences | Spanish function words |
+|---|---|---|---|---|
+| invoice | 1 -> 1 | 100% | 0% | 18 |
+| letter | 2 -> 2 | 100% | 0% | 11 |
+| memo-pdflib | 1 -> 1 | 100% | 20% (radios, portal: same in Spanish) | 15 |
+| brochure | 1 -> 1 | 100% | 25% (a web address and "morning" in a name) | 12 |
+| report-chart | 1 -> 1 | 100% | 0% | 8 |
+| contract | 2 -> 2 | 100% | 0% | 21 |
+
+The corpus pads pages with random word lists ("Wagon pepper morning…"); the model leaves those as they are, so they are not counted.
+The first live run, with a prompt that said to keep text with "nothing to translate", left short headings and job titles in English;
+the prompt now asks for every heading and label (733ef8f).
+
+### iLovePDF (Translate PDF, Keep layout, Standard AI)
+
+Signed out it translated one file (the invoice), then showed "Upgrade to Premium" on the second. On the invoice:
+
+| | ours | iLovePDF |
+|---|---|---|
+| numbers kept | 27/27 | 26/27 (8.25% became 8,25%) |
+| English left | none | none |
+| layout | original sizes kept in every row, text inside the page | dates, three table rows and the tax line shrunk to tiny text; row sizes uneven; FACTURA runs past the right margin |
+| file size | 90.7 KB | 36.7 KB |
