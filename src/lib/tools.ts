@@ -51,6 +51,7 @@ export type ToolId =
   | "bates-numbering"
   | "ask-pdf"
   | "translate-pdf"
+  | "summarize-pdf"
   | "heic-to-jpg"
   | "heic-to-pdf"
   | "compress-image"
@@ -129,6 +130,7 @@ export type ToolDefinition = {
     | "ocr"
     | "ask"
     | "translate"
+    | "summarize"
     | "scan"
     | "image-crop"
     | "image-turn"
@@ -1147,6 +1149,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "pdf",
     ui: "translate",
+  },
+  {
+    id: "summarize-pdf",
+    slug: "summarize-pdf",
+    title: "Summarize PDF",
+    shortTitle: "Summarize",
+    description:
+      "Get a short, standard or detailed summary of a PDF, with the page each point comes from. Every figure is checked against the PDF. Gemini writes it.",
+    accept: "application/pdf,.pdf",
+    multiple: true,
+    ordered: false,
+    actionLabel: "Summarize PDF",
+    seoTitle: "Summarize PDF Free — AI Summary With Page Numbers",
+    seoDescription:
+      "Summarize PDF documents free with AI: key points with page numbers, section by section, in 25 languages. Every figure is checked against the PDF. The file itself never leaves your browser.",
+    seoHowTo: [
+      "Drop one or more PDFs into the workspace. The file stays on your device; scans are read with OCR.",
+      "Pick the length and language. The page text goes to Google Gemini through our server, or straight from your browser with your own key.",
+      "Read the summary, copy it or save it as Markdown. Any figure the PDF does not show is marked.",
+    ],
+    showInNav: true,
+    kind: "pdf",
+    ui: "summarize",
   },
   {
     id: "ask-pdf",

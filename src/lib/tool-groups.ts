@@ -123,6 +123,7 @@ export const TOOL_GROUPS: {
       "compare-pdfs",
       "ask-pdf",
       "translate-pdf",
+      "summarize-pdf",
       "repair-pdf",
       "invert-pdf",
     ],

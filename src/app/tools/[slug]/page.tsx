@@ -134,7 +134,7 @@ export default async function ToolPage({ params }: ToolPageProps) {
           {tool.seoDescription}
           {tool.ui === "ask"
             ? " The extracted text and your chat are sent to Google Gemini to get an answer, through our server or, with your own key, straight from this browser."
-            : tool.ui === "translate"
+            : tool.ui === "translate" || tool.ui === "summarize"
               ? " The PDF itself stays in this tab; only its text goes to Google Gemini, through our server or, with your own key, straight from this browser."
               : " Processing never leaves this tab."}
         </p>

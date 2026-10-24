@@ -159,6 +159,10 @@ export async function runTool(
       return import("@/lib/translate/process").then((engine) =>
         engine.processTranslatePdf(files, onProgress, options),
       );
+    case "summarize-pdf":
+      return import("@/lib/summarize/process").then((engine) =>
+        engine.processSummarizePdf(files, onProgress, options),
+      );
     case "pdf-to-markdown":
       return import("@/lib/pdf-to-markdown/process").then((engine) =>
         engine.processPdfToMarkdown(files, onProgress, options),

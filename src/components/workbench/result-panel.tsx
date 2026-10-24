@@ -61,7 +61,8 @@ export function ResultPanel({
   builtNote?: string;
 }) {
   const delta = showSaving ? sizeDelta(results) : null;
-  const answer = results.find((result) => result.previewText)?.previewText;
+  const texts = results.filter((result) => result.previewText);
+  const answer = texts[0]?.previewText;
 
   return (
     <div className="space-y-4">
@@ -94,19 +95,19 @@ export function ResultPanel({
         </p>
       </div>
 
-      {answer ? (
-        <div className="rounded-2xl border border-ink/8 bg-background px-4 py-4">
+      {texts.map((result) => (
+        <div key={result.id} className="rounded-2xl border border-ink/8 bg-background px-4 py-4">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-signal-ink">
-              Text
+            <p className="min-w-0 truncate text-xs font-semibold uppercase tracking-[0.14em] text-signal-ink">
+              {texts.length > 1 ? result.name : "Text"}
             </p>
-            <CopyText text={answer} />
+            <CopyText text={result.previewText ?? ""} />
           </div>
           <p className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-ink">
-            {answer}
+            {result.previewText}
           </p>
         </div>
-      ) : null}
+      ))}
 
       <ul className="space-y-2">
         {results.map((result) => (

@@ -108,6 +108,32 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
       a: "Yes. The file is a standard .pptx, so PowerPoint, Keynote, Google Slides and LibreOffice Impress all open it.",
     },
   ],
+  "summarize-pdf": [
+    {
+      q: "Is my PDF uploaded to summarize it?",
+      a: "The PDF file never leaves your browser. Its pages are read in your tab, and only their text is sent to Google Gemini: through our server, which holds the key, or straight from your browser to Google if you use your own Gemini key.",
+    },
+    {
+      q: "Can I trust the numbers in the summary?",
+      a: "Every number, amount, date and percentage in the summary is looked up in the PDF's own text. Any figure the PDF does not show is marked with ⚠ and listed at the end, so you know what to check. Each key point also names the pages it came from.",
+    },
+    {
+      q: "How long is the summary?",
+      a: "Short gives 3 to 5 key points. Standard gives 5 to 8 and a section-by-section summary for longer files. Detailed gives up to 15 points and a summary of every main part.",
+    },
+    {
+      q: "Which languages can it write in?",
+      a: "The language the PDF is written in, or English, Spanish, French, German, Portuguese, Italian, Dutch, Polish, Turkish, Indonesian, Vietnamese, Swedish, Danish, Norwegian, Finnish, Czech, Romanian, Hungarian, Russian, Ukrainian, Greek, Hindi, Marathi or Nepali.",
+    },
+    {
+      q: "Is it free? Is there a limit?",
+      a: "Yes, it is free with no sign-up, for any number of files. Our shared key summarizes up to about 150 pages of text per file; long files are read in parts and merged. For more, pick fewer pages or paste your own free Gemini key.",
+    },
+    {
+      q: "Does it work on scanned PDFs?",
+      a: "Yes. Pages with no text are read with OCR in your browser first, then summarized.",
+    },
+  ],
   "translate-pdf": [
     {
       q: "Is my PDF uploaded to translate it?",

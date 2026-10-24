@@ -607,7 +607,11 @@ export function ToolWorkspace({
 
         {job.status === "done" && (
           <ResultPanel
-            builtNote={tool.ui === "translate" ? "Built in this tab. Only the text went to Google Gemini." : undefined}
+            builtNote={
+              tool.ui === "translate" || tool.ui === "summarize"
+                ? "Read in this tab. Only the text went to Google Gemini."
+                : undefined
+            }
             results={job.results}
             showSaving={SHRINK_TOOLS.has(tool.id)}
             continueTargets={continueToolsFor(
@@ -649,7 +653,9 @@ export function ToolWorkspace({
                 ? "The PDFs stay in this tab. Their text and your chat go to Google Gemini."
                 : tool.ui === "translate"
                   ? "The PDFs stay in this tab. Only their text goes to Google Gemini to be translated."
-                  : "Runs in this tab. Nothing is uploaded."}
+                  : tool.ui === "summarize"
+                    ? "The PDFs stay in this tab. Only their text goes to Google Gemini to be summarized."
+                    : "Runs in this tab. Nothing is uploaded."}
             </p>
             <div className="flex items-center gap-2">
               <Button

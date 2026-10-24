@@ -3,10 +3,10 @@
 import { CloudOff, WifiOff } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-/** The footer's privacy claims, which are false for the one tool that talks to Gemini. */
+/** The footer's privacy claims, which are false for the tools that send text to Gemini. */
 export function FooterClaims() {
   const path = usePathname();
-  const onAsk = path === "/tools/ask-pdf" || path === "/tools/translate-pdf";
+  const onAsk = ["/tools/ask-pdf", "/tools/translate-pdf", "/tools/summarize-pdf"].includes(path);
   return (
     <>
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground">

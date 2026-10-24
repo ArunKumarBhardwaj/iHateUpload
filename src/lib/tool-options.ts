@@ -1,5 +1,6 @@
 import { batesReady } from "@/lib/bates";
 import type { ScanFilter, ScanPageEdit, ScanPageSize } from "@/lib/scan/types";
+import type { SummaryLength } from "@/lib/summarize/summary";
 import type { FlipMode } from "@/lib/page-ops";
 import type { InvertEngine, InvertMode, OrganizeEntry } from "@/lib/page-tools/types";
 import { DEFAULT_FLATTEN, DEFAULT_STRIP, type FlattenSettings } from "@/lib/page-tools/flatten";
@@ -338,6 +339,15 @@ export type ToolOptions =
     }
   | { kind: "ocr"; language: string; output: OcrOutput; skipTextPages: boolean }
   | { kind: "ask"; question: string }
+  | {
+      kind: "summarize";
+      length: SummaryLength;
+      /** "auto" for the document's own language, or a code from TARGET_LANGUAGES. */
+      language: string;
+      mode: "server" | "own";
+      key: string;
+      range: string;
+    }
   | {
       kind: "translate";
       /** Language code from TARGET_LANGUAGES. */
@@ -920,6 +930,8 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
       return { kind: "ask", question: "" };
     case "translate":
       return { kind: "translate", target: "es", mode: "server", key: "", range: "" };
+    case "summarize":
+      return { kind: "summarize", length: "standard", language: "auto", mode: "server", key: "", range: "" };
     case "scan":
       return {
         kind: "scan",
@@ -972,6 +984,7 @@ export function optionsReady(
     case "pdf-to-pdfa":
       return true;
     case "translate":
+    case "summarize":
       return options.mode === "server" || options.key.trim().length > 20;
     case "flatten":
       return (

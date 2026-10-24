@@ -11,6 +11,7 @@ import { OrganizePanel } from "@/components/workbench/page-tools/organize-panel"
 import { PageSizePanel } from "@/components/workbench/page-tools/page-size-panel";
 import { NupPanel } from "@/components/workbench/page-tools/nup-panel";
 import { ZipPanel } from "@/components/workbench/page-tools/zip-panel";
+import { SUMMARY_LENGTHS } from "@/lib/summarize/summary";
 import { TARGET_LANGUAGES } from "@/lib/translate/languages";
 import { MixPanel } from "@/components/workbench/page-tools/mix-panel";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
@@ -203,6 +204,10 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
       return options.mode === "own"
         ? "The PDF stays here. Its text goes from this tab straight to Google Gemini with your key; our server sees nothing."
         : "The PDF stays here. Its text goes through our server to Google Gemini to be translated. The new PDF is built in this tab.";
+    case "summarize":
+      return options.mode === "own"
+        ? "The PDF stays here. Its page text goes from this tab straight to Google Gemini with your key; our server sees nothing. Every figure in the summary is checked against the PDF."
+        : "The PDF stays here. Its page text goes through our server to Google Gemini. Every figure in the summary is checked against the PDF, and each point names its pages.";
     case "pdf-to-markdown":
       return options.output === "zip"
         ? "index.md plus an images folder, linked from the text. Headings, lists, tables and links come through; scans are read with OCR."
@@ -713,6 +718,92 @@ export function OptionsPanel({
           <Field label="Pages" htmlFor="tr-range">
             <Input
               id="tr-range"
+              value={options.range}
+              disabled={disabled}
+              onChange={(e) => onOptions({ ...options, range: e.target.value })}
+              placeholder="All pages, or e.g. 1-3, 7"
+              inputMode="text"
+              autoComplete="off"
+            />
+          </Field>
+        </div>
+      );
+
+    case "summarize":
+      return (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Length</p>
+            <div className="flex flex-wrap gap-2">
+              {SUMMARY_LENGTHS.map(({ id, name }) => (
+                <Button
+                  key={id}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.length === id ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, length: id })}
+                >
+                  {name}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <Field label="Write the summary in" htmlFor="sum-language">
+            <select
+              id="sum-language"
+              className="border-input bg-background h-10 w-full rounded-xl border px-3 text-sm"
+              value={options.language}
+              disabled={disabled}
+              onChange={(e) => onOptions({ ...options, language: e.target.value })}
+            >
+              <option value="auto">Same language as the PDF</option>
+              {TARGET_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-ink">Who summarizes</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["server", "Our server (free, no key)"],
+                  ["own", "My own Gemini key"],
+                ] as const
+              ).map(([mode, title]) => (
+                <Button
+                  key={mode}
+                  type="button"
+                  size="sm"
+                  className={OPTION_BUTTON}
+                  variant={options.mode === mode ? "default" : "outline"}
+                  disabled={disabled}
+                  onClick={() => onOptions({ ...options, mode })}
+                >
+                  {title}
+                </Button>
+              ))}
+            </div>
+            {options.mode === "own" ? (
+              <Input
+                type="password"
+                aria-label="Gemini API key"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Paste your Gemini API key"
+                value={options.key}
+                disabled={disabled}
+                onChange={(e) => onOptions({ ...options, key: e.target.value })}
+              />
+            ) : null}
+          </div>
+          <Field label="Pages" htmlFor="sum-range">
+            <Input
+              id="sum-range"
               value={options.range}
               disabled={disabled}
               onChange={(e) => onOptions({ ...options, range: e.target.value })}

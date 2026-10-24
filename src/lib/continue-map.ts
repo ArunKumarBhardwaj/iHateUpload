@@ -42,6 +42,7 @@ export const CONTINUE_MAP: Partial<Record<ToolId, ToolId[]>> = {
   "pdf-to-html": ["html-to-pdf"],
   "pdf-to-markdown": ["markdown-to-pdf"],
   "translate-pdf": ["compress-pdf", "pdf-to-word"],
+  "summarize-pdf": ["ask-pdf", "translate-pdf"],
   "ocr-pdf": ["extract-text", "compress-pdf", "protect-pdf"],
   "word-to-pdf": ["compress-pdf", "protect-pdf"],
   "excel-to-pdf": ["compress-pdf", "protect-pdf"],
