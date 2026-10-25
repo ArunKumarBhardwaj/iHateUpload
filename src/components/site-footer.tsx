@@ -16,6 +16,7 @@ const MOST_USED: ToolId[] = [
   "pdf-to-jpg",
   "heic-to-jpg",
   "compress-to-size",
+  "exam-photo",
 ];
 
 // The moving strip under the headline: a spread across every category.

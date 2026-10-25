@@ -16,7 +16,7 @@ export const TOOL_GROUPS: {
     id: "compress",
     title: "Compress",
     description: "Make PDFs and photos smaller for email, uploads and forms.",
-    tools: ["compress-pdf", "compress-image", "compress-to-size"],
+    tools: ["compress-pdf", "compress-image", "compress-to-size", "exam-photo"],
   },
   {
     id: "to-pdf",

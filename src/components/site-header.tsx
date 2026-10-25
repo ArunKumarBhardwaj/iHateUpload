@@ -46,6 +46,7 @@ const POPULAR_SEARCH = [
   "organize-pdf",
   "resize-image",
   "compress-to-size",
+  "exam-photo",
   "crop-image",
   "compress-pdf",
 ] as const;

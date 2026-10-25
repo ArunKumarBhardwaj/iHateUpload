@@ -5,6 +5,7 @@ import { FaqSection } from "@/components/seo/faq-section";
 import { JsonLd } from "@/components/seo/json-ld";
 import { ToolCardGrid } from "@/components/tool-card";
 import { ToolIcon } from "@/components/tool-icon";
+import { ExamPhotoStudio } from "@/components/exam-photo/exam-photo-studio";
 import { ToolWorkspace } from "@/components/tool-workspace";
 import { breadcrumbLd, faqPageLd } from "@/lib/seo/json-ld";
 import { siteUrl } from "@/lib/site";
@@ -111,7 +112,11 @@ export default async function ToolPage({ params }: ToolPageProps) {
       </div>
 
       {/* Keyed so navigating between tools starts from a clean workspace. */}
-      <ToolWorkspace key={tool.id} tool={tool} />
+      {tool.id === "exam-photo" ? (
+        <ExamPhotoStudio />
+      ) : (
+        <ToolWorkspace key={tool.id} tool={tool} />
+      )}
 
       <section className="mt-20">
         <h2 className="text-balance text-3xl font-semibold text-ink sm:text-4xl">

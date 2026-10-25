@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { EXAMS } from "@/lib/exam-photo/specs";
 import { comparePages, RIVAL } from "@/lib/seo/alternatives";
 import { COMPRESS_TARGETS } from "@/lib/seo/compress-targets";
 import { SITE_ORIGIN, siteUrl } from "@/lib/site";
@@ -35,6 +36,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })),
     ...COMPRESS_TARGETS.map((target) => ({
       url: siteUrl(`/${target.slug}`),
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    })),
+    ...EXAMS.map((exam) => ({
+      url: siteUrl(`/exam-photo/${exam.slug}`),
       lastModified: now,
       changeFrequency: "monthly" as const,
       priority: 0.8,

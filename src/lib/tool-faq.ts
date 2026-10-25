@@ -1058,6 +1058,24 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
       a: "Yes. Add several photos and the same turn or flip is applied to each. They keep their original format.",
     },
   ],
+  "exam-photo": [
+    {
+      q: "Is my photo or signature uploaded?",
+      a: "No. Both are resized and compressed inside this browser tab, so your photo never leaves your phone or computer.",
+    },
+    {
+      q: "How do I know the portal will accept the file?",
+      a: "After making each file, the tool reads the finished JPG back and checks its format, file size in KB and pixel size against the rules for your exam. Download when every line has a green tick.",
+    },
+    {
+      q: "My signature is under the minimum KB. What happens?",
+      a: "Small, plain images often come out below a 10 or 20 KB floor. The tool raises the quality first and, if that is not enough, adds empty comment data to the file so it meets the floor without changing any pixel.",
+    },
+    {
+      q: "Can I print my name and date on the photo?",
+      a: "Yes. For exams that ask for it, type your name and the photo date and they are printed in a white band under your face, inside the required size.",
+    },
+  ],
   "compress-to-size": [
     {
       q: "Is my photo uploaded to reach a size?",

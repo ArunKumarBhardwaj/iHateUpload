@@ -62,7 +62,8 @@ export type ToolId =
   | "jpg-to-webp"
   | "crop-image"
   | "rotate-image"
-  | "compress-to-size";
+  | "compress-to-size"
+  | "exam-photo";
 
 export type ToolDefinition = {
   id: ToolId;
@@ -1612,6 +1613,29 @@ export const TOOLS: ToolDefinition[] = [
     showInNav: true,
     kind: "image",
     ui: "target-kb",
+  },
+  {
+    id: "exam-photo",
+    slug: "exam-photo",
+    title: "Exam Photo & Signature Resizer",
+    shortTitle: "Exam photo",
+    description:
+      "Resize photo and signature for SSC, UPSC, NEET, JEE, IBPS and more. Exact pixels and KB, checked before you download.",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
+    multiple: false,
+    ordered: false,
+    actionLabel: "Make photo",
+    seoTitle: "Exam Photo & Signature Resizer (SSC, UPSC, NEET, JEE, IBPS) — No Upload",
+    seoDescription:
+      "Resize your photo and signature to the exact pixels and KB your exam form asks for. Presets for SSC, UPSC, NEET, JEE, CUET, IBPS, SBI, RRB and PAN, checked before download. Nothing is uploaded.",
+    seoHowTo: [
+      "Pick your exam or form; its photo and signature rules load.",
+      "Add your photo and signature. Drag and zoom to frame the photo.",
+      "Check the green ticks for size, pixels and format, then download.",
+    ],
+    showInNav: true,
+    kind: "image",
+    ui: "none",
   },
 ];
 

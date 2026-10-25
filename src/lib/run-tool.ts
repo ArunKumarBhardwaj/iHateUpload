@@ -85,6 +85,8 @@ export async function runTool(
       return processRotateImage(files, onProgress, options);
     case "compress-to-size":
       return processCompressToSize(files, onProgress, options);
+    case "exam-photo":
+      throw new Error("Exam Photo runs in its own studio, not as a step.");
     case "image-to-pdf":
       return processImageToPdf(files, onProgress);
     case "merge-pdf":
