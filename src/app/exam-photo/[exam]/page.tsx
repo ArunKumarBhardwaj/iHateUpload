@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -67,18 +68,38 @@ export default async function ExamPhotoPage({ params }: ExamPageProps) {
     step: howTo.map((text, i) => ({ "@type": "HowToStep", position: i + 1, text })),
   };
 
+  // One trail feeds both the visible breadcrumb and its structured data, so they can't drift apart.
+  const trail = [
+    { name: "Home", short: "Home", path: "/" },
+    { name: "Exam Photo & Signature Resizer", short: "Exam Photo", path: "/tools/exam-photo" },
+    { name: heading, short: exam.name, path: `/exam-photo/${exam.slug}` },
+  ];
+
   return (
     <div className="mx-auto max-w-[90rem] px-6 py-8 sm:py-10">
       <JsonLd data={appLd} />
       <JsonLd data={howToLd} />
       <JsonLd data={faqPageLd(faq)} />
-      <JsonLd
-        data={breadcrumbLd([
-          { name: "Home", path: "/" },
-          { name: "Exam Photo & Signature Resizer", path: "/tools/exam-photo" },
-          { name: heading, path: `/exam-photo/${exam.slug}` },
-        ])}
-      />
+      <JsonLd data={breadcrumbLd(trail)} />
+
+      <nav aria-label="Breadcrumb" className="mb-6 text-sm text-muted-foreground">
+        <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+          {trail.map((crumb, i) =>
+            i < trail.length - 1 ? (
+              <li key={crumb.path} className="flex items-center gap-1.5">
+                <Link href={crumb.path} className="hover:text-ink hover:underline">
+                  {crumb.short}
+                </Link>
+                <ChevronRight aria-hidden className="size-3.5" />
+              </li>
+            ) : (
+              <li key={crumb.path} aria-current="page" className="font-medium text-ink">
+                {crumb.short}
+              </li>
+            ),
+          )}
+        </ol>
+      </nav>
 
       <div className="mx-auto mb-8 flex max-w-2xl flex-col items-center text-center">
         <ToolIcon id="exam-photo" className="size-14" />
