@@ -104,11 +104,27 @@ export interface Row {
   cells: Cell[];
   /** the row is at least this tall, in points */
   minHeight?: number;
+  /** the row is exactly minHeight tall, as a spreadsheet row is: content never makes it taller */
+  exactHeight?: boolean;
 }
 export interface TableBlock {
   kind: "table";
   rows: Row[];
   info?: TableInfo;
+  /** pictures drawn over the cells (spreadsheets), clipped to the table */
+  pictures?: TablePicture[];
+}
+/** A picture placed by table geometry: x from the table's left edge, y from a row's top. */
+export interface TablePicture {
+  /** one image inline; emptied when the image can't be embedded */
+  inlines: Inline[];
+  x: number;
+  w: number;
+  top: { row: number; dy: number };
+  /** where the bottom edge sits, for pictures that stretch with the rows */
+  bottom?: { row: number; dy: number };
+  /** fixed height in points, when there's no bottom anchor */
+  h?: number;
 }
 export interface PageBreak {
   kind: "pagebreak";

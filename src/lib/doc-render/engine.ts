@@ -3,7 +3,7 @@
  * blocks (word-to-pdf/model) or straight into positioned drawing commands, and this file embeds
  * fonts and images and draws the commands as real, selectable PDF text.
  */
-import { PDFDocument, PDFString, rgb, type PDFImage } from "@cantoo/pdf-lib";
+import { PDFDocument, PDFString, clip, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb, type PDFImage } from "@cantoo/pdf-lib";
 
 import { FontSet } from "../word-to-pdf/fonts";
 import type { Cmd, FontKey, Measurer } from "../word-to-pdf/layout";
@@ -38,6 +38,7 @@ export function* walkInlines(blocks: Block[]): Generator<{ inl: Inline; list: In
       for (const inl of [...b.inlines]) yield { inl, list: b.inlines, bold: b.heading > 0 };
     } else if (b.kind === "table") {
       for (const row of b.rows) for (const cell of row.cells) yield* walkInlines(cell.blocks);
+      for (const pic of b.pictures ?? []) for (const inl of [...pic.inlines]) yield { inl, list: pic.inlines, bold: false };
     }
   }
 }
@@ -251,7 +252,13 @@ export function drawCmd(
         return;
       }
       const img = images.get(c.data);
-      if (img) page.drawImage(img, { x: c.x, y: H - c.y - c.h, width: c.w, height: c.h });
+      if (!img) return;
+      if (c.clip) {
+        const k = c.clip;
+        page.pushOperators(pushGraphicsState(), rectangle(k.x, H - k.y - k.h, k.w, k.h), clip(), endPath());
+      }
+      page.drawImage(img, { x: c.x, y: H - c.y - c.h, width: c.w, height: c.h });
+      if (c.clip) page.pushOperators(popGraphicsState());
       return;
     }
     case "link": {

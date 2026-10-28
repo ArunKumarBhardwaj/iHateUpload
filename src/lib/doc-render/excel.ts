@@ -2,7 +2,9 @@
 import type { CellObject, WorkSheet } from "xlsx";
 
 import type { Family } from "../word-to-pdf/model";
-import { readWorkbookStyles, type PageSetup, type SheetStyles } from "./excel-styles";
+import { columnPt } from "./excel-layout";
+import { readWorkbookStyles, type CellStyle, type PageSetup, type SheetStyles } from "./excel-styles";
+import { krutiToUnicode } from "./krutidev";
 import { looksNumeric, type Grid, type GridCell } from "./tables";
 
 export interface SheetGrid {
@@ -119,7 +121,10 @@ function sheetToGrid(
       const out: GridCell = { text: "", num: false };
       if (style) out.style = style;
       if (!cell || cell.v === undefined || cell.v === null) return out;
-      const shown = displayText(XLSX, cell);
+      const runs = sheetStyles?.runs.get(addr);
+      let shown = runs ? runs.map((r) => r.text).join("") : displayText(XLSX, cell);
+      if (runs) out.runs = runs;
+      else if (style?.kruti && cell.t === "s") shown = krutiToUnicode(shown);
       out.text = shown.trim();
       if (out.text && shown !== out.text) out.raw = shown;
       out.num = cell.t === "n" || (cell.t === "d" ? false : looksNumeric(out.text) && cell.t !== "s");
@@ -141,6 +146,17 @@ function sheetToGrid(
     head.colSpan = cs.length;
     head.rowSpan = rs.length;
     for (const r of rs) for (const c of cs) if (r !== r0 || c !== c0) rows[r][c].covered = true;
+    // Excel draws a merged cell's outline from the cells along each side, not just the first one
+    const side = (cells: GridCell[], key: "top" | "right" | "bottom" | "left") => cells.map((g) => g.style?.border?.[key]).find(Boolean);
+    const last = rs[rs.length - 1];
+    const right = cs[cs.length - 1];
+    const border: CellStyle["border"] = {
+      top: side(cs.map((c) => rows[r0][c]), "top"),
+      bottom: side(cs.map((c) => rows[last][c]), "bottom"),
+      left: side(rs.map((r) => rows[r][c0]), "left"),
+      right: side(rs.map((r) => rows[r][right]), "right"),
+    };
+    if (border.top || border.bottom || border.left || border.right) head.style = { ...head.style, border };
     if (head.text) {
       mergeRight = Math.max(mergeRight, c0 + cs.length);
       mergeBottom = Math.max(mergeBottom, r0 + rs.length);
@@ -177,9 +193,33 @@ function sheetToGrid(
   // the sheet as Excel prints it: widths in Excel's units, row heights in points, page setup
   const setup: PageSetup = sheetStyles?.setup ?? {};
   const defW = setup.defaultColWidth ?? 9.140625;
+  const defH = setup.defaultRowHeight ?? 15;
+  const colWidthOf = (c: number) => (cols[c]?.hidden ? 0 : (cols[c]?.width ?? defW));
+  const rowHeightOf = (r: number) => (rowsMeta[r]?.hidden ? 0 : (rowsMeta[r]?.hpt ?? defH));
+  // pictures, as rectangles in unscaled points from the print area's top-left corner
+  const xOf = (col: number, dx: number) => {
+    let x = 0;
+    if (col >= range.s.c) for (let c = range.s.c; c < col; c++) x += columnPt(colWidthOf(c));
+    else for (let c = col; c < range.s.c; c++) x -= columnPt(colWidthOf(c));
+    return x + (colWidthOf(col) ? dx : 0);
+  };
+  const yOf = (row: number, dy: number) => {
+    let y = 0;
+    if (row >= range.s.r) for (let r = range.s.r; r < row; r++) y += rowHeightOf(r);
+    else for (let r = row; r < range.s.r; r++) y -= rowHeightOf(r);
+    return y + (rowHeightOf(row) ? dy : 0);
+  };
+  const pictures = (sheetStyles?.pictures ?? []).flatMap((p) => {
+    const x = xOf(p.from.col, p.from.dx);
+    const y = yOf(p.from.row, p.from.dy);
+    const w = p.to ? xOf(p.to.col, p.to.dx) - x : (p.size?.w ?? 0);
+    const h = p.to ? yOf(p.to.row, p.to.dy) - y : (p.size?.h ?? 0);
+    return w > 0.5 && h > 0.5 ? [{ data: p.data, mime: p.mime, x, y, w, h }] : [];
+  });
   grid.sheet = {
     colWidths: keepCols.slice(0, width).map((c) => cols[c]?.width ?? defW),
-    rowHeights: keepRows.slice(0, trimmed.length).map((r) => rowsMeta[r]?.hpt ?? setup.defaultRowHeight ?? 15),
+    rowHeights: keepRows.slice(0, trimmed.length).map((r) => rowsMeta[r]?.hpt ?? defH),
+    pictures,
     setup,
     titleRows: names.titles
       ? keepRows.slice(0, trimmed.length).flatMap((r, i) => ((names.titles as [number, number])[0] <= r && r <= (names.titles as [number, number])[1] ? [i] : []))

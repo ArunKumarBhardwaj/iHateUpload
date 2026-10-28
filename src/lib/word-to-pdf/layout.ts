@@ -34,7 +34,20 @@ export type Cmd =
   | { t: "shape"; x: number; y: number; path: string; fill?: string; stroke?: string; strokeWidth?: number }
   /** invisible marker for a heading, so a table of contents can find its page */
   | { t: "anchor"; x: number; y: number; id: number }
-  | { t: "image"; x: number; y: number; w: number; h: number; data: Uint8Array; mime: string; color?: string }
+  | {
+      t: "image";
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      data: Uint8Array;
+      mime: string;
+      color?: string;
+      /** only the part inside this rectangle (same coordinates) is drawn */
+      clip?: { x: number; y: number; w: number; h: number };
+      /** drawn after everything else on the page (pictures over spreadsheet cells) */
+      above?: boolean;
+    }
   | { t: "link"; x: number; y: number; w: number; h: number; href: string };
 
 export interface LaidOutPage {
@@ -62,6 +75,8 @@ interface Item {
   /** relative to the item's top-left; x is relative to the flow origin */
   cmds: Cmd[];
   keepNext?: boolean;
+  /** this much more must fit on the page with the item (rows a merged cell spans) */
+  keepWith?: number;
   forceBreak?: boolean;
   table?: { id: number; headers: Item[] };
   isHeader?: boolean;
@@ -155,6 +170,27 @@ function atomise(p: Para, ctx: Ctx, avail: number): Atom[] {
     }
   }
   return atoms;
+}
+
+const graphemes = (t: string): string[] => {
+  const Seg = (Intl as { Segmenter?: new (l?: string, o?: { granularity: string }) => { segment(t: string): Iterable<{ segment: string }> } }).Segmenter;
+  return Seg ? Array.from(new Seg(undefined, { granularity: "grapheme" }).segment(t), (g) => g.segment) : Array.from(t);
+};
+
+/** The longest start of a word that fits in `room`, or null. */
+function fitPrefix(a: Extract<Atom, { k: "w" }>, room: number, ctx: Ctx): Extract<Atom, { k: "w" }> | null {
+  const gs = graphemes(a.text);
+  let lo = 0;
+  let hi = gs.length;
+  // binary search on the number of graphemes
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (ctx.measure(gs.slice(0, mid).join(""), a.r.key, a.r.size) <= room + 0.01) lo = mid;
+    else hi = mid - 1;
+  }
+  if (!lo) return null;
+  const text = gs.slice(0, lo).join("");
+  return { k: "w", text, w: ctx.measure(text, a.r.key, a.r.size), r: a.r };
 }
 
 /** Break a too-wide word into chunks that each fit. */
@@ -362,13 +398,22 @@ function paraItems(p: Para, width: number, ctx: Ctx): Item[] {
       lines = breakLines(atoms, avail, ctx);
     }
     if (lines.length > 1) {
-      // cut: whole words while they fit
+      // cut at the edge, as a spreadsheet clips a cell: whole words, then as much of the next word
+      // as fits, by whole characters (graphemes, so a Devanagari syllable is never split)
       const kept: Atom[] = [];
       let w = 0;
       for (const a of atoms) {
         if (a.k === "br") break;
         const aw = (a as { w: number }).w;
-        if (a.k !== "s" && w + aw > avail) break;
+        if (a.k === "w" && w + aw > avail) {
+          const part = fitPrefix(a, avail - w, ctx);
+          if (part) {
+            kept.push(part);
+            w += part.w;
+          }
+          break;
+        }
+        if (a.k === "i" && w + aw > avail) break;
         kept.push(a);
         w += aw;
       }
@@ -548,69 +593,153 @@ function tableItems(t: TableBlock, width: number, ctx: Ctx): Item[] {
   const total = xs[xs.length - 1];
 
   const id = ctx.nextTable.n++;
-  const items: Item[] = [];
-  const occupied = new Array<number>(cols).fill(0);
+  const cellCtx = (cell: Cell): Ctx => ({ ...ctx, compact: true, bold: ctx.bold || (!info && cell.header) });
+
+  // 1. place every cell on the grid. A cell spanning rows blocks its columns in the rows below it.
+  interface Placed {
+    row: number;
+    col: number;
+    span: number;
+    rows: number;
+    cell: Cell;
+    items: Item[];
+    h: number;
+    fill?: string;
+  }
+  const placedByRow: Placed[][] = rows.map(() => []);
+  const blockedUntil = new Array<number>(cols).fill(-1); // last row index each column is taken to
   rows.forEach((row, ri) => {
-    const cmds: Cmd[] = [];
-    const bodies: { x: number; items: Item[]; h: number; valign?: Cell["valign"] }[] = [];
-    let rowH = 0;
     let col = 0;
-    const placed: { col: number; span: number; fill?: string; edges?: Cell["edges"] }[] = [];
     for (const cell of row.cells) {
-      while (col < cols && occupied[col] > 0) col++;
+      while (col < cols && blockedUntil[col] >= ri) col++;
       if (col >= cols) break;
-      const span = Math.min(cell.colSpan, cols - col);
+      let span = Math.min(cell.colSpan, cols - col);
+      // a column-span can't run into a column taken by a merge from above
+      for (let k = 1; k < span; k++) if (blockedUntil[col + k] >= ri) span = k;
+      const down = Math.max(1, Math.min(cell.rowSpan, rows.length - ri));
       const w = xs[col + span] - xs[col];
-      const cctx: Ctx = { ...ctx, compact: true, bold: ctx.bold || (!info && cell.header) };
-      const inner = flowItems(cell.blocks, w - pad, cctx);
+      const inner = flowItems(cell.blocks, w - pad, cellCtx(cell));
       const h = inner.reduce((n, it) => n + it.before + it.h + it.after, 0);
-      bodies.push({ x: xs[col] + padX, items: inner, h, valign: cell.valign });
-      rowH = Math.max(rowH, h);
-      placed.push({ col, span, fill: cell.fill ?? (!info && cell.header ? HEADER_FILL : undefined), edges: cell.edges });
-      if (cell.rowSpan > 1) for (let k = 0; k < span; k++) occupied[col + k] = cell.rowSpan;
+      placedByRow[ri].push({ row: ri, col, span, rows: down, cell, items: inner, h, fill: cell.fill ?? (!info && cell.header ? HEADER_FILL : undefined) });
+      for (let k = 0; k < span; k++) blockedUntil[col + k] = ri + down - 1;
       col += span;
     }
-    for (let k = 0; k < cols; k++) if (occupied[k] > 0 && !placed.some((c) => k >= c.col && k < c.col + c.span)) occupied[k]--;
-    const height = Math.max(info?.pad ? rowH : Math.max(rowH, BASE_SIZE * 1.22), (row.minHeight ?? 0) - padY * 2) + padY * 2;
+  });
+
+  // 2. row heights from single-row cells; then a spanning cell's content stretches its last row
+  const heights = rows.map((row, ri) => {
+    if (row.exactHeight && row.minHeight !== undefined) return row.minHeight;
+    const own = Math.max(0, ...placedByRow[ri].filter((p) => p.rows === 1).map((p) => p.h));
+    return Math.max(info?.pad ? own : Math.max(own, BASE_SIZE * 1.22), (row.minHeight ?? 0) - padY * 2) + padY * 2;
+  });
+  for (const list of placedByRow) {
+    for (const p of list) {
+      if (p.rows === 1 || rows[p.row + p.rows - 1].exactHeight) continue;
+      const have = heights.slice(p.row, p.row + p.rows).reduce((a, b) => a + b, 0);
+      const need = p.h + padY * 2;
+      if (need > have) heights[p.row + p.rows - 1] += need - have;
+    }
+  }
+  const tops = [0];
+  for (const h of heights) tops.push(tops[tops.length - 1] + h);
+
+  // 3. one item per row; a spanning cell is drawn in its first row at its full height
+  const items: Item[] = [];
+  rows.forEach((row, ri) => {
+    const cmds: Cmd[] = [];
+    const height = heights[ri];
+    const placed = placedByRow[ri];
+    const boxH = (p: Placed) => tops[p.row + p.rows] - tops[p.row];
     // fills first so text draws on top
-    placed.forEach((c) => {
-      if (c.fill) cmds.push({ t: "rect", x: xs[c.col], y: 0, w: xs[c.col + c.span] - xs[c.col], h: height, fill: c.fill });
-    });
-    bodies.forEach((b) => {
-      const spare = height - padY * 2 - b.h;
-      let y = padY + (spare > 0 ? (b.valign === "bottom" ? spare : b.valign === "middle" ? spare / 2 : 0) : 0);
-      for (const it of b.items) {
+    for (const p of placed) {
+      if (p.fill) cmds.push({ t: "rect", x: xs[p.col], y: 0, w: xs[p.col + p.span] - xs[p.col], h: boxH(p), fill: p.fill });
+    }
+    for (const p of placed) {
+      const spare = boxH(p) - padY * 2 - p.h;
+      const va = p.cell.valign;
+      // a fixed-height row keeps centred and bottom-aligned text in place even when it overflows
+      const fixed = rows[p.row + p.rows - 1].exactHeight;
+      let y = padY + (spare > 0 || fixed ? (va === "bottom" ? spare : va === "middle" ? spare / 2 : 0) : 0);
+      for (const it of p.items) {
         y += it.before;
-        for (const c of it.cmds) cmds.push(shift(c, b.x, y));
+        for (const c of it.cmds) cmds.push(shift(c, xs[p.col] + padX, y));
         y += it.h + it.after;
       }
-    });
-    // borders: verticals at every cell edge (or the table edge), top on the first row, bottom always
-    const edges = new Set<number>([0, cols]);
-    placed.forEach((c) => {
-      edges.add(c.col);
-      edges.add(c.col + c.span);
-    });
+    }
     if (border) {
+      // verticals at every cell edge in this row (cells from merges above included), the table's
+      // top on the first row, and a bottom under every column whose cell ends in this row
+      const edges = new Set<number>([0, cols]);
+      const ending: [number, number][] = [];
+      for (let r = 0; r <= ri; r++) {
+        for (const p of placedByRow[r]) {
+          if (p.row + p.rows - 1 < ri) continue;
+          edges.add(p.col);
+          edges.add(p.col + p.span);
+          if (p.row + p.rows - 1 === ri) ending.push([p.col, p.col + p.span]);
+        }
+      }
       for (const e of edges) cmds.push({ t: "line", x1: xs[e], y1: 0, x2: xs[e], y2: height, width: border.width, color: border.color });
       if (ri === 0) cmds.push({ t: "line", x1: 0, y1: 0, x2: total, y2: 0, width: border.width, color: border.color });
-      cmds.push({ t: "line", x1: 0, y1: height, x2: total, y2: height, width: border.width, color: border.color });
+      const covered = new Array<boolean>(cols).fill(false);
+      for (const [a, b] of ending) for (let k = a; k < b; k++) covered[k] = true;
+      // columns no cell reaches (short rows) close the row too
+      for (let k = 0; k < cols; k++) if (!covered[k] && blockedUntilRow(placedByRow, k, ri) < ri) covered[k] = true;
+      for (let k = 0; k < cols; k++) {
+        if (!covered[k]) continue;
+        let e = k;
+        while (e + 1 < cols && covered[e + 1]) e++;
+        cmds.push({ t: "line", x1: xs[k], y1: height, x2: xs[e + 1], y2: height, width: border.width, color: border.color });
+        k = e;
+      }
     }
-    placed.forEach((c) => {
-      const e = c.edges;
-      if (!e) return;
-      const x1 = xs[c.col];
-      const x2 = xs[c.col + c.span];
+    for (const p of placed) {
+      const e = p.cell.edges;
+      if (!e) continue;
+      const x1 = xs[p.col];
+      const x2 = xs[p.col + p.span];
+      const h = boxH(p);
       const line = (edge: { color: string; width: number } | undefined, a: number, b: number, d: number, f: number) => {
         if (edge) cmds.push({ t: "line", x1: a, y1: b, x2: d, y2: f, width: edge.width, color: edge.color });
       };
       line(e.top, x1, 0, x2, 0);
-      line(e.bottom, x1, height, x2, height);
-      line(e.left, x1, 0, x1, height);
-      line(e.right, x2, 0, x2, height);
-    });
-    items.push({ h: height, before: 0, after: 0, cmds, isHeader: row.header });
+      line(e.bottom, x1, h, x2, h);
+      line(e.left, x1, 0, x1, h);
+      line(e.right, x2, 0, x2, h);
+    }
+    // rows a merged cell spans stay on one page with it
+    const spanEnd = Math.max(ri, ...placed.map((p) => p.row + p.rows - 1));
+    const keepWith = spanEnd > ri ? tops[spanEnd + 1] - tops[ri + 1] : 0;
+    items.push({ h: height, before: 0, after: 0, cmds, isHeader: row.header, keepWith: keepWith || undefined });
   });
+
+  // pictures over the cells, clipped to the table, drawn in the item of the row their top is in
+  const tableH = tops[tops.length - 1];
+  for (const pic of t.pictures ?? []) {
+    const img = pic.inlines[0];
+    if (!img || img.kind !== "image" || !items.length) continue;
+    const rowAt = (a: { row: number; dy: number }) => {
+      const r = Math.max(0, Math.min(rows.length - 1, a.row));
+      return tops[r] + a.dy;
+    };
+    const y1 = rowAt(pic.top);
+    const y2 = pic.bottom ? rowAt(pic.bottom) : y1 + (pic.h ?? 0);
+    if (y2 - y1 < 0.5 || pic.w < 0.5) continue;
+    // the row the top edge falls in (the first or last row when it is above or below the table)
+    let r = 0;
+    while (r < rows.length - 1 && tops[r + 1] <= y1) r++;
+    items[r].cmds.push({
+      t: "image",
+      x: pic.x,
+      y: y1 - tops[r],
+      w: pic.w,
+      h: y2 - y1,
+      data: img.data,
+      mime: img.mime,
+      clip: { x: 0, y: -tops[r], w: total, h: tableH },
+      above: true,
+    });
+  }
   const headers = items.filter((i) => i.isHeader);
   items.forEach((i) => (i.table = { id, headers }));
   if (items.length) items[items.length - 1].after = ctx.compact ? 0 : 8;
@@ -618,10 +747,21 @@ function tableItems(t: TableBlock, width: number, ctx: Ctx): Item[] {
   return items;
 }
 
+/** The last row a cell placed at or above `row` takes in column `col`, or -1. */
+function blockedUntilRow(placed: { col: number; span: number; row: number; rows: number }[][], col: number, row: number): number {
+  let until = -1;
+  for (let r = 0; r <= row; r++) {
+    for (const p of placed[r]) if (col >= p.col && col < p.col + p.span) until = Math.max(until, p.row + p.rows - 1);
+  }
+  return until;
+}
+
 function shift(c: Cmd, dx: number, dy: number): Cmd {
   switch (c.t) {
     case "line":
       return { ...c, x1: c.x1 + dx, x2: c.x2 + dx, y1: c.y1 + dy, y2: c.y2 + dy };
+    case "image":
+      return { ...c, x: c.x + dx, y: c.y + dy, clip: c.clip && { ...c.clip, x: c.clip.x + dx, y: c.clip.y + dy } };
     default:
       return { ...c, x: c.x + dx, y: c.y + dy };
   }
@@ -691,7 +831,7 @@ export function layoutDocument(
     }
     const next = items[idx + 1];
     let before = used ? it.before : 0;
-    const lookahead = it.keepNext && next && !next.forceBreak ? it.after + next.before + next.h : 0;
+    const lookahead = Math.max(it.keepNext && next && !next.forceBreak ? it.after + next.before + next.h : 0, it.keepWith ?? 0);
     if (y + before + it.h + lookahead > bottom && used) {
       newPage();
       before = 0;
@@ -707,5 +847,11 @@ export function layoutDocument(
     used = true;
     prevTable = it.table ? it.table.id : -1;
   });
+  // pictures that sit over cells go last, so cells drawn later on the page don't cover them
+  for (const p of pages) {
+    if (p.cmds.some((c) => c.t === "image" && c.above)) {
+      p.cmds = [...p.cmds.filter((c) => !(c.t === "image" && c.above)), ...p.cmds.filter((c) => c.t === "image" && c.above)];
+    }
+  }
   return pages;
 }

@@ -1,13 +1,14 @@
 /**
- * Cell formatting from an .xlsx package: fonts, solid fills and alignment per cell.
- * The community build of SheetJS only reads fills, so styles.xml and each sheet's style
- * indexes are read here directly. Sheet XML is scanned with a regex, not parsed, so large
- * sheets stay fast.
+ * Cell formatting from an .xlsx package: fonts, fills, borders and alignment per cell, rich text
+ * runs, pictures and page setup. The community build of SheetJS reads little of this, so the
+ * package is read here directly. Sheet XML is scanned with a regex, not parsed, so large sheets
+ * stay fast.
  */
 import JSZip from "jszip";
 
 import { parseHtml, type HNode } from "../word-to-pdf/html";
 import type { Family } from "../word-to-pdf/model";
+import { isKrutiDevFont, krutiToUnicode } from "./krutidev";
 
 export interface CellStyle {
   /** the closest bundled face to the cell's font, when it isn't the workbook's default font */
@@ -27,6 +28,35 @@ export interface CellStyle {
   /** wrap text: without it Excel keeps text on one line, overflowing or clipped */
   wrap?: boolean;
   border?: { top?: Edge; right?: Edge; bottom?: Edge; left?: Edge };
+  /** the cell's font is Kruti Dev / DevLys: its text is Hindi typed in Latin letters */
+  kruti?: boolean;
+}
+
+/** One run of a rich-text cell. Without a style the run uses the cell's font. */
+export interface Run {
+  text: string;
+  style?: RunStyle;
+}
+export interface RunStyle {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  strike: boolean;
+  size?: number;
+  color?: string;
+  family: Family;
+}
+
+/** A picture placed on a sheet. Positions are in the sheet's own rows and columns (0-based). */
+export interface SheetPicture {
+  data: Uint8Array;
+  mime: string;
+  /** top-left corner: cell plus offset in points */
+  from: { col: number; row: number; dx: number; dy: number };
+  /** bottom-right corner, for pictures that move and size with cells */
+  to?: { col: number; row: number; dx: number; dy: number };
+  /** size in points, for pictures with a fixed size */
+  size?: { w: number; h: number };
 }
 
 export interface Edge {
@@ -53,10 +83,17 @@ export interface PageSetup {
   /** Excel's default row height and column width (in its width units), when the sheet sets them */
   defaultRowHeight?: number;
   defaultColWidth?: number;
+  /** the sheet has a pageSetup element (so a missing paperSize means Letter, the format's default) */
+  hasPageSetup?: boolean;
+  /** paper size from the printer settings saved with the sheet, same codes as paperSize */
+  printerPaper?: number;
 }
 
 export interface SheetStyles {
   cells: Map<string, CellStyle>;
+  /** rich-text cells, by reference, with Kruti Dev runs already converted to Unicode */
+  runs: Map<string, Run[]>;
+  pictures: SheetPicture[];
   setup: PageSetup;
 }
 
@@ -146,6 +183,7 @@ interface Font {
   size?: number;
   color?: string;
   family: Family;
+  kruti: boolean;
 }
 
 /** Bundled faces with the same metrics as Office's fonts, so columns fit as they do in Excel. */
@@ -158,8 +196,10 @@ export function familyOf(name: string | undefined): Family {
   return "sans";
 }
 
+/** A cell font (<font>, with <name>) or a run font (<rPr>, with <rFont>). */
 function readFont(e: X, theme: string[]): Font {
   const sz = Number(kid(e, "sz")?.attrs.val);
+  const name = (kid(e, "name") ?? kid(e, "rFont"))?.attrs.val;
   return {
     bold: flag(kid(e, "b")),
     italic: flag(kid(e, "i")),
@@ -167,7 +207,8 @@ function readFont(e: X, theme: string[]): Font {
     strike: flag(kid(e, "strike")),
     size: Number.isFinite(sz) && sz > 0 ? sz : undefined,
     color: colorOf(kid(e, "color"), theme),
-    family: familyOf(kid(e, "name")?.attrs.val),
+    family: isKrutiDevFont(name) ? "sans" : familyOf(name),
+    kruti: isKrutiDevFont(name),
   };
 }
 
@@ -195,7 +236,10 @@ const ALIGN: Record<string, CellStyle["align"]> = {
 };
 
 /** The style each cellXfs entry stands for, against the workbook's default font. */
-function readXfs(xml: string, theme: string[]): { xfs: (CellStyle | undefined)[]; baseSize: number; baseFamily: Family } {
+function readXfs(
+  xml: string,
+  theme: string[],
+): { xfs: (CellStyle | undefined)[]; baseSize: number; baseFamily: Family; fonts: Font[] } {
   const root = parseXml(xml);
   const fonts = kids(find(root, "fonts"), "font").map((f) => readFont(f, theme));
   const fills = kids(find(root, "fills"), "fill").map((f) => readFill(f, theme));
@@ -213,6 +257,7 @@ function readXfs(xml: string, theme: string[]): { xfs: (CellStyle | undefined)[]
       if (font.strike) s.strike = true;
       if (font.size && font.size !== baseSize) s.size = font.size;
       if (font.family !== baseFamily) s.family = font.family;
+      if (font.kruti) s.kruti = true;
       // black is what the PDF uses anyway
       if (font.color && font.color !== "000000") s.color = font.color;
     }
@@ -229,7 +274,7 @@ function readXfs(xml: string, theme: string[]): { xfs: (CellStyle | undefined)[]
     if (border) s.border = border;
     return Object.keys(s).length ? s : undefined;
   });
-  return { xfs, baseSize, baseFamily };
+  return { xfs, baseSize, baseFamily, fonts };
 }
 
 /** Line widths in points for Excel's border styles. */
@@ -260,9 +305,10 @@ function readBorder(e: X, theme: string[]): CellStyle["border"] {
   return Object.keys(out).length ? out : undefined;
 }
 
-function resolveTarget(target: string): string {
+/** A relationship target, relative to the folder of the part that refers to it. */
+function resolveTarget(target: string, dir = "xl"): string {
   if (target.startsWith("/")) return target.slice(1);
-  const parts = `xl/${target}`.split("/");
+  const parts = `${dir}/${target}`.split("/");
   const out: string[] = [];
   for (const p of parts) {
     if (p === "..") out.pop();
@@ -294,6 +340,7 @@ function readSetup(xml: string): PageSetup {
   out.defaultColWidth = num(fmt?.defaultcolwidth);
   const ps = tag(tail, "pageSetup");
   if (ps) {
+    out.hasPageSetup = true;
     out.paperSize = num(ps.papersize);
     if (ps.orientation === "landscape") out.landscape = true;
     out.scale = num(ps.scale);
@@ -313,9 +360,104 @@ function readSetup(xml: string): PageSetup {
   return out;
 }
 
-const CELL_RE = /<(?:[\w-]+:)?c\s([^>]*?)\/?>/g;
+// a cell's attributes and, unless it is self-closing, its content
+const CELL_RE = /<(?:[\w-]+:)?c\s([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:[\w-]+:)?c>)/g;
 const ATTR_R = /(?:^|\s)r="([A-Z]+\d+)"/;
 const ATTR_S = /(?:^|\s)s="(\d+)"/;
+const ATTR_T = /(?:^|\s)t="(\w+)"/;
+
+const textOf = (n: HNode): string => (isX(n) ? n.children.map(textOf).join("") : n.text);
+
+/** The runs of an <si> or <is>, or null when it is plain text (one <t>). Phonetic runs are skipped. */
+function readRuns(e: X, theme: string[]): Run[] | null {
+  const rs = kids(e, "r");
+  if (!rs.length) return null;
+  return rs.map((r) => {
+    const t = kids(r, "t").map(textOf).join("");
+    const pr = kid(r, "rPr");
+    if (!pr) return { text: t };
+    const f = readFont(pr, theme);
+    const style: RunStyle = { bold: f.bold, italic: f.italic, underline: f.underline, strike: f.strike, size: f.size, color: f.color, family: f.family };
+    return { text: f.kruti ? krutiToUnicode(t) : t, style };
+  });
+}
+
+/** Rich text in a cell whose own font is Kruti Dev: unstyled runs are Kruti Dev too. */
+function convertPlainRuns(runs: Run[], cellKruti: boolean): Run[] {
+  return cellKruti ? runs.map((r) => (r.style ? r : { text: krutiToUnicode(r.text) })) : runs;
+}
+
+/** The paper size saved in a printer settings part (a Windows DEVMODE), if it has one. */
+function devmodePaper(b: Uint8Array): number | undefined {
+  if (b.length < 80) return undefined;
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  const fields = v.getUint32(72, true);
+  const DM_PAPERSIZE = 0x2;
+  if (!(fields & DM_PAPERSIZE)) return undefined;
+  const paper = v.getInt16(78, true);
+  return paper > 0 && paper < 256 ? paper : undefined;
+}
+
+const EMU_PT = 12700;
+const MEDIA_MIME: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", bmp: "image/bmp", webp: "image/webp", tif: "image/tiff", tiff: "image/tiff" };
+
+/** Pictures in a drawing part. Hidden ones, and ones whose outline is an empty path, draw nothing in Excel. */
+async function readPictures(zip: JSZip, drawingPath: string): Promise<SheetPicture[]> {
+  const xml = await zip.file(drawingPath)?.async("string");
+  if (!xml) return [];
+  const dir = drawingPath.replace(/\/[^/]*$/, "");
+  const relsPath = `${dir}/_rels/${drawingPath.slice(dir.length + 1)}.rels`;
+  const relsXml = await zip.file(relsPath)?.async("string");
+  const rels = new Map<string, string>();
+  if (relsXml) {
+    for (const r of kids(find(parseXml(relsXml), "Relationships"), "Relationship")) {
+      if (r.attrs.id && r.attrs.target && r.attrs.targetmode !== "External") rels.set(r.attrs.id, resolveTarget(r.attrs.target, dir));
+    }
+  }
+  const root = find(parseXml(xml), "wsDr");
+  const out: SheetPicture[] = [];
+  const cellPos = (e: X | undefined) =>
+    e && {
+      col: Number(textOf(kid(e, "col") as X)) || 0,
+      row: Number(textOf(kid(e, "row") as X)) || 0,
+      dx: (Number(textOf(kid(e, "colOff") as X)) || 0) / EMU_PT,
+      dy: (Number(textOf(kid(e, "rowOff") as X)) || 0) / EMU_PT,
+    };
+  for (const anchor of kids(root)) {
+    const kind = local(anchor.tag);
+    if (kind !== "twocellanchor" && kind !== "onecellanchor" && kind !== "absoluteanchor") continue;
+    // pictures directly in the anchor; pictures inside a group are placed by the group's own anchor
+    const pic = kid(anchor, "pic");
+    if (!pic) continue;
+    const nv = kid(kid(pic, "nvPicPr"), "cNvPr");
+    if (nv && yes(nv.attrs.hidden)) continue;
+    const sp = kid(pic, "spPr");
+    const cust = kid(sp, "custGeom");
+    if (cust && !kids(kid(cust, "pathLst"), "path").length) continue;
+    const blip = find(kid(pic, "blipFill"), "blip");
+    const target = rels.get(blip?.attrs["r:embed"] ?? "");
+    if (!target) continue;
+    const ext = target.split(".").pop()?.toLowerCase() ?? "";
+    const mime = MEDIA_MIME[ext];
+    const data = mime ? await zip.file(target)?.async("uint8array") : undefined;
+    if (!data || !mime) continue;
+    const from = cellPos(kid(anchor, "from"));
+    const xfrmExt = kid(kid(sp, "xfrm"), "ext");
+    const extEl = kid(anchor, "ext") ?? xfrmExt;
+    const size = extEl ? { w: (Number(extEl.attrs.cx) || 0) / EMU_PT, h: (Number(extEl.attrs.cy) || 0) / EMU_PT } : undefined;
+    if (kind === "twocellanchor" && from) {
+      const to = cellPos(kid(anchor, "to"));
+      if (to) out.push({ data, mime, from, to });
+    } else if (kind === "onecellanchor" && from && size) {
+      out.push({ data, mime, from, size });
+    } else if (kind === "absoluteanchor" && size) {
+      const pos = kid(anchor, "pos");
+      // an absolute position is kept as an offset from A1
+      out.push({ data, mime, from: { col: 0, row: 0, dx: (Number(pos?.attrs.x) || 0) / EMU_PT, dy: (Number(pos?.attrs.y) || 0) / EMU_PT }, size });
+    }
+  }
+  return out;
+}
 
 /** Styles for every sheet, keyed by name. Returns null when the file isn't an .xlsx package (e.g. .xls, .ods). */
 export async function readWorkbookStyles(data: ArrayBuffer | Uint8Array): Promise<WorkbookStyles | null> {
@@ -330,7 +472,12 @@ export async function readWorkbookStyles(data: ArrayBuffer | Uint8Array): Promis
   if (!wbXml || !relsXml) return null;
   const themePath = Object.keys(zip.files).find((p) => /^xl\/theme\/theme\d*\.xml$/.test(p));
   const theme = readTheme(themePath ? await text(themePath) : undefined);
-  const { xfs, baseSize, baseFamily } = stylesXml ? readXfs(stylesXml, theme) : { xfs: [], baseSize: 11, baseFamily: "sans" as Family };
+  const { xfs, baseSize, baseFamily } = stylesXml
+    ? readXfs(stylesXml, theme)
+    : { xfs: [] as (CellStyle | undefined)[], baseSize: 11, baseFamily: "sans" as Family };
+  const sstPath = Object.keys(zip.files).find((p) => /^xl\/sharedStrings\.xml$/i.test(p));
+  const sstXml = sstPath ? await text(sstPath) : undefined;
+  const shared = sstXml ? kids(find(parseXml(sstXml), "sst"), "si").map((si) => readRuns(si, theme)) : [];
 
   const rels = new Map<string, string>();
   for (const r of kids(find(parseXml(relsXml), "Relationships"), "Relationship")) {
@@ -341,16 +488,47 @@ export async function readWorkbookStyles(data: ArrayBuffer | Uint8Array): Promis
     const part = rels.get(s.attrs["r:id"] ?? "");
     const xml = part ? await text(part) : undefined;
     const cells = new Map<string, CellStyle>();
-    if (xml && xfs.length) {
+    const runs = new Map<string, Run[]>();
+    if (xml) {
       for (const m of xml.matchAll(CELL_RE)) {
         const r = ATTR_R.exec(m[1])?.[1];
+        if (!r) continue;
         const si = ATTR_S.exec(m[1])?.[1];
-        if (!r || !si) continue;
-        const style = xfs[Number(si)];
+        const style = si ? xfs[Number(si)] : undefined;
         if (style) cells.set(r, style);
+        const t = ATTR_T.exec(m[1])?.[1];
+        const body = m[2];
+        if (!body) continue;
+        let rich: Run[] | null = null;
+        if (t === "s") {
+          const idx = /<(?:[\w-]+:)?v>\s*(\d+)\s*</.exec(body)?.[1];
+          rich = idx !== undefined ? (shared[Number(idx)] ?? null) : null;
+        } else if (t === "inlineStr" && body.includes("<r>")) {
+          const is = find(parseXml(body), "is");
+          rich = is ? readRuns(is, theme) : null;
+        }
+        if (rich) runs.set(r, convertPlainRuns(rich, !!style?.kruti));
       }
     }
-    sheets.set(s.attrs.name ?? "", { cells, setup: xml ? readSetup(xml) : {} });
+    const setup: PageSetup = xml ? readSetup(xml) : {};
+    let pictures: SheetPicture[] = [];
+    if (part) {
+      const dir = part.replace(/\/[^/]*$/, "");
+      const sheetRels = await text(`${dir}/_rels/${part.slice(dir.length + 1)}.rels`);
+      if (sheetRels) {
+        for (const rel of kids(find(parseXml(sheetRels), "Relationships"), "Relationship")) {
+          const type = rel.attrs.type ?? "";
+          const target = rel.attrs.target ? resolveTarget(rel.attrs.target, dir) : "";
+          if (!target || rel.attrs.targetmode === "External") continue;
+          if (type.endsWith("/drawing")) pictures = pictures.concat(await readPictures(zip, target));
+          else if (type.endsWith("/printerSettings")) {
+            const bin = await zip.file(target)?.async("uint8array");
+            if (bin) setup.printerPaper = devmodePaper(bin);
+          }
+        }
+      }
+    }
+    sheets.set(s.attrs.name ?? "", { cells, runs, pictures, setup });
   }
   return { baseSize, baseFamily, sheets };
 }

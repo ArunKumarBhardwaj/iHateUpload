@@ -297,3 +297,47 @@ describe("docx-driven layout", () => {
     expect(b.y - a.y).toBeCloseTo(16.5, 3);
   });
 });
+
+describe("table cells spanning rows", () => {
+  const cell = (text: string, over: Partial<import("./model").Cell> = {}): import("./model").Cell => ({
+    blocks: text ? [para(text)] : [],
+    colSpan: 1,
+    rowSpan: 1,
+    header: false,
+    ...over,
+  });
+  // | A (2 rows) | b1 |
+  // |            | b2 |
+  // | c          | d  |
+  const table: Block = {
+    kind: "table",
+    rows: [
+      { header: false, cells: [cell("A", { rowSpan: 2, valign: "middle" }), cell("b1")] },
+      { header: false, cells: [cell("b2")] },
+      { header: false, cells: [cell("c"), cell("d")] },
+    ],
+  };
+
+  test("the row after the span starts in the first column again", () => {
+    const t = texts(layoutDocument([table], PAGE, measure)[0].cmds);
+    const at = (s: string) => t.find((c) => c.text === s) as Extract<Cmd, { t: "text" }>;
+    expect(at("c").x).toBeCloseTo(at("A").x, 5);
+    expect(at("d").x).toBeCloseTo(at("b1").x, 5);
+    expect(at("b2").x).toBeCloseTo(at("b1").x, 5);
+  });
+
+  test("the spanning cell is centred over both rows, and no border cuts through it", () => {
+    const cmds = layoutDocument([table], PAGE, measure)[0].cmds;
+    const t = texts(cmds);
+    const at = (s: string) => t.find((c) => c.text === s) as Extract<Cmd, { t: "text" }>;
+    expect(at("A").y).toBeGreaterThan(at("b1").y);
+    expect(at("A").y).toBeLessThan(at("b2").y);
+    const xA = at("A").x;
+    const xB = at("b1").x;
+    // horizontal lines between the b rows stop at A's right edge
+    const between = cmds.filter((c): c is Extract<Cmd, { t: "line" }> => c.t === "line" && c.y1 === c.y2 && c.y1 > at("b1").y && c.y1 < at("b2").y);
+    expect(between.length).toBeGreaterThan(0);
+    for (const l of between) expect(Math.min(l.x1, l.x2)).toBeGreaterThan(xA);
+    expect(Math.min(...between.map((l) => Math.min(l.x1, l.x2)))).toBeLessThan(xB);
+  });
+});

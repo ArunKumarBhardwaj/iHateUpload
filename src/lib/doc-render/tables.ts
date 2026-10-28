@@ -1,6 +1,6 @@
 /** Spreadsheet-like grids (CSV, Excel) -> blocks for the shared layout engine. */
 import type { Align, Block, Cell, Family, Row, TableBlock } from "../word-to-pdf/model";
-import type { CellStyle, PageSetup } from "./excel-styles";
+import type { CellStyle, PageSetup, Run } from "./excel-styles";
 
 export interface GridCell {
   text: string;
@@ -10,6 +10,8 @@ export interface GridCell {
   style?: CellStyle;
   /** the displayed text before trimming, when it had leading or trailing spaces */
   raw?: string;
+  /** rich text: the runs that make up `raw ?? text`, each with its own font */
+  runs?: Run[];
   /** merged cells: the top-left cell carries the span, the rest are covered */
   colSpan?: number;
   rowSpan?: number;
@@ -32,6 +34,8 @@ export interface Grid {
     colWidths: number[];
     /** per row, in points */
     rowHeights: number[];
+    /** pictures over the cells, in unscaled points from the top-left of the printed area */
+    pictures: { data: Uint8Array; mime: string; x: number; y: number; w: number; h: number }[];
     setup: PageSetup;
     /** rows repeated at the top of every page */
     titleRows: number[];

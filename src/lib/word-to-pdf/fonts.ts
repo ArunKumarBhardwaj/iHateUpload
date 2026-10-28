@@ -241,6 +241,8 @@ export class FontSet {
     if (name === "deva") {
       // pdf-lib draws glyphs at their plain advances, which leaves gaps and misplaced matras in
       // shaped Devanagari. Place each glyph where fontkit's shaping put it instead.
+      // the font has no italic: slant the upright glyphs, as Office does for a font without one
+      const slant = v.endsWith("1") ? 0.2 : 0;
       f.draw = (page, text, x, y, size, color) => {
         const font = f?.pdfFont() as PDFFont;
         const run = kit.layout(text);
@@ -259,7 +261,7 @@ export class FontSet {
         let pen = 0;
         run.glyphs.forEach((g, i) => {
           const p = run.positions[i];
-          ops.push(setTextMatrix(1, 0, 0, 1, x + (pen + p.xOffset) * k, y + p.yOffset * k));
+          ops.push(setTextMatrix(1, 0, slant, 1, x + (pen + p.xOffset) * k + slant * p.yOffset * k, y + p.yOffset * k));
           ops.push(showText(PDFHexString.of(g.id.toString(16).padStart(4, "0"))));
           pen += p.xAdvance;
         });

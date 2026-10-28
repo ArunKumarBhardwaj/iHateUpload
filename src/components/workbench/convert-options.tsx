@@ -18,7 +18,7 @@ export function convertDocHint(o: Opts): string {
     case "excel":
       return o.excelLayout === "table"
         ? "Every sheet you pick as a clean table, with numbers right-aligned as Excel shows them and the header row repeated on each page."
-        : "Every sheet you pick, printed as it is set up in Excel: print area, paper, scale and margins, with its own fonts, colours, borders and merged cells. Hindi and other Devanagari text is kept.";
+        : "Every sheet you pick, printed as it is set up in Excel: print area, paper, scale and margins, with its own fonts, colours, borders, merged cells and pictures. Hindi is kept, including text typed in Kruti Dev.";
     case "csv":
       return "Sort, search and hide columns in the preview, then print exactly that. The header row repeats on every page and the text stays selectable.";
     case "pptx":

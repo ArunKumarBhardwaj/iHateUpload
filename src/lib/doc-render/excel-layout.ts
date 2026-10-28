@@ -28,7 +28,10 @@ const A5 = { width: 419.53, height: 595.28 };
 
 /** The page the sheet's setup asks for. */
 export function sheetPageSpec(setup: PageSetup): PageSpec {
-  const name = PAPER_CODE[setup.paperSize ?? 9] ?? "a4";
+  // a pageSetup without paperSize means Letter, the format's default (Excel leaves it out then);
+  // with no pageSetup at all, the printer settings saved with the sheet, else A4
+  const code = setup.paperSize ?? (setup.hasPageSetup ? 1 : (setup.printerPaper ?? 9));
+  const name = PAPER_CODE[code] ?? "a4";
   const p = name === "a5" ? A5 : PAPER[name];
   const [width, height] = setup.landscape ? [p.height, p.width] : [p.width, p.height];
   // Excel's default "Normal" margins: 0.7in sides, 0.75in top and bottom
@@ -72,6 +75,32 @@ const style = (size: number, family: Family, cell: GridCell | undefined, bold = 
   };
 };
 
+type Piece = { text: string; style: ReturnType<typeof style> };
+
+/**
+ * A cell's text as styled pieces, without its leading and trailing spaces: one piece in the cell's
+ * font, or one per rich-text run (a run's own font replaces the cell's, as in Excel).
+ */
+function pieces(cell: GridCell, size: number, scale: number, family: Family): Piece[] {
+  const base = style(size, family, cell);
+  if (!cell.runs) return cell.text ? [{ text: cell.text, style: base }] : [];
+  const out: Piece[] = cell.runs.map((r) => ({
+    text: r.text,
+    style: r.style
+      ? { ...r.style, size: r.style.size ? r.style.size * scale : size, color: r.style.color, family: r.style.family }
+      : base,
+  }));
+  // trim the cell's outer spaces across run boundaries
+  while (out.length && !out[0].text.trimStart()) out.shift();
+  while (out.length && !out[out.length - 1].text.trimEnd()) out.pop();
+  if (out.length) {
+    out[0] = { ...out[0], text: out[0].text.trimStart() };
+    const last = out.length - 1;
+    out[last] = { ...out[last], text: out[last].text.trimEnd() };
+  }
+  return out;
+}
+
 /** Leading spaces in a cell push its text right, as they do in Excel. */
 function leading(cell: GridCell): number {
   const raw = cell.raw ?? cell.text;
@@ -87,9 +116,14 @@ export function sheetToBlocks(grid: Grid, spec: PageSpec, title?: string): Block
   const family = sheet.baseFamily;
   const colW = sheet.colWidths.map((w) => columnPt(w) * scale);
   const sizeOf = (c: GridCell | undefined) => (c?.style?.size ?? sheet.baseSize) * scale;
-  const em = (c: GridCell | undefined) => CHAR_EM[c?.style?.family ?? family] * (c?.style?.bold ? 1.08 : 1);
   // combining marks (Devanagari matras, accents) take no width of their own
-  const textWidth = (c: GridCell) => sizeOf(c) * (leading(c) * SPACE_EM + c.text.replace(/\p{M}/gu, "").length * em(c));
+  const chars = (t: string) => t.replace(/\p{M}/gu, "").length;
+  const textWidth = (c: GridCell) =>
+    sizeOf(c) * leading(c) * SPACE_EM +
+    pieces(c, sizeOf(c), scale, family).reduce(
+      (w, p) => w + (p.style.size ?? 10) * chars(p.text) * CHAR_EM[p.style.family] * (p.style.bold ? 1.08 : 1),
+      0,
+    );
 
   if (title) {
     out.push({
@@ -146,13 +180,15 @@ export function sheetToBlocks(grid: Grid, spec: PageSpec, title?: string): Block
         const indent = text ? leading(cell) * SPACE_EM * size : 0;
         const inlines: Inline[] = [];
         if (text) {
-          const lines = st?.wrap ? text.split(/\r?\n/) : [text.replace(/\s*\r?\n\s*/g, " ")];
+          for (const piece of pieces(cell, size, scale, family)) {
+            const lines = st?.wrap ? piece.text.split(/\r?\n/) : [piece.text.replace(/\s*\r?\n\s*/g, " ")];
+            lines.forEach((line, i) => {
+              if (i) inlines.push({ kind: "br" });
+              if (line) inlines.push({ kind: "text", text: line, style: piece.style });
+            });
+          }
           // trailing blank lines make Excel cells no taller than their row height
-          while (lines.length > 1 && !lines[lines.length - 1].trim()) lines.pop();
-          lines.forEach((line, i) => {
-            if (i) inlines.push({ kind: "br" });
-            if (line) inlines.push({ kind: "text", text: line, style: style(size, family, cell) });
-          });
+          while (inlines.length && inlines[inlines.length - 1].kind === "br") inlines.pop();
         }
         const align: Align = st?.align ?? (cell.num ? "right" : "left");
         const b = st?.border;
@@ -163,12 +199,13 @@ export function sheetToBlocks(grid: Grid, spec: PageSpec, title?: string): Block
           fill: st?.fill,
           edges: b ? { top: b.top, right: b.right, bottom: b.bottom, left: b.left } : undefined,
           valign: st?.valign ?? "bottom",
-          blocks: [
-            { kind: "para", inlines, align, heading: 0, indent: Math.min(indent, 240), spacing: { before: 0, after: 0 }, oneLine: !st?.wrap },
-          ],
+          // an empty cell has no line of text, so it never makes its row taller than Excel's
+          blocks: inlines.length
+            ? [{ kind: "para", inlines, align, heading: 0, indent: Math.min(indent, 240), spacing: { before: 0, after: 0 }, oneLine: !st?.wrap }]
+            : [],
         });
       });
-      return { header, cells, minHeight: (sheet.rowHeights[ri] ?? 15) * scale };
+      return { header, cells, minHeight: (sheet.rowHeights[ri] ?? 15) * scale, exactHeight: true };
     }),
     info: {
       grid: colW,
@@ -178,6 +215,22 @@ export function sheetToBlocks(grid: Grid, spec: PageSpec, title?: string): Block
       pad: { x: PAD_X, y: PAD_Y },
     },
   };
+  // pictures: x scales with the columns; y is placed by row so it follows rows that grew
+  const heights = sheet.rowHeights;
+  const rowOf = (y: number) => {
+    let r = 0;
+    let top = 0;
+    if (y < 0) return { row: 0, dy: y * scale };
+    while (r < heights.length - 1 && top + heights[r] <= y) top += heights[r++];
+    return { row: r, dy: (y - top) * scale };
+  };
+  table.pictures = sheet.pictures.map((p) => ({
+    inlines: [{ kind: "image", data: p.data, mime: p.mime, width: p.w * scale, height: p.h * scale }],
+    x: p.x * scale,
+    w: p.w * scale,
+    top: rowOf(p.y),
+    bottom: rowOf(p.y + p.h),
+  }));
   out.push(table);
   return out;
 }
