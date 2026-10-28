@@ -70,7 +70,7 @@ type Cell = { state: CellState; progress?: number; error?: string };
 const KIND_WORD = { pdf: "PDF", image: "image", doc: "document" } as const;
 
 const ANY_INPUT =
-  "application/pdf,.pdf,image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.docx,.xlsx,.xls,.pptx,.md,.csv,.html";
+  "application/pdf,.pdf,image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.docx,.xlsx,.xls,.xlsm,.xlsb,.ods,.pptx,.md,.csv,.html";
 
 const clock = () => performance.now();
 

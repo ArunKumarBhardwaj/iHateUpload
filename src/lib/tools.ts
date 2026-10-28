@@ -1229,7 +1229,7 @@ export const TOOLS: ToolDefinition[] = [
     description:
       "Turn a spreadsheet into a simple PDF table. Runs on this device.",
     accept:
-      ".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
+      ".xlsx,.xls,.xlsm,.xlsb,.ods,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.ms-excel.sheet.macroenabled.12,application/vnd.ms-excel.sheet.binary.macroenabled.12,application/vnd.oasis.opendocument.spreadsheet",
     multiple: true,
     ordered: true,
     actionLabel: "Create PDF",

@@ -3,7 +3,8 @@
  * blocks (word-to-pdf/model) or straight into positioned drawing commands, and this file embeds
  * fonts and images and draws the commands as real, selectable PDF text.
  */
-import { PDFDocument, PDFString, clip, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb, type PDFImage } from "@cantoo/pdf-lib";
+import { visualOrder } from "../word-to-pdf/bidi";
+import { PDFDocument, PDFString, clip, concatTransformationMatrix, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb, type PDFImage } from "@cantoo/pdf-lib";
 
 import { FontSet } from "../word-to-pdf/fonts";
 import type { Cmd, FontKey, Measurer } from "../word-to-pdf/layout";
@@ -185,25 +186,34 @@ export function drawCmd(
     case "text": {
       const key = { family: c.family, bold: c.bold, italic: c.italic };
       const color = hex(c.color);
-      let x = c.x;
-      for (const seg of fonts.segments(c.text, key)) {
-        if (!seg.text) continue;
-        if (seg.face.draw) seg.face.draw(page, seg.text, x, H - c.y, c.size, color);
-        else page.drawText(seg.text, { x, y: H - c.y, size: c.size, font: seg.face.pdfFont(), color });
+      // rotated text is drawn at the origin of a coordinate system turned about its start
+      let x0 = c.x;
+      let base = H - c.y;
+      if (c.rotate) {
+        const a = (c.rotate * Math.PI) / 180;
+        page.pushOperators(pushGraphicsState(), concatTransformationMatrix(Math.cos(a), Math.sin(a), -Math.sin(a), Math.cos(a), x0, base));
+        x0 = 0;
+        base = 0;
+      }
+      let x = x0;
+      for (const seg of visualOrder(fonts.segments(c.text, key).filter((s) => s.text), (s) => fonts.isRtl(s.face, s.text))) {
+        if (seg.face.draw) seg.face.draw(page, seg.text, x, base, c.size, color);
+        else page.drawText(seg.text, { x, y: base, size: c.size, font: seg.face.pdfFont(), color });
         x += seg.face.advance(seg.text, c.size);
       }
-      const w = x - c.x;
+      const w = x - x0;
       if (w > 0 && (c.underline || c.strike)) {
         const thickness = Math.max(0.5, c.size * 0.06);
         if (c.underline) {
-          const y = H - c.y - c.size * 0.14;
-          page.drawLine({ start: { x: c.x, y }, end: { x: c.x + w, y }, thickness, color });
+          const y = base - c.size * 0.14;
+          page.drawLine({ start: { x: x0, y }, end: { x: x0 + w, y }, thickness, color });
         }
         if (c.strike) {
-          const y = H - c.y + c.size * 0.28;
-          page.drawLine({ start: { x: c.x, y }, end: { x: c.x + w, y }, thickness, color });
+          const y = base + c.size * 0.28;
+          page.drawLine({ start: { x: x0, y }, end: { x: x0 + w, y }, thickness, color });
         }
       }
+      if (c.rotate) page.pushOperators(popGraphicsState());
       return;
     }
     case "line":
@@ -212,6 +222,7 @@ export function drawCmd(
         end: { x: c.x2, y: H - c.y2 },
         thickness: c.width,
         color: hex(c.color),
+        dashArray: c.dash,
       });
       return;
     case "rect": {

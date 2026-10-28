@@ -9,6 +9,7 @@ import JSZip from "jszip";
 import { parseHtml, type HNode } from "../word-to-pdf/html";
 import type { Family } from "../word-to-pdf/model";
 import { isKrutiDevFont, krutiToUnicode } from "./krutidev";
+import { legacyFontOf, toUnicode, type LegacyFont } from "./legacy-fonts";
 
 export interface CellStyle {
   /** the closest bundled face to the cell's font, when it isn't the workbook's default font */
@@ -27,9 +28,19 @@ export interface CellStyle {
   valign?: "top" | "middle" | "bottom";
   /** wrap text: without it Excel keeps text on one line, overflowing or clipped */
   wrap?: boolean;
+  /** shrink the text until it fits the cell's width */
+  shrink?: boolean;
+  /** "fill" alignment: repeat the text across the cell */
+  repeat?: boolean;
+  /** indent level (each about three spaces wide) */
+  indent?: number;
+  /** degrees anticlockwise (-90..90), or "stacked" for letters one under another */
+  rotate?: number | "stacked";
   border?: { top?: Edge; right?: Edge; bottom?: Edge; left?: Edge };
   /** the cell's font is Kruti Dev / DevLys: its text is Hindi typed in Latin letters */
   kruti?: boolean;
+  /** the cell's font is another legacy Indian font, whose text is converted to Unicode */
+  legacy?: LegacyFont;
 }
 
 /** One run of a rich-text cell. Without a style the run uses the cell's font. */
@@ -63,6 +74,9 @@ export interface Edge {
   color: string;
   /** points */
   width: number;
+  /** dash pattern in points */
+  dash?: number[];
+  double?: boolean;
 }
 
 /** A sheet's print settings, as Excel's Page Layout tab has them. */
@@ -87,10 +101,73 @@ export interface PageSetup {
   hasPageSetup?: boolean;
   /** paper size from the printer settings saved with the sheet, same codes as paperSize */
   printerPaper?: number;
+  /** header and footer as Excel codes (&L, &C, &R, &P, &N, ...), and their distance from the edge in inches */
+  header?: string;
+  footer?: string;
+  headerMargin?: number;
+  footerMargin?: number;
+  /** the sheet runs right to left (column A on the right), as Urdu sheets do */
+  rtl?: boolean;
+  /** manual page breaks: the 0-based sheet rows and columns that start a new page */
+  rowBreaks?: number[];
+  colBreaks?: number[];
+}
+
+/** The look a conditional format gives a cell (a "dxf"): only what it sets. */
+export interface CfStyle {
+  color?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strike?: boolean;
+  fill?: string;
+  border?: CellStyle["border"];
+}
+
+/** A threshold of a colour scale or data bar: min, max, a number, a percent or a percentile. */
+export interface Cfvo {
+  type: string;
+  val?: string;
+}
+
+export interface CfRule {
+  /** cellIs, expression, containsText, top10, colorScale, dataBar, duplicateValues, ... */
+  type: string;
+  priority: number;
+  stopIfTrue: boolean;
+  style?: CfStyle;
+  operator?: string;
+  formulas: string[];
+  text?: string;
+  rank?: number;
+  percent?: boolean;
+  bottom?: boolean;
+  aboveAverage?: boolean;
+  equalAverage?: boolean;
+  scale?: { cfvo: Cfvo[]; colors: string[] };
+  bar?: { cfvo: Cfvo[]; color: string };
+}
+
+/** Conditional formats: rules for one or more ranges (0-based, inclusive). */
+export interface CondFormat {
+  ranges: { r0: number; c0: number; r1: number; c1: number }[];
+  rules: CfRule[];
+}
+
+/** A row's stored height (points), whether it was set by hand, and whether it is hidden. */
+export interface RowInfo {
+  hpt?: number;
+  /** a height set by hand stays as it is; any other row fits its content, as Excel does */
+  custom: boolean;
+  hidden: boolean;
 }
 
 export interface SheetStyles {
   cells: Map<string, CellStyle>;
+  /** rows by 0-based index, when the file records them */
+  rows?: Map<number, RowInfo>;
+  /** conditional formats, applied to the cells' values when the sheet is printed */
+  conditional?: CondFormat[];
   /** rich-text cells, by reference, with Kruti Dev runs already converted to Unicode */
   runs: Map<string, Run[]>;
   pictures: SheetPicture[];
@@ -184,6 +261,8 @@ interface Font {
   color?: string;
   family: Family;
   kruti: boolean;
+  /** another legacy Indian font (AnmolLipi, SutonnyMJ, ...) whose text is converted to Unicode */
+  legacy?: LegacyFont;
 }
 
 /** Bundled faces with the same metrics as Office's fonts, so columns fit as they do in Excel. */
@@ -207,8 +286,9 @@ function readFont(e: X, theme: string[]): Font {
     strike: flag(kid(e, "strike")),
     size: Number.isFinite(sz) && sz > 0 ? sz : undefined,
     color: colorOf(kid(e, "color"), theme),
-    family: isKrutiDevFont(name) ? "sans" : familyOf(name),
+    family: isKrutiDevFont(name) || legacyFontOf(name) ? "sans" : familyOf(name),
     kruti: isKrutiDevFont(name),
+    legacy: isKrutiDevFont(name) ? undefined : legacyFontOf(name),
   };
 }
 
@@ -239,8 +319,9 @@ const ALIGN: Record<string, CellStyle["align"]> = {
 function readXfs(
   xml: string,
   theme: string[],
-): { xfs: (CellStyle | undefined)[]; baseSize: number; baseFamily: Family; fonts: Font[] } {
+): { xfs: (CellStyle | undefined)[]; baseSize: number; baseFamily: Family; fonts: Font[]; dxfs: CfStyle[] } {
   const root = parseXml(xml);
+  const dxfs = kids(find(root, "dxfs"), "dxf").map((d) => readDxf(d, theme));
   const fonts = kids(find(root, "fonts"), "font").map((f) => readFont(f, theme));
   const fills = kids(find(root, "fills"), "fill").map((f) => readFill(f, theme));
   const borders = kids(find(root, "borders"), "border").map((b) => readBorder(b, theme));
@@ -258,6 +339,7 @@ function readXfs(
       if (font.size && font.size !== baseSize) s.size = font.size;
       if (font.family !== baseFamily) s.family = font.family;
       if (font.kruti) s.kruti = true;
+    if (font.legacy) s.legacy = font.legacy;
       // black is what the PDF uses anyway
       if (font.color && font.color !== "000000") s.color = font.color;
     }
@@ -269,12 +351,94 @@ function readXfs(
     const v = al?.attrs.vertical;
     if (v === "top") s.valign = "top";
     else if (v === "center" || v === "distributed" || v === "justify") s.valign = "middle";
-    if (al?.attrs.wraptext === "1" || al?.attrs.wraptext === "true" || al?.attrs.shrinktofit === "1") s.wrap = true;
+    if (yes(al?.attrs.wraptext)) s.wrap = true;
+    else if (yes(al?.attrs.shrinktofit)) s.shrink = true;
+    if (h === "fill") s.repeat = true;
+    const indent = Number(al?.attrs.indent);
+    if (indent > 0 && (!h || h === "left" || h === "right" || h === "distributed")) s.indent = indent;
+    const rot = Number(al?.attrs.textrotation);
+    if (rot === 255) s.rotate = "stacked";
+    else if (rot > 0 && rot <= 90) s.rotate = rot;
+    else if (rot > 90 && rot <= 180) s.rotate = 90 - rot;
     const border = borders[Number(xf.attrs.borderid ?? 0)];
     if (border) s.border = border;
     return Object.keys(s).length ? s : undefined;
   });
-  return { xfs, baseSize, baseFamily, fonts };
+  return { xfs, baseSize, baseFamily, fonts, dxfs };
+}
+
+/** A conditional format's look. Its solid fill is in bgColor, unlike a cell's. */
+function readDxf(e: X, theme: string[]): CfStyle {
+  const out: CfStyle = {};
+  const font = kid(e, "font");
+  if (font) {
+    const color = colorOf(kid(font, "color"), theme);
+    if (color) out.color = color;
+    if (kid(font, "b")) out.bold = flag(kid(font, "b"));
+    if (kid(font, "i")) out.italic = flag(kid(font, "i"));
+    if (kid(font, "u")) out.underline = flag(kid(font, "u"));
+    if (kid(font, "strike")) out.strike = flag(kid(font, "strike"));
+  }
+  const p = kid(kid(e, "fill"), "patternFill");
+  if (p && p.attrs.patterntype !== "none") {
+    const fill = colorOf(kid(p, "bgColor"), theme) ?? colorOf(kid(p, "fgColor"), theme);
+    if (fill) out.fill = fill;
+  }
+  const border = kid(e, "border");
+  if (border) out.border = readBorder(border, theme);
+  return out;
+}
+
+/** 0-based ranges from a space-separated sqref ("C3:H8 J3"). */
+function readSqref(sqref: string): CondFormat["ranges"] {
+  const cell = (a: string) => {
+    const m = /^\$?([A-Z]{1,3})\$?(\d+)$/.exec(a);
+    if (!m) return undefined;
+    let c = 0;
+    for (const ch of m[1]) c = c * 26 + ch.charCodeAt(0) - 64;
+    return { r: Number(m[2]) - 1, c: c - 1 };
+  };
+  return sqref.split(/\s+/).flatMap((part) => {
+    const [a, b] = part.split(":");
+    const s = cell(a);
+    const e = b ? cell(b) : s;
+    return s && e ? [{ r0: Math.min(s.r, e.r), c0: Math.min(s.c, e.c), r1: Math.max(s.r, e.r), c1: Math.max(s.c, e.c) }] : [];
+  });
+}
+
+/** The sheet's conditional formats, from the XML after sheetData. */
+function readConditional(tail: string, dxfs: CfStyle[], theme: string[]): CondFormat[] {
+  const out: CondFormat[] = [];
+  for (const m of tail.matchAll(/<(?:[\w-]+:)?conditionalFormatting\b[\s\S]*?<\/(?:[\w-]+:)?conditionalFormatting>/g)) {
+    const cf = find(parseXml(m[0]), "conditionalFormatting");
+    if (!cf?.attrs.sqref) continue;
+    const ranges = readSqref(cf.attrs.sqref);
+    const rules = kids(cf, "cfRule").map((r): CfRule => {
+      const a = r.attrs;
+      const rule: CfRule = {
+        type: a.type ?? "",
+        priority: Number(a.priority ?? 0),
+        stopIfTrue: yes(a.stopiftrue),
+        formulas: kids(r, "formula").map((f) => textOf(f).trim()),
+      };
+      if (a.dxfid !== undefined && dxfs[Number(a.dxfid)]) rule.style = dxfs[Number(a.dxfid)];
+      if (a.operator) rule.operator = a.operator;
+      if (a.text !== undefined) rule.text = a.text;
+      if (a.rank !== undefined) rule.rank = Number(a.rank);
+      if (yes(a.percent)) rule.percent = true;
+      if (yes(a.bottom)) rule.bottom = true;
+      if (a.type === "aboveAverage") rule.aboveAverage = a.aboveaverage !== "0" && a.aboveaverage !== "false";
+      if (yes(a.equalaverage)) rule.equalAverage = true;
+      const cfvo = (e: X | undefined) => kids(e, "cfvo").map((v) => ({ type: v.attrs.type ?? "min", val: v.attrs.val }));
+      const scale = kid(r, "colorScale");
+      if (scale) rule.scale = { cfvo: cfvo(scale), colors: kids(scale, "color").map((c) => colorOf(c, theme) ?? "FFFFFF") };
+      const bar = kid(r, "dataBar");
+      if (bar) rule.bar = { cfvo: cfvo(bar), color: colorOf(kid(bar, "color"), theme) ?? "638EC6" };
+      return rule;
+    });
+    if (ranges.length && rules.length) out.push({ ranges, rules });
+  }
+  return out;
 }
 
 /** Line widths in points for Excel's border styles. */
@@ -294,13 +458,29 @@ const EDGE_WIDTH: Record<string, number> = {
   thick: 1.5,
 };
 
+/** Dash patterns in points for Excel's broken border styles. */
+const EDGE_DASH: Record<string, number[]> = {
+  hair: [0.75, 0.75],
+  dotted: [0.75, 0.75],
+  dashed: [2.25, 0.75],
+  dashDot: [6, 1.5, 1.5, 1.5],
+  dashDotDot: [6, 1.5, 1.5, 1.5, 1.5, 1.5],
+  mediumDashed: [6.75, 2.25],
+  mediumDashDot: [6.75, 2.25, 2.25, 2.25],
+  mediumDashDotDot: [6.75, 2.25, 2.25, 2.25, 2.25, 2.25],
+  slantDashDot: [7.5, 0.75, 3, 0.75],
+};
+
 function readBorder(e: X, theme: string[]): CellStyle["border"] {
   const out: NonNullable<CellStyle["border"]> = {};
   for (const side of ["top", "right", "bottom", "left"] as const) {
     const el = kid(e, side) ?? (side === "left" ? kid(e, "start") : side === "right" ? kid(e, "end") : undefined);
     const style = el?.attrs.style;
     if (!el || !style || style === "none") continue;
-    out[side] = { width: EDGE_WIDTH[style] ?? 0.5, color: colorOf(kid(el, "color"), theme) ?? "000000" };
+    const edge: Edge = { width: EDGE_WIDTH[style] ?? 0.5, color: colorOf(kid(el, "color"), theme) ?? "000000" };
+    if (EDGE_DASH[style]) edge.dash = EDGE_DASH[style];
+    if (style === "double") edge.double = true;
+    out[side] = edge;
   }
   return Object.keys(out).length ? out : undefined;
 }
@@ -317,6 +497,12 @@ function resolveTarget(target: string, dir = "xl"): string {
   return out.join("/");
 }
 
+const decodeXml = (t: string) =>
+  t.replace(/&(lt|gt|quot|apos|amp|#\d+|#x[0-9a-f]+);/gi, (m, e: string) => {
+    const named: Record<string, string> = { lt: "<", gt: ">", quot: '"', apos: "'", amp: "&" };
+    if (named[e.toLowerCase()]) return named[e.toLowerCase()];
+    return String.fromCodePoint(e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : Number(e.slice(1)));
+  });
 const num = (v: string | undefined) => (v !== undefined && v !== "" && Number.isFinite(Number(v)) ? Number(v) : undefined);
 const yes = (v: string | undefined) => v === "1" || v === "true";
 
@@ -335,6 +521,7 @@ function readSetup(xml: string): PageSetup {
   const out: PageSetup = {};
   const fit = tag(head, "pageSetUpPr");
   if (fit && yes(fit.fittopage)) out.fitToPage = true;
+  if (yes(tag(head, "sheetView")?.righttoleft)) out.rtl = true;
   const fmt = tag(head, "sheetFormatPr");
   out.defaultRowHeight = num(fmt?.defaultrowheight);
   out.defaultColWidth = num(fmt?.defaultcolwidth);
@@ -352,6 +539,27 @@ function readSetup(xml: string): PageSetup {
     const [l, r, t, b] = [pm.left, pm.right, pm.top, pm.bottom].map(num);
     if (l !== undefined && r !== undefined && t !== undefined && b !== undefined) out.margins = { left: l, right: r, top: t, bottom: b };
   }
+  if (pm) {
+    out.headerMargin = num(pm.header);
+    out.footerMargin = num(pm.footer);
+  }
+  const hf = /<(?:[\w-]+:)?headerFooter\b[^>]*>([\s\S]*?)<\/(?:[\w-]+:)?headerFooter>/.exec(tail)?.[1];
+  if (hf) {
+    const part = (name: string) => {
+      const m = new RegExp(`<(?:[\\w-]+:)?${name}>([\\s\\S]*?)</(?:[\\w-]+:)?${name}>`).exec(hf)?.[1];
+      return m ? decodeXml(m) : undefined;
+    };
+    out.header = part("oddHeader");
+    out.footer = part("oddFooter");
+  }
+  const breaks = (name: string) => {
+    const m = new RegExp(`<(?:[\\w-]+:)?${name}\\b[^>]*>([\\s\\S]*?)</(?:[\\w-]+:)?${name}>`).exec(tail)?.[1];
+    const ids = m ? [...m.matchAll(/<(?:[\w-]+:)?brk\b[^>]*?\bid="(\d+)"/g)].map((b) => Number(b[1])) : [];
+    return ids.length ? ids : undefined;
+  };
+  // a break with id n falls after row (or column) n, 1-based: row index n starts the new page
+  out.rowBreaks = breaks("rowBreaks");
+  out.colBreaks = breaks("colBreaks");
   const po = tag(tail, "printOptions");
   if (po) {
     if (yes(po.gridlines)) out.gridLines = true;
@@ -378,13 +586,15 @@ function readRuns(e: X, theme: string[]): Run[] | null {
     if (!pr) return { text: t };
     const f = readFont(pr, theme);
     const style: RunStyle = { bold: f.bold, italic: f.italic, underline: f.underline, strike: f.strike, size: f.size, color: f.color, family: f.family };
-    return { text: f.kruti ? krutiToUnicode(t) : t, style };
+    return { text: f.kruti ? krutiToUnicode(t) : f.legacy ? toUnicode(f.legacy, t) : t, style };
   });
 }
 
-/** Rich text in a cell whose own font is Kruti Dev: unstyled runs are Kruti Dev too. */
-function convertPlainRuns(runs: Run[], cellKruti: boolean): Run[] {
-  return cellKruti ? runs.map((r) => (r.style ? r : { text: krutiToUnicode(r.text) })) : runs;
+/** Rich text in a cell whose own font is Kruti Dev (or another legacy font): unstyled runs are in it too. */
+function convertPlainRuns(runs: Run[], cell: CellStyle | undefined): Run[] {
+  if (cell?.kruti) return runs.map((r) => (r.style ? r : { text: krutiToUnicode(r.text) }));
+  const legacy = cell?.legacy;
+  return legacy ? runs.map((r) => (r.style ? r : { text: toUnicode(legacy, r.text) })) : runs;
 }
 
 /** The paper size saved in a printer settings part (a Windows DEVMODE), if it has one. */
@@ -472,9 +682,9 @@ export async function readWorkbookStyles(data: ArrayBuffer | Uint8Array): Promis
   if (!wbXml || !relsXml) return null;
   const themePath = Object.keys(zip.files).find((p) => /^xl\/theme\/theme\d*\.xml$/.test(p));
   const theme = readTheme(themePath ? await text(themePath) : undefined);
-  const { xfs, baseSize, baseFamily } = stylesXml
+  const { xfs, baseSize, baseFamily, dxfs } = stylesXml
     ? readXfs(stylesXml, theme)
-    : { xfs: [] as (CellStyle | undefined)[], baseSize: 11, baseFamily: "sans" as Family };
+    : { xfs: [] as (CellStyle | undefined)[], baseSize: 11, baseFamily: "sans" as Family, dxfs: [] as CfStyle[] };
   const sstPath = Object.keys(zip.files).find((p) => /^xl\/sharedStrings\.xml$/i.test(p));
   const sstXml = sstPath ? await text(sstPath) : undefined;
   const shared = sstXml ? kids(find(parseXml(sstXml), "sst"), "si").map((si) => readRuns(si, theme)) : [];
@@ -507,7 +717,7 @@ export async function readWorkbookStyles(data: ArrayBuffer | Uint8Array): Promis
           const is = find(parseXml(body), "is");
           rich = is ? readRuns(is, theme) : null;
         }
-        if (rich) runs.set(r, convertPlainRuns(rich, !!style?.kruti));
+        if (rich) runs.set(r, convertPlainRuns(rich, style));
       }
     }
     const setup: PageSetup = xml ? readSetup(xml) : {};
@@ -528,7 +738,23 @@ export async function readWorkbookStyles(data: ArrayBuffer | Uint8Array): Promis
         }
       }
     }
-    sheets.set(s.attrs.name ?? "", { cells, runs, pictures, setup });
+    const rows = new Map<number, RowInfo>();
+    if (xml) {
+      for (const m of xml.matchAll(/<(?:[\w-]+:)?row\b([^>]*)>/g)) {
+        const a = m[1];
+        const r = Number(/(?:^|\s)r="(\d+)"/.exec(a)?.[1]);
+        if (!r) continue;
+        const ht = Number(/(?:^|\s)ht="([\d.]+)"/.exec(a)?.[1]);
+        rows.set(r - 1, {
+          hpt: ht > 0 ? ht : undefined,
+          custom: /(?:^|\s)customHeight="(?:1|true)"/.test(a),
+          hidden: /(?:^|\s)hidden="(?:1|true)"/.test(a),
+        });
+      }
+    }
+    const end = xml ? xml.lastIndexOf("</sheetData>") : -1;
+    const conditional = xml && end >= 0 ? readConditional(xml.slice(end), dxfs, theme) : [];
+    sheets.set(s.attrs.name ?? "", { cells, rows, runs, pictures, setup, conditional });
   }
   return { baseSize, baseFamily, sheets };
 }

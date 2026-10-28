@@ -31,10 +31,16 @@ export interface TableInfo {
   fills: (string | undefined)[][];
   /** cell padding in points, when not the default */
   pad?: { x: number; y: number };
+  /** move the table right by this much (a spreadsheet centred on the page) */
+  offsetX?: number;
 }
 export interface Edge {
   color: string;
   width: number;
+  /** dash pattern in points (dashed and dotted spreadsheet borders) */
+  dash?: number[];
+  /** two thin lines (a spreadsheet's double border) */
+  double?: boolean;
 }
 export type Align = "left" | "center" | "right" | "justify";
 
@@ -78,6 +84,19 @@ export interface Para {
    * slightly smaller, anything wider is cut at the last whole word that fits
    */
   oneLine?: boolean;
+  /**
+   * one-line text that is too wide: "shrink" sets it as small as it needs; "hash" shows ### across
+   * the width (a formatted number); "round" drops decimals, then goes scientific, then ### (a General
+   * number)
+   */
+  fit?: "shrink" | "hash" | "round";
+  /** repeat the text to fill the line (a spreadsheet's "fill" alignment) */
+  repeat?: boolean;
+  /**
+   * a line may run this fraction past the width before it breaks: a spreadsheet's wrapped cell, whose
+   * breaks Excel makes with its own fonts' hinted widths, which the bundled fonts only approximate
+   */
+  slack?: number;
   /** a horizontal rule instead of text */
   rule?: boolean;
   /** vertical bar colour drawn left of the paragraph (block quotes) */
@@ -98,6 +117,12 @@ export interface Cell {
   edges?: { top?: Edge; right?: Edge; bottom?: Edge; left?: Edge };
   /** vertical placement of the content in a row taller than it; top by default */
   valign?: "top" | "middle" | "bottom";
+  /** one line of text turned this many degrees anticlockwise (spreadsheet text rotation) */
+  rotate?: number;
+  /** a fill per spanned column (spreadsheet text overflowing across cells with their own fills) */
+  colFills?: (string | undefined)[];
+  /** a spreadsheet data bar behind the text: the share of the cell's width it fills */
+  bar?: { frac: number; color: string };
 }
 export interface Row {
   header: boolean;
@@ -106,6 +131,13 @@ export interface Row {
   minHeight?: number;
   /** the row is exactly minHeight tall, as a spreadsheet row is: content never makes it taller */
   exactHeight?: boolean;
+  /**
+   * a spreadsheet row Excel fits to its content: minHeight unless a cell's text wraps onto more
+   * lines than fit, then tall enough for them
+   */
+  autoFit?: boolean;
+  /** a manual page break before this row */
+  breakBefore?: boolean;
 }
 export interface TableBlock {
   kind: "table";

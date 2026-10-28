@@ -829,7 +829,7 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
     },
     {
       q: "Which spreadsheet formats work?",
-      a: ".xlsx and .xls files.",
+      a: "Excel .xlsx, .xls (Excel 97-2003), .xlsm and .xlsb files, and OpenDocument .ods from LibreOffice. Hindi, Marathi, Bengali, Gujarati, Punjabi, Odia, Tamil, Telugu, Kannada, Malayalam and Urdu print in their own scripts, and text typed in Kruti Dev is converted to Unicode.",
     },
     {
       q: "What can I control in the PDF?",

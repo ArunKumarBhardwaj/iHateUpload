@@ -12,6 +12,16 @@ export interface GridCell {
   raw?: string;
   /** rich text: the runs that make up `raw ?? text`, each with its own font */
   runs?: Run[];
+  /** Excel: TRUE/FALSE and #N/A-style errors, which General alignment centres */
+  centred?: boolean;
+  /** Excel: fills of the cells one-line text overflows into, one per column it spans */
+  colFills?: (string | undefined)[];
+  /** Excel: a conditional-format data bar, as a share of the cell's width */
+  bar?: { frac: number; color: string };
+  /** Excel: a number in the General format, which drops decimals rather than show ### when too wide */
+  general?: boolean;
+  /** Excel: the colour the number format gives this value ([Red] and the like) */
+  fmtColor?: string;
   /** merged cells: the top-left cell carries the span, the rest are covered */
   colSpan?: number;
   rowSpan?: number;
@@ -39,6 +49,11 @@ export interface Grid {
     setup: PageSetup;
     /** rows repeated at the top of every page */
     titleRows: number[];
+    /** rows whose height wasn't set by hand: they grow to fit wrapped text */
+    autoRows?: boolean[];
+    /** rows and columns that start a new page (manual page breaks) */
+    breakRows: number[];
+    breakCols: number[];
     baseSize: number;
     baseFamily: Family;
   };

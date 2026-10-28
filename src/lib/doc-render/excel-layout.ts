@@ -40,7 +40,7 @@ export function sheetPageSpec(setup: PageSetup): PageSpec {
   return { width, height, margin: { left: pt(m.left), right: pt(m.right), top: pt(m.top), bottom: pt(m.bottom) } };
 }
 
-/** Print scale: the setup's percentage or fit-to-page, never wider than the page (columns don't split). */
+/** Print scale: the setup's percentage or fit-to-page. Columns that don't fit go on further pages. */
 export function sheetScale(grid: Grid, spec: PageSpec): number {
   const sheet = grid.sheet;
   if (!sheet) return 1;
@@ -58,7 +58,6 @@ export function sheetScale(grid: Grid, spec: PageSpec): number {
   } else {
     s = Math.max(10, Math.min(400, st.scale ?? 100)) / 100;
   }
-  if (w * s > availW && w > 0) s = availW / w;
   return s;
 }
 
@@ -101,6 +100,35 @@ function pieces(cell: GridCell, size: number, scale: number, family: Family): Pi
   return out;
 }
 
+/** Text whose first letter is right-to-left (Urdu, Arabic, Hebrew), which General alignment sets right. */
+const RTL_START = /^[^\p{L}]*[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u;
+
+/** The alignment a cell gets when it sets none (General): numbers right, TRUE/FALSE centred, text by its direction. */
+function generalAlign(cell: GridCell, rtlSheet: boolean): Align {
+  if (cell.centred) return "center";
+  if (cell.num) return rtlSheet ? "left" : "right";
+  return RTL_START.test(cell.text) || rtlSheet ? "right" : "left";
+}
+
+/** A right-to-left sheet as it prints: column A on the right, each cell's left and right edges swapped. */
+function mirrored(rows: GridCell[][]): GridCell[][] {
+  return rows.map((r) => {
+    const n = r.length;
+    const out: GridCell[] = r.map(() => ({ text: "", num: false, covered: true }));
+    r.forEach((cell, c) => {
+      if (cell.covered) return;
+      const span = cell.colSpan ?? 1;
+      const b = cell.style?.border;
+      out[n - c - span] = b ? { ...cell, style: { ...cell.style, border: { ...b, left: b.right, right: b.left } } } : cell;
+    });
+    // covered cells that belong to merges from rows above keep their place, mirrored
+    r.forEach((cell, c) => {
+      if (cell.covered && !out[n - 1 - c].text && out[n - 1 - c].covered) out[n - 1 - c] = { ...cell };
+    });
+    return out;
+  });
+}
+
 /** Leading spaces in a cell push its text right, as they do in Excel. */
 function leading(cell: GridCell): number {
   const raw = cell.raw ?? cell.text;
@@ -119,7 +147,7 @@ export function sheetToBlocks(grid: Grid, spec: PageSpec, title?: string): Block
   // combining marks (Devanagari matras, accents) take no width of their own
   const chars = (t: string) => t.replace(/\p{M}/gu, "").length;
   const textWidth = (c: GridCell) =>
-    sizeOf(c) * leading(c) * SPACE_EM +
+    sizeOf(c) * (leading(c) + 3 * (c.style?.indent ?? 0)) * SPACE_EM +
     pieces(c, sizeOf(c), scale, family).reduce(
       (w, p) => w + (p.style.size ?? 10) * chars(p.text) * CHAR_EM[p.style.family] * (p.style.bold ? 1.08 : 1),
       0,
@@ -137,84 +165,127 @@ export function sheetToBlocks(grid: Grid, spec: PageSpec, title?: string): Block
   }
   if (!grid.rows.length) return out;
 
-  // Excel draws one-line text past its cell into empty cells to the right and cuts it off at the
-  // first neighbour with content: span the overflow here; the layout cuts what still doesn't fit.
-  const rows = grid.rows.map((r) => r.map((c) => ({ ...c })));
+  // columns that print on one page across; Excel prints the next band of columns after all the
+  // rows of this one (down, then over)
+  const availW = spec.width - spec.margin.left - spec.margin.right;
+  const rtl = !!sheet.setup.rtl;
+  let bands: [number, number][] = [];
+  for (let a = 0; a < colW.length; ) {
+    let b = a + 1;
+    let w = colW[a];
+    while (b < colW.length && !sheet.breakCols.includes(b) && w + colW[b] <= availW + 0.01) w += colW[b++];
+    bands.push([a, b]);
+    a = b;
+  }
+  // a right-to-left sheet prints column A on the right: the same bands, mirrored, first band first
+  if (rtl) {
+    colW.reverse();
+    bands = bands.map(([a, b]) => [colW.length - b, colW.length - a]);
+  }
+
+  // Excel draws one-line text past its cell into empty neighbours (right for left-aligned text, left
+  // for right-aligned, both ways for centred) and cuts it at the first neighbour with content: span
+  // the overflow here; the layout cuts what still doesn't fit.
+  const rows = (rtl ? mirrored(grid.rows) : grid.rows).map((r) => r.map((c) => ({ ...c })));
+  const empty = (c: GridCell | undefined) => !!c && !c.text && !c.covered && (c.colSpan ?? 1) === 1 && (c.rowSpan ?? 1) === 1;
   for (const r of rows) {
     for (let c = 0; c < r.length; c++) {
       const cell = r[c];
-      if (!cell.text || cell.covered || cell.style?.wrap || cell.num) continue;
-      const align = cell.style?.align;
-      if (align && align !== "left") continue;
+      const st = cell.style;
+      if (!cell.text || cell.covered || st?.wrap || st?.shrink || st?.repeat || st?.rotate || cell.num || cell.centred) continue;
+      if ((cell.rowSpan ?? 1) > 1) continue;
+      const align = st?.align ?? generalAlign(cell, rtl);
+      if (align === "justify") continue;
       const span = cell.colSpan ?? 1;
+      const [lo, hi] = bands.find(([a, b]) => c >= a && c < b) ?? [0, r.length];
       let have = colW.slice(c, c + span).reduce((a, b) => a + b, 0);
       const need = textWidth(cell) + PAD_X * 2;
       if (need <= have) continue;
+      let first = c;
       let next = c + span;
-      if ((cell.rowSpan ?? 1) === 1) {
-        while (need > have && next < r.length && !r[next].text && !r[next].covered && (r[next].colSpan ?? 1) === 1) {
-          have += colW[next];
-          next++;
-        }
+      if (align === "left") {
+        while (need > have && next < hi && empty(r[next])) have += colW[next++];
+      } else if (align === "right") {
+        while (need > have && first > lo && empty(r[first - 1])) have += colW[--first];
+      } else {
+        // centred: grows evenly both ways while both neighbours are free
+        while (need > have && first > lo && next < hi && empty(r[first - 1]) && empty(r[next])) have += colW[--first] + colW[next++];
       }
-      if (next > c + span) {
-        for (let k = c + span; k < next; k++) r[k].covered = true;
-        // the cell keeps its own left edge and takes the right edge of the last cell it covers
-        const right = r[next - 1].style?.border?.right;
-        cell.colSpan = next - c;
-        cell.style = { ...cell.style, border: { ...cell.style?.border, right } };
-      }
+      if (first === c && next === c + span) continue;
+      // the text keeps its cell's look; the outer edges come from the cells it now covers
+      const left = first < c ? r[first].style?.border?.left : st?.border?.left;
+      const right = next > c + span ? r[next - 1].style?.border?.right : st?.border?.right;
+      // each cell keeps its own fill under the text that runs over it
+      const fills = r.slice(first, next).map((k, i) => (first + i >= c && first + i < c + span ? st?.fill : k.style?.fill));
+      const moved: GridCell = {
+        ...cell,
+        colSpan: next - first,
+        style: { ...st, fill: undefined, border: { ...st?.border, left, right } },
+        colFills: fills.some(Boolean) ? fills : undefined,
+      };
+      for (let k = first; k < next; k++) r[k] = { ...r[k], covered: true, text: "" };
+      r[first] = moved;
+      c = next - 1;
     }
   }
 
-  const table: TableBlock = {
-    kind: "table",
-    rows: rows.map((r, ri): Row => {
-      const header = sheet.titleRows.includes(ri);
-      const cells: Cell[] = [];
-      r.forEach((cell) => {
-        if (cell.covered) return;
-        const st = cell.style;
-        const size = sizeOf(cell);
-        const text = cell.text;
-        const indent = text ? leading(cell) * SPACE_EM * size : 0;
-        const inlines: Inline[] = [];
-        if (text) {
-          for (const piece of pieces(cell, size, scale, family)) {
-            const lines = st?.wrap ? piece.text.split(/\r?\n/) : [piece.text.replace(/\s*\r?\n\s*/g, " ")];
-            lines.forEach((line, i) => {
-              if (i) inlines.push({ kind: "br" });
-              if (line) inlines.push({ kind: "text", text: line, style: piece.style });
-            });
-          }
-          // trailing blank lines make Excel cells no taller than their row height
-          while (inlines.length && inlines[inlines.length - 1].kind === "br") inlines.pop();
-        }
-        const align: Align = st?.align ?? (cell.num ? "right" : "left");
-        const b = st?.border;
-        cells.push({
-          header,
-          colSpan: cell.colSpan ?? 1,
-          rowSpan: cell.rowSpan ?? 1,
-          fill: st?.fill,
-          edges: b ? { top: b.top, right: b.right, bottom: b.bottom, left: b.left } : undefined,
-          valign: st?.valign ?? "bottom",
-          // an empty cell has no line of text, so it never makes its row taller than Excel's
-          blocks: inlines.length
-            ? [{ kind: "para", inlines, align, heading: 0, indent: Math.min(indent, 240), spacing: { before: 0, after: 0 }, oneLine: !st?.wrap }]
-            : [],
+  const cellOf = (cell: GridCell, header: boolean, colSpan: number): Cell => {
+    const st = cell.style;
+    const size = sizeOf(cell);
+    const text = cell.text;
+    const align: Align = st?.align ?? generalAlign(cell, rtl);
+    const stacked = st?.rotate === "stacked";
+    const indent = text ? (leading(cell) * SPACE_EM + (align === "left" ? 3 * (st?.indent ?? 0) * SPACE_EM : 0)) * size : 0;
+    const inlines: Inline[] = [];
+    if (text) {
+      for (const piece of pieces(cell, size, scale, family)) {
+        const pieceStyle = cell.fmtColor ? { ...piece.style, color: cell.fmtColor } : piece.style;
+        // stacked text: one letter (grapheme) per line
+        const lines = stacked
+          ? [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(piece.text.replace(/\s+/g, ""))].map((g) => g.segment)
+          : st?.wrap
+            ? piece.text.split(/\r?\n/)
+            : [piece.text.replace(/\s*\r?\n\s*/g, " ")];
+        lines.forEach((line, i) => {
+          if (i) inlines.push({ kind: "br" });
+          if (line) inlines.push({ kind: "text", text: line, style: pieceStyle });
         });
-      });
-      return { header, cells, minHeight: (sheet.rowHeights[ri] ?? 15) * scale, exactHeight: true };
-    }),
-    info: {
-      grid: colW,
-      widthPt: colW.reduce((a, b) => a + b, 0),
-      borders: sheet.setup.gridLines ? GRIDLINE : null,
-      fills: [],
-      pad: { x: PAD_X, y: PAD_Y },
-    },
+      }
+      // trailing blank lines make Excel cells no taller than their row height
+      while (inlines.length && inlines[inlines.length - 1].kind === "br") inlines.pop();
+    }
+    const b = st?.border;
+    const oneLine = !st?.wrap && !stacked;
+    return {
+      header,
+      colSpan,
+      rowSpan: cell.rowSpan ?? 1,
+      fill: st?.fill,
+      edges: b ? { top: b.top, right: b.right, bottom: b.bottom, left: b.left } : undefined,
+      valign: st?.valign ?? "bottom",
+      rotate: typeof st?.rotate === "number" ? st.rotate : undefined,
+      bar: cell.bar,
+      colFills: cell.colFills,
+      // an empty cell has no line of text, so it never makes its row taller than Excel's
+      blocks: inlines.length
+        ? [
+            {
+              kind: "para",
+              inlines,
+              align: stacked ? "center" : align,
+              heading: 0,
+              indent: Math.min(indent, 240),
+              spacing: { before: 0, after: 0 },
+              oneLine,
+              fit: st?.shrink ? "shrink" : cell.num && oneLine ? (cell.general ? "round" : "hash") : undefined,
+              repeat: st?.repeat || undefined,
+              slack: st?.wrap ? 0.02 : undefined,
+            },
+          ]
+        : [],
+    };
   };
+
   // pictures: x scales with the columns; y is placed by row so it follows rows that grew
   const heights = sheet.rowHeights;
   const rowOf = (y: number) => {
@@ -224,13 +295,72 @@ export function sheetToBlocks(grid: Grid, spec: PageSpec, title?: string): Block
     while (r < heights.length - 1 && top + heights[r] <= y) top += heights[r++];
     return { row: r, dy: (y - top) * scale };
   };
-  table.pictures = sheet.pictures.map((p) => ({
-    inlines: [{ kind: "image", data: p.data, mime: p.mime, width: p.w * scale, height: p.h * scale }],
-    x: p.x * scale,
-    w: p.w * scale,
-    top: rowOf(p.y),
-    bottom: rowOf(p.y + p.h),
-  }));
-  out.push(table);
+  const xs = [0];
+  for (const w of colW) xs.push(xs[xs.length - 1] + w);
+
+  // a band of columns with nothing to show (no text, fill, border or picture) prints no page, as in Excel
+  const sheetW0 = xs[xs.length - 1];
+  const inked = (a: number, b: number) =>
+    rows.some((r) => r.slice(a, b).some((c) => c.text || c.style?.fill || c.style?.border || c.colFills?.some(Boolean))) ||
+    sheet.pictures.some((p) => {
+      const x = rtl ? sheetW0 / scale - p.x - p.w : p.x;
+      return x * scale < xs[b] && (x + p.w) * scale > xs[a];
+    });
+  bands = bands.filter(([a, b]) => inked(a, b));
+  bands.forEach(([a, b], bi) => {
+    if (bi) out.push({ kind: "pagebreak" });
+    const bandW = xs[b] - xs[a];
+    const table: TableBlock = {
+      kind: "table",
+      rows: rows.map((r, ri): Row => {
+        const header = sheet.titleRows.includes(ri);
+        const cells: Cell[] = [];
+        for (let c = a; c < b; c++) {
+          const cell = r[c];
+          if (cell.covered) {
+            // a merge that starts in an earlier band continues here as an empty box
+            if (c !== a) continue;
+            let o = c - 1;
+            while (o >= 0 && r[o].covered) o--;
+            const origin = o >= 0 ? r[o] : undefined;
+            if (!origin || o + (origin.colSpan ?? 1) <= c) continue;
+            const span = Math.min(o + (origin.colSpan ?? 1), b) - c;
+            cells.push({ ...cellOf({ ...origin, text: "", runs: undefined }, header, span) });
+            c += span - 1;
+            continue;
+          }
+          cells.push(cellOf(cell, header, Math.min(cell.colSpan ?? 1, b - c)));
+        }
+        return {
+          header,
+          cells,
+          minHeight: (sheet.rowHeights[ri] ?? 15) * scale,
+          exactHeight: true,
+          autoFit: sheet.autoRows?.[ri] || undefined,
+          breakBefore: sheet.breakRows.includes(ri) || undefined,
+        };
+      }),
+      info: {
+        grid: colW.slice(a, b),
+        widthPt: bandW,
+        borders: sheet.setup.gridLines ? GRIDLINE : null,
+        fills: [],
+        pad: { x: PAD_X, y: PAD_Y },
+        offsetX: sheet.setup.centerH ? Math.max(0, (availW - bandW) / 2) : undefined,
+      },
+    };
+    const sheetW = xs[xs.length - 1];
+    table.pictures = sheet.pictures
+      .map((p) => (rtl ? { ...p, x: sheetW / scale - p.x - p.w } : p))
+      .filter((p) => p.x * scale < xs[b] && (p.x + p.w) * scale > xs[a])
+      .map((p) => ({
+        inlines: [{ kind: "image", data: p.data, mime: p.mime, width: p.w * scale, height: p.h * scale }],
+        x: p.x * scale - xs[a],
+        w: p.w * scale,
+        top: rowOf(p.y),
+        bottom: rowOf(p.y + p.h),
+      }));
+    out.push(table);
+  });
   return out;
 }
