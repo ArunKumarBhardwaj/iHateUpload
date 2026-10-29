@@ -15,7 +15,7 @@ import { SUMMARY_LENGTHS } from "@/lib/summarize/summary";
 import { TARGET_LANGUAGES } from "@/lib/translate/languages";
 import { MixPanel } from "@/components/workbench/page-tools/mix-panel";
 import { MetadataEditor } from "@/components/workbench/metadata-editor";
-import { SplitExtras } from "@/components/workbench/split-extras";
+import { SplitOptionsPanel } from "@/components/workbench/split-options";
 import { ScanCapture } from "@/components/workbench/scan-capture";
 import { ScanSettings } from "@/components/workbench/scan-settings";
 import { HeaderFooterPanel } from "@/components/workbench/header-footer-panel";
@@ -36,7 +36,6 @@ import {
   NUMBER_FORMATS,
   NUMBER_SIZES,
   PDF_IMAGE_DPIS,
-  SPLIT_MODES,
   PDF_TARGET_KB_MAX,
   PDF_TARGET_KB_PRESETS,
   OCR_LANGUAGES,
@@ -191,7 +190,11 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
           ? "Start a new file at every page that contains your text. The files below update as you type."
           : options.mode === "smart"
             ? "Finds where each document starts in a combined PDF or scan, from page numbers, titles, letterheads, reference numbers and blank sheets. Scans are read with OCR in this tab; nothing is uploaded."
-          : "Pick how to cut the PDF. Each piece is its own file.";
+          : options.mode === "select"
+            ? "Pick the pages to pull out. Each becomes its own PDF unless you merge them."
+          : options.mode === "ranges"
+            ? "Each range becomes its own PDF, or tick merge for one PDF with every range."
+          : "Pick how to cut the PDF. The preview shows every file you will get.";
     case "metadata":
       return "Every property the PDF carries, ready to edit or clear. Nothing leaves this tab.";
     case "pdf-image":
@@ -237,7 +240,7 @@ export function optionsHint(options: ToolOptions, actionLabel: string): string {
     case "compress":
       return "Every level keeps text selectable. Smallest may flatten scanned pages that have no text to shrink them further.";
     case "extract":
-      return "Type the pages to keep. The new file is only those pages, in that order.";
+      return "Click the pages you want, or type them. They keep their order from the original PDF.";
     case "sign":
       return "Draw, type, or stamp a signature, then drag it onto the page.";
     case "fill-form":
@@ -446,66 +449,15 @@ export function OptionsPanel({
 
     case "split":
       return (
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-ink">Split</p>
-            <div className="flex flex-wrap gap-2">
-              {SPLIT_MODES.map((mode) => (
-                <Button
-                  key={mode.id}
-                  type="button"
-                  size="sm"
-                  className={OPTION_BUTTON}
-                  variant={options.mode === mode.id ? "default" : "outline"}
-                  disabled={disabled}
-                  onClick={() => onOptions({ ...options, mode: mode.id })}
-                >
-                  {mode.title}
-                </Button>
-              ))}
-            </div>
-          </div>
-          {options.mode === "ranges" ? (
-            <Field label="Ranges, one file each" htmlFor="split-ranges">
-              <Input
-                id="split-ranges"
-                value={options.ranges}
-                disabled={disabled}
-                onChange={(e) =>
-                  onOptions({ ...options, ranges: e.target.value })
-                }
-                placeholder="e.g. 1-3, 4-6, 7-"
-                inputMode="text"
-                autoComplete="off"
-              />
-            </Field>
-          ) : null}
-          <SplitExtras
-            options={options}
-            onOptions={onOptions}
-            file={files?.[0]?.file}
-            fileKey={files?.[0]?.id ?? ""}
-            baseName={(files?.[0]?.name ?? "document").replace(/\.[^.]+$/, "")}
-            disabled={disabled}
-          />
-          {options.mode === "size" ? (
-            <Field label="Max size per part (MB)" htmlFor="split-size">
-              <Input
-                id="split-size"
-                type="number"
-                min={0.1}
-                step={0.5}
-                value={options.maxMb}
-                disabled={disabled}
-                onChange={(e) => {
-                  const next = Number(e.target.value);
-                  if (!Number.isFinite(next)) return;
-                  onOptions({ ...options, maxMb: next });
-                }}
-              />
-            </Field>
-          ) : null}
-        </div>
+        <SplitOptionsPanel
+          options={options}
+          onOptions={onOptions}
+          file={files?.[0]?.file}
+          fileKey={files?.[0]?.id ?? ""}
+          baseName={(files?.[0]?.name ?? "document").replace(/\.[^.]+$/, "")}
+          pageCount={pageCount}
+          disabled={disabled}
+        />
       );
 
     case "pdf-image":
@@ -1243,34 +1195,38 @@ export function OptionsPanel({
       const kept = parsePageRange(options.range, options.pageCount);
       return (
         <div className="space-y-3">
-          <Field label="Pages to keep" htmlFor="extract-range">
+          <Field label="Pages to extract" htmlFor="extract-range">
             <Input
               id="extract-range"
               value={options.range}
               disabled={disabled || options.pageCount === 0}
-              onChange={(e) =>
-                onOptions({
-                  kind: "extract",
-                  range: e.target.value,
-                  pageCount: options.pageCount,
-                })
-              }
+              onChange={(e) => onOptions({ ...options, range: e.target.value })}
               placeholder={
-                options.pageCount > 0
-                  ? `e.g. 1-${options.pageCount}`
-                  : "Reading pages…"
+                options.pageCount > 0 ? "e.g. 1-3, 7" : "Reading pages…"
               }
               inputMode="text"
               autoComplete="off"
             />
           </Field>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground" aria-live="polite">
             {options.pageCount === 0
               ? "Reading the pages in this PDF…"
               : kept.length === 0
-                ? `This PDF has ${options.pageCount} pages. Use 1-3, 7 or all.`
-                : `Keeping ${kept.length} of ${options.pageCount} pages.`}
+                ? options.range.trim()
+                  ? `No pages between 1 and ${options.pageCount} there.`
+                  : `Click pages on the left, or type them. This PDF has ${options.pageCount} pages.`
+                : `Extracting ${kept.length} of ${options.pageCount} pages.`}
           </p>
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4"
+              checked={options.separate ?? false}
+              disabled={disabled}
+              onChange={(e) => onOptions({ ...options, separate: e.target.checked })}
+            />
+            <span>Save each page as its own PDF</span>
+          </label>
         </div>
       );
     }

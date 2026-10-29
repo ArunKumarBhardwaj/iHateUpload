@@ -261,7 +261,7 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
     },
     {
       q: "How can I split a PDF?",
-      a: "Every page, by page ranges, in half, by file size in MB, by bookmarks, by text, which starts a new file at each page containing a phrase you enter, or Find documents.",
+      a: "Range: custom ranges like 1-3 and 4-6 (each its own file, or all merged into one), fixed ranges of N pages, or in half. Pages: every page as its own file, or click the pages you want. Size: parts under a size in MB. Smart: Find documents, bookmarks, or a new file at each page containing your text. Thumbnails show every file before you split.",
     },
     {
       q: "Can it split a combined scan into separate documents?",
@@ -279,7 +279,7 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
     },
     {
       q: "How do I choose the pages?",
-      a: "Type page numbers and ranges like 1-3, 7, 9-. A trailing dash means up to the last page.",
+      a: "Click the page thumbnails, or type page numbers and ranges like 1-3, 7, 9-. A trailing dash means up to the last page. Tick Save each page as its own PDF to get one file per page.",
     },
     {
       q: "In what order do the pages appear?",

@@ -29,9 +29,10 @@ import {
   readPageTexts,
   type SplitPart,
 } from "@/lib/split-plan";
+import { planSplitGroups } from "@/lib/split-groups";
 import {
+  formatPageList,
   parsePageRange,
-  parseRangeGroups,
   resolvePageRange,
   type ToolOptions,
 } from "@/lib/tool-options";
@@ -749,9 +750,10 @@ async function savePageSubset(donor: PDFDocument, indices: number[]) {
 }
 
 /**
- * Greedy parts under `limit` bytes. Each part grows one page at a time and is
- * measured as saved; a page that overflows starts the next part. A page that
- * is over the limit on its own still ships, alone, and is reported.
+ * Greedy parts under `limit` bytes, each as long as it can be. A part's end is
+ * found by doubling and then halving, so a long PDF is saved O(log n) times per
+ * part rather than once per page. A page that is over the limit on its own
+ * still ships, alone, and is reported.
  */
 async function splitBySize(
   donor: PDFDocument,
@@ -760,24 +762,47 @@ async function splitBySize(
 ) {
   const count = donor.getPageCount();
   const parts: { indices: number[]; bytes: Uint8Array; oversize: boolean }[] = [];
-  let indices: number[] = [];
-  let kept: Uint8Array | null = null;
+  const range = (from: number, to: number) =>
+    Array.from({ length: to - from }, (_, k) => from + k);
 
-  for (let i = 0; i < count; i++) {
-    const trial = await savePageSubset(donor, [...indices, i]);
-    if (trial.length <= limit || indices.length === 0) {
-      indices = [...indices, i];
-      kept = trial;
-    } else {
-      parts.push({ indices, bytes: kept!, oversize: false });
-      indices = [i];
-      kept = await savePageSubset(donor, indices);
+  let start = 0;
+  while (start < count) {
+    // Largest `end` (exclusive) whose part fits; one page always ships.
+    let goodEnd = start + 1;
+    let goodBytes = await savePageSubset(donor, [start]);
+    if (goodBytes.length <= limit) {
+      let step = 1;
+      let badEnd = count + 1;
+      // Grow by doubling until a part is too big or the file ends.
+      while (goodEnd < count) {
+        const end = Math.min(count, goodEnd + step);
+        const bytes = await savePageSubset(donor, range(start, end));
+        if (bytes.length > limit) {
+          badEnd = end;
+          break;
+        }
+        goodEnd = end;
+        goodBytes = bytes;
+        step *= 2;
+      }
+      // Then halve the gap between what fits and what did not.
+      while (badEnd <= count && badEnd - goodEnd > 1) {
+        const end = Math.floor((goodEnd + badEnd) / 2);
+        const bytes = await savePageSubset(donor, range(start, end));
+        if (bytes.length > limit) badEnd = end;
+        else {
+          goodEnd = end;
+          goodBytes = bytes;
+        }
+      }
     }
-    onProgress((i + 1) / count / 2);
-  }
-  if (kept) parts.push({ indices, bytes: kept, oversize: false });
-  for (const part of parts) {
-    part.oversize = part.indices.length === 1 && part.bytes.length > limit;
+    parts.push({
+      indices: range(start, goodEnd),
+      bytes: goodBytes,
+      oversize: goodBytes.length > limit,
+    });
+    start = goodEnd;
+    onProgress(start / count);
   }
   return parts;
 }
@@ -887,31 +912,19 @@ export async function processSplitPdf(
     return results;
   }
 
-  let groups: number[][];
-  let names: string[];
-  if (options.mode === "ranges") {
-    groups = parseRangeGroups(options.ranges, count);
-    if (groups.length === 0) {
-      throw new Error("Enter ranges like 1-3, 4-6, 7-.");
-    }
-    names = groups.map(
-      (group) =>
-        `${base}-pages-${group[0] + 1}${group.length > 1 ? `-${group[group.length - 1] + 1}` : ""}.pdf`,
+  const plan = planSplitGroups(options, count, base);
+  if (!plan.ok) throw new Error(plan.error);
+  const names = uniqueNames(plan.groups.map((group) => group.name));
+  for (let i = 0; i < plan.groups.length; i++) {
+    const { pages } = plan.groups[i];
+    push(
+      await savePageSubset(donor, pages),
+      names[i],
+      plan.merged
+        ? `${pages.length} page${pages.length === 1 ? "" : "s"}: ${formatPageList(pages)}`
+        : undefined,
     );
-  } else if (options.mode === "half") {
-    if (count < 2) throw new Error("Splitting in half needs at least 2 pages.");
-    const mid = Math.ceil(count / 2);
-    const all = donor.getPageIndices();
-    groups = [all.slice(0, mid), all.slice(mid)];
-    names = [`${base}-part-1.pdf`, `${base}-part-2.pdf`];
-  } else {
-    groups = donor.getPageIndices().map((index) => [index]);
-    names = groups.map((_, index) => `${base}-page-${index + 1}.pdf`);
-  }
-
-  for (let i = 0; i < groups.length; i++) {
-    push(await savePageSubset(donor, groups[i]), names[i]);
-    onProgress((i + 1) / groups.length);
+    onProgress((i + 1) / plan.groups.length);
   }
 
   return results;
@@ -1153,7 +1166,24 @@ export async function processExtractPages(
   });
   const indices = parsePageRange(options.range, donor.getPageCount());
   if (indices.length === 0) {
-    throw new Error("Enter pages to keep, like 1-3, 7.");
+    throw new Error("Pick the pages to extract, like 1-3, 7.");
+  }
+
+  const stem = item.name.replace(/\.[^.]+$/, "");
+  if (options.separate && indices.length > 1) {
+    const results: ResultItem[] = [];
+    for (let i = 0; i < indices.length; i++) {
+      const blob = pdfBlob(await savePageSubset(donor, [indices[i]]));
+      results.push({
+        id: crypto.randomUUID(),
+        name: `${stem}-page-${indices[i] + 1}.pdf`,
+        size: blob.size,
+        blob,
+        originalSize: item.size,
+      });
+      onProgress((i + 1) / indices.length);
+    }
+    return results;
   }
 
   const out = await PDFDocument.create();
@@ -1166,10 +1196,11 @@ export async function processExtractPages(
   return [
     {
       id: crypto.randomUUID(),
-      name: replaceExt(item.name, "pdf").replace(/\.pdf$/i, "-extracted.pdf"),
+      name: `${stem}-extracted.pdf`,
       size: blob.size,
       blob,
       originalSize: item.size,
+      note: `${indices.length} of ${donor.getPageCount()} pages: ${formatPageList(indices)}`,
     },
   ];
 }

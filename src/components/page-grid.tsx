@@ -57,13 +57,15 @@ function fitRem(w: number, h: number) {
   return { w: w * k, h: h * k };
 }
 
-function Thumb({
+/** One page thumbnail, sized to the page's shape. Renders once `visible`. */
+export function PageThumb({
   session,
   page,
   turn,
   visible,
   size,
   alt,
+  scale = 1,
 }: {
   session: PdfSession | null;
   page: number;
@@ -71,6 +73,8 @@ function Thumb({
   visible: boolean;
   size: ShownPage;
   alt: string;
+  /** Shrinks the box below the grid's size, for compact previews. */
+  scale?: number;
 }) {
   const [loaded, setLoaded] = useState<{ session: PdfSession; page: number; url: string } | null>(null);
   const [failed, setFailed] = useState(false);
@@ -91,7 +95,8 @@ function Thumb({
   const quarter = turn % 180 !== 0;
   const shownW = quarter ? size.height : size.width;
   const shownH = quarter ? size.width : size.height;
-  const box = fitRem(shownW, shownH);
+  const fit = fitRem(shownW, shownH);
+  const box = { w: fit.w * scale, h: fit.h * scale };
   return (
     <div
       className="relative overflow-hidden rounded-sm bg-white shadow-sm ring-1 ring-ink/15"
@@ -401,7 +406,7 @@ export function PageGrid({
                   }}
                   onKeyDown={(e) => onKeyDown(e, p.key)}
                 >
-                  <Thumb
+                  <PageThumb
                     session={session}
                     page={p.page}
                     turn={p.turn}

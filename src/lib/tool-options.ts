@@ -87,6 +87,8 @@ export type AnnotatePosition =
 export type SplitMode =
   | "pages"
   | "ranges"
+  | "fixed"
+  | "select"
   | "half"
   | "size"
   | "bookmarks"
@@ -155,7 +157,14 @@ export type ToolOptions =
   | {
       kind: "split";
       mode: SplitMode;
+      /** Ranges mode: one file per comma part, like `1-3, 4-6, 7-`. */
       ranges: string;
+      /** Fixed mode: a new file every this many pages. */
+      everyN?: number;
+      /** Select mode: the pages to pull out, like `2, 5-7`. */
+      pick?: string;
+      /** Ranges and Select modes: put everything in one PDF instead of one file per part. */
+      merge?: boolean;
       maxMb: number;
       /** Bookmarks mode: 1 cuts at top-level items only. */
       bookmarkDepth: number;
@@ -232,7 +241,13 @@ export type ToolOptions =
   | { kind: "organize"; entries: OrganizeEntry[] }
   | { kind: "resize"; maxEdge: number }
   | { kind: "compress"; level: CompressLevel; targetKb: number | null }
-  | { kind: "extract"; range: string; pageCount: number }
+  | {
+      kind: "extract";
+      range: string;
+      pageCount: number;
+      /** One PDF per page instead of one PDF with every picked page. */
+      separate?: boolean;
+    }
   | { kind: "sign"; placements: SignPlacement[] }
   | {
       kind: "fill-form";
@@ -603,13 +618,28 @@ export const COMPRESS_LEVELS: {
 ];
 
 /**
+ * Tidies what people type for pages: en and em dashes become hyphens, spaces
+ * around a dash go (`1 - 3` is one range, not pages 1 and 3) and "to" works
+ * as a dash.
+ */
+export function normalisePageText(range: string): string {
+  return range
+    .toLowerCase()
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
+    .replace(/\s+to\s+/g, "-")
+    .replace(/\s*-\s*/g, "-")
+    .trim();
+}
+
+/**
  * `1-3, 7, 9-` → zero-based indices in document order. A trailing dash runs to
- * the last page. Empty or out of range tokens are ignored; the result is empty
- * when nothing valid remains.
+ * the last page and a leading one starts at page 1. A range that runs past the
+ * end is cut at the last page, as iLovePDF does; one that starts past the end
+ * is ignored. The result is empty when nothing valid remains.
  */
 export function parsePageRange(range: string, pageCount: number): number[] {
   if (pageCount < 1) return [];
-  const trimmed = range.trim().toLowerCase();
+  const trimmed = normalisePageText(range);
   if (trimmed === "all") {
     return Array.from({ length: pageCount }, (_, index) => index);
   }
@@ -617,16 +647,9 @@ export function parsePageRange(range: string, pageCount: number): number[] {
   const seen = new Set<number>();
   const pages: number[] = [];
   for (const part of trimmed.split(/[,;\s]+/)) {
-    if (!part) continue;
-    const openEnded = /^\d+-$/.test(part);
-    const bounds = (openEnded ? `${part}${pageCount}` : part)
-      .split("-")
-      .map((bit) => Number(bit));
-    if (bounds.some((n) => !Number.isInteger(n))) continue;
-    const start = Math.min(bounds[0], bounds[bounds.length - 1]);
-    const end = Math.max(bounds[0], bounds[bounds.length - 1]);
-    if (start < 1 || end > pageCount) continue;
-    for (let page = start; page <= end; page++) {
+    const span = spanOf(part, pageCount);
+    if (!span) continue;
+    for (let page = span.from; page <= span.to; page++) {
       const index = page - 1;
       if (seen.has(index)) continue;
       seen.add(index);
@@ -634,6 +657,32 @@ export function parsePageRange(range: string, pageCount: number): number[] {
     }
   }
   return pages.sort((a, b) => a - b);
+}
+
+/** One token (`3`, `2-5`, `7-`, `-4`, `all`) as one-based pages, clamped to the file. */
+function spanOf(part: string, pageCount: number): { from: number; to: number } | null {
+  if (!part) return null;
+  if (part === "all") return { from: 1, to: pageCount };
+  const match = /^(\d*)-?(\d*)$/.exec(part);
+  if (!match || (!match[1] && !match[2])) return null;
+  const dashed = part.includes("-");
+  const a = match[1] ? Number(match[1]) : 1;
+  const b = match[2] ? Number(match[2]) : dashed ? pageCount : a;
+  const from = Math.max(1, Math.min(a, b));
+  const to = Math.min(pageCount, Math.max(a, b));
+  return from > pageCount || to < 1 || from > to ? null : { from, to };
+}
+
+/** Zero-based indices back to short text: `[1, 4, 5, 6]` → `2, 5-7`. */
+export function formatPageList(indices: readonly number[]): string {
+  const sorted = [...new Set(indices)].sort((a, b) => a - b);
+  const parts: string[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const start = sorted[i];
+    while (i + 1 < sorted.length && sorted[i + 1] === sorted[i] + 1) i++;
+    parts.push(start === sorted[i] ? `${start + 1}` : `${start + 1}-${sorted[i] + 1}`);
+  }
+  return parts.join(", ");
 }
 
 /** Blank or "all" is every page; anything else must name at least one page. */
@@ -650,21 +699,51 @@ export function resolvePageRange(range: string, pageCount: number): number[] {
  * typed. Parts with nothing valid in them are dropped.
  */
 export function parseRangeGroups(range: string, pageCount: number): number[][] {
-  return range
+  return normalisePageText(range)
     .split(/[,;]+/)
     .map((part) => parsePageRange(part, pageCount))
     .filter((group) => group.length > 0);
 }
 
-export const SPLIT_MODES: { id: SplitMode; title: string }[] = [
-  { id: "pages", title: "Every page" },
-  { id: "ranges", title: "By ranges" },
-  { id: "half", title: "In half" },
-  { id: "size", title: "By size" },
-  { id: "bookmarks", title: "By bookmarks" },
-  { id: "text", title: "By text" },
-  { id: "smart", title: "Find documents" },
+export type SplitTab = "range" | "pages" | "size" | "smart";
+
+/** The four tabs of the split panel, as iLovePDF lays them out, plus our Smart extras. */
+export const SPLIT_TABS: { id: SplitTab; title: string; modes: { id: SplitMode; title: string }[] }[] = [
+  {
+    id: "range",
+    title: "Range",
+    modes: [
+      { id: "ranges", title: "Custom" },
+      { id: "fixed", title: "Fixed" },
+      { id: "half", title: "In half" },
+    ],
+  },
+  {
+    id: "pages",
+    title: "Pages",
+    modes: [
+      { id: "pages", title: "Extract all pages" },
+      { id: "select", title: "Select pages" },
+    ],
+  },
+  { id: "size", title: "Size", modes: [{ id: "size", title: "By size" }] },
+  {
+    id: "smart",
+    title: "Smart",
+    modes: [
+      { id: "smart", title: "Find documents" },
+      { id: "bookmarks", title: "Bookmarks" },
+      { id: "text", title: "By text" },
+    ],
+  },
 ];
+
+export function splitTabOf(mode: SplitMode): SplitTab {
+  return SPLIT_TABS.find((tab) => tab.modes.some((m) => m.id === mode))?.id ?? "pages";
+}
+
+/** Every split mode with its label, flat. */
+export const SPLIT_MODES: { id: SplitMode; title: string }[] = SPLIT_TABS.flatMap((tab) => tab.modes);
 
 export const PDF_IMAGE_DPIS: { id: PdfImageDpi; title: string }[] = [
   { id: 72, title: "72 DPI" },
@@ -733,6 +812,9 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
         kind: "split",
         mode: "pages",
         ranges: "",
+        everyN: 2,
+        pick: "",
+        merge: false,
         maxMb: 5,
         bookmarkDepth: 1,
         bookmarkOff: [],
@@ -788,7 +870,7 @@ export function initialOptions(ui: ToolDefinition["ui"]): ToolOptions {
     case "compress":
       return { kind: "compress", level: "light", targetKb: null };
     case "extract":
-      return { kind: "extract", range: "", pageCount: 0 };
+      return { kind: "extract", range: "", pageCount: 0, separate: false };
     case "sign":
       return { kind: "sign", placements: [] };
     case "fill-form":
@@ -1020,6 +1102,10 @@ export function optionsReady(
     case "split":
       return options.mode === "ranges"
         ? options.ranges.trim().length > 0
+        : options.mode === "select"
+          ? (options.pick ?? "").trim().length > 0
+        : options.mode === "fixed"
+          ? Number.isInteger(options.everyN ?? 2) && (options.everyN ?? 2) >= 1
         : options.mode === "size"
           ? Number.isFinite(options.maxMb) && options.maxMb > 0
           : options.mode === "text"

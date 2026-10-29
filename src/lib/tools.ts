@@ -431,8 +431,8 @@ export const TOOLS: ToolDefinition[] = [
       "Extract PDF pages online free. Keep only the pages you need in a new file — private, in your browser, no upload.",
     seoHowTo: [
       "Choose the PDF you want pages from.",
-      "Type the pages to keep, like 1-3, 7.",
-      "Download the new PDF with only those pages.",
+      "Click the pages to keep, or type them like 1-3, 7.",
+      "Download the new PDF with only those pages, or one PDF per page.",
     ],
     showInNav: true,
     kind: "pdf",

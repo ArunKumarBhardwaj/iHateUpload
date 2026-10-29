@@ -23,6 +23,7 @@ import { PdfEditCanvas } from "@/components/workbench/pdf-edit-canvas";
 import { ComparePreview } from "@/components/workbench/compare-preview";
 import { RedactOverlay } from "@/components/workbench/redact-overlay";
 import { ResultPanel } from "@/components/workbench/result-panel";
+import { PagePicker, SplitPreview } from "@/components/workbench/split-preview";
 import { Stepper } from "@/components/workbench/stepper";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -139,6 +140,7 @@ export function ToolWorkspace({
   const pagedFile =
     options.kind === "organize" ||
     options.kind === "extract" ||
+    options.kind === "split" ||
     options.kind === "sign" ||
     options.kind === "fill-form" ||
     options.kind === "edit" ||
@@ -196,8 +198,9 @@ export function ToolWorkspace({
     setOrderedKey(pageKey);
     setOptions({
       kind: "extract",
-      range: pageCount > 0 ? `1-${pageCount}` : "",
+      range: "",
       pageCount,
+      separate: options.separate ?? false,
     });
   }
   const editFileId =
@@ -305,6 +308,9 @@ export function ToolWorkspace({
   };
 
   const optionsInCanvas = optionsNeedCanvas(options);
+  /** Split and Extract show the pages beside their settings, as iLovePDF does. */
+  const pagePreview =
+    (options.kind === "split" || options.kind === "extract") && Boolean(pagedFile);
 
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
   const largeJob = shouldWarnLargeJob(totalBytes, pageCount);
@@ -449,7 +455,7 @@ export function ToolWorkspace({
                   onAddMore={() => inputRef.current?.click()}
                   disabled={locked}
                 />
-              ) : optionsInCanvas && !tool.multiple ? (
+              ) : (optionsInCanvas || pagePreview) && !tool.multiple ? (
                 // One-file tools name their file; batch tools list them all above the preview.
                 <div className="flex items-center gap-3 rounded-xl border border-ink/10 bg-secondary px-3 py-2.5">
                   <SourceIcon className="size-4 shrink-0 text-signal" />
@@ -486,6 +492,25 @@ export function ToolWorkspace({
                   }
                 />
               )}
+              {pagePreview && pagedFile && options.kind === "split" ? (
+                <SplitPreview
+                  options={options}
+                  onOptions={setOptions}
+                  file={pagedFile.file}
+                  pageCount={pageCount}
+                  baseName={pagedFile.name.replace(/\.[^.]+$/, "")}
+                  disabled={locked}
+                />
+              ) : null}
+              {pagePreview && pagedFile && options.kind === "extract" ? (
+                <PagePicker
+                  file={pagedFile.file}
+                  pageCount={pageCount}
+                  value={options.range}
+                  onChange={(range) => setOptions({ ...options, range })}
+                  disabled={locked}
+                />
+              ) : null}
               {options.kind === "compare" && files[0] && files[1] ? (
                 <ComparePreview
                   left={files[0].file}
