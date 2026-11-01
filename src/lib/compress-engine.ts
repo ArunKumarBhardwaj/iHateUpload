@@ -3,6 +3,7 @@ import {
   PDFArray,
   PDFDict,
   PDFDocument,
+  PDFHexString,
   PDFName,
   PDFNumber,
   PDFRawStream,
@@ -17,9 +18,25 @@ import {
   unpackGray1,
 } from "@/lib/bilevel";
 import { TARGET_LADDER, type CompressPlan } from "@/lib/compress-plans";
+import { dedupe, deflateMax, dropUnreachable, recompressStreams, stripInvisible } from "@/lib/compress-structure";
+import {
+  colourCount,
+  commonColours,
+  encodeLossless,
+  looksDigital,
+  paletteOf,
+  snapToPalette,
+  unpredict,
+  type Lossless,
+} from "@/lib/image-lossless";
+import { mrcBytes, splitScan, type MrcLayers } from "@/lib/compress-mrc";
+import { hasWholeFonts, subsetFonts, type Subsetter } from "@/lib/font-subset";
 import { encodeJbig2Best } from "@/lib/jbig2";
 import { stripPdfMetadata } from "@/lib/pdf-meta";
 import { scanImagePlacements, type Placement } from "@/lib/pdf-placements";
+
+/** Streams this pass wrote, already deflated as hard as they will go. */
+const written = new WeakSet<PDFRawStream>();
 
 /** RGBA pixels, the shape both codecs and canvases speak. */
 export type Pixels = { data: Uint8ClampedArray; width: number; height: number };
@@ -29,6 +46,8 @@ export interface ImageCodec {
   resize(pixels: Pixels, width: number, height: number): Promise<Pixels>;
   /** quality is 0–100; gray writes a one-channel JPEG. */
   encodeJpeg(pixels: Pixels, quality: number, gray: boolean): Promise<Uint8Array>;
+  /** Cuts whole embedded fonts down to the glyphs in use; null when it can't load. */
+  fontSubsetter?(): Promise<Subsetter | null>;
 }
 
 const QUALITY_STEP = 8;
@@ -46,15 +65,18 @@ export type CompressStats = {
   images: number;
   resampled: number;
   streams: number;
+  /** Objects nothing pointed to, and copies of identical ones, dropped. */
+  dropped?: number;
+  folded?: number;
+  /** Bytes the embedded font programs lost to subsetting. */
+  fontBytes?: number;
 };
 
 export type ProgressFn = (fraction: number) => void;
 
+/** zlib at level 9: a few percent under the browser's CompressionStream on every stream. */
 export async function deflate(bytes: Uint8Array): Promise<Uint8Array> {
-  const stream = new Blob([bytes.slice().buffer as ArrayBuffer])
-    .stream()
-    .pipeThrough(new CompressionStream("deflate"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  return deflateMax(bytes);
 }
 
 /** "FlateDecode" for one filter, null for none, undefined for a chain. */
@@ -252,6 +274,7 @@ function setImage(
   height: number,
   filter: "DCTDecode" | "FlateDecode",
 ) {
+  written.add(stream);
   stream.contents = bytes;
   const { dict } = stream;
   dict.set(PDFName.of("Width"), doc.context.obj(width));
@@ -270,6 +293,7 @@ function setBilevelImage(
   width: number,
   height: number,
 ) {
+  written.add(stream);
   stream.contents = bytes;
   const { dict } = stream;
   dict.set(PDFName.of("Width"), doc.context.obj(width));
@@ -279,6 +303,134 @@ function setBilevelImage(
   dict.set(PDFName.of("Filter"), PDFName.of("JBIG2Decode"));
   dict.delete(PDFName.of("DecodeParms"));
   dict.set(PDFName.of("Length"), doc.context.obj(bytes.length));
+}
+
+/**
+ * Lossless coding of a big image takes seconds; one band of rows in eight, coded alone, says
+ * within a few percent whether it can beat the JPEG at all.
+ */
+function losslessMayWin(samples: Uint8Array, width: number, height: number, ch: 1 | 3, jpegBytes: number): boolean {
+  if (!Number.isFinite(jpegBytes) || width * height < 1_000_000) return true;
+  const band = 16;
+  const rows: number[] = [];
+  for (let y = 0; y + band <= height; y += band * 8) for (let k = 0; k < band; k++) rows.push(y + k);
+  const rowBytes = width * ch;
+  const sample = new Uint8Array(rows.length * rowBytes);
+  rows.forEach((y, i) => sample.set(samples.subarray(y * rowBytes, (y + 1) * rowBytes), i * rowBytes));
+  const estimate = (encodeLossless(sample, width, rows.length, ch).bytes.length * height) / rows.length;
+  return estimate < jpegBytes * 1.15;
+}
+
+/** Predictor parms of an image, {predictor: 1} for none, null for ones we can't undo. */
+function predictorOf(dict: PDFDict): { predictor: number; colors: number; bits: number; columns: number } | null {
+  const raw = dict.lookup(PDFName.of("DecodeParms"));
+  if (raw === undefined) return { predictor: 1, colors: 1, bits: 8, columns: 1 };
+  const parms = raw instanceof PDFArray && raw.size() === 1 ? raw.lookup(0) : raw;
+  if (!(parms instanceof PDFDict)) return null;
+  const n = (key: string, fallback: number) => {
+    const v = parms.lookup(PDFName.of(key));
+    return v instanceof PDFNumber ? v.asNumber() : fallback;
+  };
+  const known = new Set(["Predictor", "Colors", "BitsPerComponent", "Columns"]);
+  for (const [k] of parms.entries()) if (!known.has(k.asString().replace(/^\//, ""))) return null;
+  return { predictor: n("Predictor", 1), colors: n("Colors", 1), bits: n("BitsPerComponent", 8), columns: n("Columns", 1) };
+}
+
+/**
+ * Grey in all but name. Decoded JPEGs carry a little chroma noise, so tolerance lets a pixel
+ * stray that far, and one in two hundred may stray further (dust, a coloured speck).
+ */
+function nearlyGray(pixels: Pixels, tolerance: number): boolean {
+  const count = pixels.width * pixels.height;
+  const step = Math.max(1, Math.floor(count / 65536));
+  let off = 0;
+  let n = 0;
+  for (let p = 0; p < count; p += step, n++) {
+    const o = p * 4;
+    const r = pixels.data[o];
+    const g = pixels.data[o + 1];
+    const b = pixels.data[o + 2];
+    if (Math.abs(r - g) > tolerance || Math.abs(g - b) > tolerance) off++;
+  }
+  return off <= n / 200 && (tolerance > 0 || off === 0);
+}
+
+/** Writes a lossless coding: palette, bit depth and predictor parms as encodeLossless chose. */
+function setLossless(doc: PDFDocument, stream: PDFRawStream, l: Lossless, width: number, height: number, ch: 1 | 3) {
+  written.add(stream);
+  const { dict } = stream;
+  const original = dict.get(PDFName.of("ColorSpace"));
+  const base = l.gray && ch === 3 ? PDFName.of("DeviceGray") : original!;
+  stream.contents = l.bytes;
+  dict.set(PDFName.of("Width"), doc.context.obj(width));
+  dict.set(PDFName.of("Height"), doc.context.obj(height));
+  dict.set(PDFName.of("BitsPerComponent"), doc.context.obj(l.bitsPerComponent));
+  dict.set(PDFName.of("Filter"), PDFName.of("FlateDecode"));
+  if (l.palette) {
+    const hex = Array.from(l.palette, (b) => b.toString(16).padStart(2, "0")).join("");
+    const n = l.palette.length / (l.gray || ch === 1 ? 1 : 3);
+    dict.set(PDFName.of("ColorSpace"), doc.context.obj([PDFName.of("Indexed"), base, n - 1, PDFHexString.of(hex)]));
+  } else dict.set(PDFName.of("ColorSpace"), base);
+  if (l.predictor) {
+    dict.set(
+      PDFName.of("DecodeParms"),
+      doc.context.obj({ Predictor: 15, Colors: l.predictor.colors, BitsPerComponent: l.predictor.bits, Columns: l.predictor.columns }),
+    );
+  } else dict.delete(PDFName.of("DecodeParms"));
+  dict.set(PDFName.of("Length"), doc.context.obj(l.bytes.length));
+}
+
+/** Big enough on the page, and fine enough, to be a scanned page rather than a picture on one. */
+function scanSized(placement: Placement, width: number, height: number): boolean {
+  const area = placement.widthPt * placement.heightPt;
+  const dpi = (width / placement.widthPt) * 72;
+  return area >= 0.3 * 612 * 792 && dpi >= 120 && width * height >= 1_000_000;
+}
+
+/**
+ * Puts the three MRC layers where the scan was: the image object becomes a form, drawn in the
+ * same unit square, that paints the paper and then the ink colour through the text mask.
+ */
+function setMrc(doc: PDFDocument, ref: PDFRef, l: MrcLayers) {
+  const ctx = doc.context;
+  const image = (bytes: Uint8Array, entries: Record<string, unknown>) => {
+    const s = ctx.stream(bytes, { Type: "XObject", Subtype: "Image", Length: bytes.length, ...entries } as never);
+    written.add(s);
+    return ctx.register(s);
+  };
+  const mask = image(l.mask.bytes, {
+    Width: l.mask.width,
+    Height: l.mask.height,
+    ImageMask: true,
+    BitsPerComponent: 1,
+    // JBIG2 ink decodes to 1, and in an explicit mask 1 is where the foreground shows.
+    Filter: "JBIG2Decode",
+  });
+  const fg = image(l.fg.bytes, {
+    Width: l.fg.width,
+    Height: l.fg.height,
+    ColorSpace: l.fg.gray ? "DeviceGray" : "DeviceRGB",
+    BitsPerComponent: 8,
+    Filter: "DCTDecode",
+    Mask: mask,
+  });
+  const bg = image(l.bg.bytes, {
+    Width: l.bg.width,
+    Height: l.bg.height,
+    ColorSpace: l.bg.gray ? "DeviceGray" : "DeviceRGB",
+    BitsPerComponent: 8,
+    Filter: "DCTDecode",
+  });
+  const content = new TextEncoder().encode("/B Do /F Do");
+  const form = ctx.stream(content, {
+    Type: "XObject",
+    Subtype: "Form",
+    BBox: [0, 0, 1, 1],
+    Resources: { XObject: { B: bg, F: fg } },
+    Length: content.length,
+  } as never);
+  written.add(form);
+  ctx.assign(ref, form);
 }
 
 /** Shrinks a gray soft mask to match its parent's new pixel size. */
@@ -391,6 +543,7 @@ async function compressImage(
   placement: Placement,
   plan: CompressPlan,
   codec: ImageCodec,
+  ref?: PDFRef,
 ): Promise<"skipped" | "kept" | "rewritten" | "resampled"> {
   const { dict } = stream;
   const width = num(dict, "Width");
@@ -405,14 +558,15 @@ async function compressImage(
   }
   // Color-key masks match exact sample values, which lossy output breaks.
   if (dict.lookup(PDFName.of("Mask")) instanceof PDFArray) return "skipped";
-  if (dict.has(PDFName.of("DecodeParms"))) return "skipped";
+  const parms = predictorOf(dict);
+  if (parms === null) return "skipped";
   if (bits === 1) {
+    if (parms.predictor > 1) return "skipped";
     return recodeOneBit(doc, stream, width, height, chain, placement, plan);
   }
   const jpeg = chain.at(-1) === "DCTDecode";
   const transport = jpeg ? chain.slice(0, -1) : chain;
   if (!transport.every((f) => TRANSPORT_FILTERS.has(f))) return "skipped";
-  const plainFlate = chain.length === 1 && chain[0] === "FlateDecode";
 
   let pixels: Pixels | null;
   if (jpeg) {
@@ -430,6 +584,12 @@ async function compressImage(
     } catch {
       return "skipped";
     }
+    if (parms.predictor > 1) {
+      if (parms.colors !== ch || parms.bits !== 8 || parms.columns !== width) return "skipped";
+      const plain = unpredict(raw, parms.predictor, ch, 8, width);
+      if (!plain) return "skipped";
+      raw = plain;
+    }
     if (raw.length < width * height * ch) return "skipped";
     pixels = { data: toRgba(raw, width, height, ch), width, height };
   }
@@ -437,9 +597,33 @@ async function compressImage(
     return "skipped";
   }
 
-  if (plan.bilevelDpi > 0 && !dict.has(PDFName.of("SMask"))) {
+  // Only lossless sources are read as samples again; for a JPEG the copy would be wasted.
+  const source = jpeg ? null : fromRgba(pixels, ch);
+  // Screenshots and charts are not scans: two-tone coding would wipe out their flat greys.
+  const digital = !!source && looksDigital(source, width, height, ch);
+  if (plan.bilevelDpi > 0 && !dict.has(PDFName.of("SMask")) && !digital) {
     const outcome = tryBilevel(doc, stream, pixels, placement, plan);
     if (outcome) return outcome;
+  }
+
+  // A colour scan of a document: sharp 1-bit text over low-resolution colour (MRC).
+  let mrc: MrcLayers | null = null;
+  if (ref && plan.bilevelDpi > 0 && !digital && !dict.has(PDFName.of("SMask")) && scanSized(placement, width, height)) {
+    const mask = targetSize(width, height, placement, plan.bilevelDpi);
+    const bgScale = Math.max(2, plan.bilevelDpi / (plan.dpi / 2));
+    mrc = await splitScan(
+      pixels,
+      {
+        maskWidth: mask.width,
+        maskHeight: mask.height,
+        bgScale,
+        fgScale: bgScale * 2,
+        bgQuality: Math.max(30, plan.quality - 14),
+        fgQuality: 50,
+        matchLetters: plan.matchLetters,
+      },
+      codec,
+    );
   }
 
   const size = targetSize(width, height, placement, plan.dpi);
@@ -448,21 +632,54 @@ async function compressImage(
     ? await codec.resize(pixels, size.width, size.height)
     : pixels;
 
-  type Candidate = { bytes: Uint8Array; filter: "DCTDecode" | "FlateDecode" };
+  // Colour that is only grey (a B/W page scanned in colour) is stored as grey.
+  const gray = ch === 1 || nearlyGray(out, jpeg ? 3 : 0);
+  type Candidate = { bytes: Uint8Array; set: () => void };
   const candidates: Candidate[] = [];
   const jpegAllowed = jpeg || ((plan.lossyFlate || ch === 1) && looksPhotographic(out, ch === 1 ? PHOTO_GRAY_FLOOR : PHOTO_COLOR_FLOOR));
   if (jpegAllowed) {
+    const bytes = await encodeAdaptive(out, plan, gray, codec);
     candidates.push({
-      bytes: await encodeAdaptive(out, plan, ch === 1, codec),
-      filter: "DCTDecode",
+      bytes,
+      set: () => {
+        setImage(doc, stream, bytes, out.width, out.height, "DCTDecode");
+        if (gray && ch === 3) dict.set(PDFName.of("ColorSpace"), PDFName.of("DeviceGray"));
+      },
     });
   }
-  // Plain Flate at the same size would only re-deflate what is already there.
-  if (!jpeg && (resampled || !plainFlate)) {
-    candidates.push({
-      bytes: await deflate(fromRgba(out, ch)),
-      filter: "FlateDecode",
-    });
+  // Lossless: palette, grey and PNG filters. Skipped for photos, where it never wins and costs time.
+  const samples = jpeg ? new Uint8Array(0) : out === pixels ? source! : fromRgba(out, ch);
+  const floor = ch === 1 ? 160 : 4096;
+  const photographic = !jpeg && jpegAllowed && colourCount(samples, out.width * out.height, ch, floor) >= floor;
+  const jpegBytes = candidates[0]?.bytes.length ?? Infinity;
+  // Flat art of 256 colours or fewer: resampling blurs it into thousands, so it is also tried at
+  // full size, and (when the level allows loss) resampled then put back on its own colours.
+  // Screenshots and charts: resampling blurs flat colour into thousands of values, so they are
+  // also tried at full size, and (where the level allows loss) on 256 colours of their own.
+  const exact = source && digital ? paletteOf(source, width * height, ch) : null;
+  if (source && digital) {
+    if (resampled) {
+      const l = encodeLossless(source, width, height, ch);
+      candidates.push({ bytes: l.bytes, set: () => setLossless(doc, stream, l, width, height, ch) });
+    }
+    const palette = exact ?? (plan.lossyFlate ? commonColours(source, width * height, ch) : null);
+    if (palette && plan.lossyFlate) {
+      const sized = [{ px: samples, w: out.width, h: out.height }];
+      if (resampled && !exact) sized.push({ px: source, w: width, h: height });
+      for (const { px, w, h } of sized) {
+        const l = encodeLossless(snapToPalette(px, w * h, ch, palette), w, h, ch);
+        candidates.push({ bytes: l.bytes, set: () => setLossless(doc, stream, l, w, h, ch) });
+      }
+    }
+  }
+  if (!jpeg && !photographic && !(exact && resampled) && losslessMayWin(samples, out.width, out.height, ch, jpegBytes)) {
+    const l = encodeLossless(samples, out.width, out.height, ch);
+    candidates.push({ bytes: l.bytes, set: () => setLossless(doc, stream, l, out.width, out.height, ch) });
+  }
+
+  if (mrc && ref) {
+    const layers = mrc;
+    candidates.push({ bytes: { length: mrcBytes(layers) } as Uint8Array, set: () => setMrc(doc, ref, layers) });
   }
 
   const ceiling = stream.contents.length * KEEP_IF_UNDER;
@@ -470,28 +687,13 @@ async function compressImage(
     .filter((c) => c.bytes.length < ceiling)
     .sort((a, b) => a.bytes.length - b.bytes.length)[0];
   if (!chosen) return "kept";
-  setImage(doc, stream, chosen.bytes, out.width, out.height, chosen.filter);
-  if (resampled) await resizeSoftMask(doc, stream, out.width, out.height, codec);
-  return resampled ? "resampled" : "rewritten";
-}
-
-/** Deflates streams stored raw: content, fonts, and anything else unfiltered. */
-async function deflateRawStreams(doc: PDFDocument): Promise<number> {
-  let count = 0;
-  for (const [, object] of doc.context.enumerateIndirectObjects()) {
-    if (!(object instanceof PDFRawStream)) continue;
-    const { dict } = object;
-    if (dict.has(PDFName.of("Filter"))) continue;
-    if (dict.get(PDFName.of("Type")) === PDFName.of("Metadata")) continue;
-    if (object.contents.length < 256) continue;
-    const packed = await deflate(object.contents);
-    if (packed.length >= object.contents.length * KEEP_IF_UNDER) continue;
-    object.contents = packed;
-    dict.set(PDFName.of("Filter"), PDFName.of("FlateDecode"));
-    dict.set(PDFName.of("Length"), doc.context.obj(packed.length));
-    count += 1;
-  }
-  return count;
+  chosen.set();
+  if (ref && doc.context.lookup(ref) !== stream) return "resampled";
+  const finalW = num(dict, "Width")!;
+  const finalH = num(dict, "Height")!;
+  const shrunk = finalW !== width || finalH !== height;
+  if (shrunk) await resizeSoftMask(doc, stream, finalW, finalH, codec);
+  return shrunk ? "resampled" : "rewritten";
 }
 
 /**
@@ -511,6 +713,10 @@ export async function compressPdfBytes(
 
   // Encrypted streams would decode to noise; only the rewrite is safe.
   if (!doc.isEncrypted) {
+    stripInvisible(doc);
+    stats.dropped = dropUnreachable(doc);
+    // Before images, so a logo repeated in every merged file is recoded once.
+    stats.folded = dedupe(doc);
     const placements = scanImagePlacements(doc);
     const masks = softMaskRefs(doc);
     const targets = [...placements].filter(([key]) => !masks.has(key));
@@ -520,7 +726,7 @@ export async function compressPdfBytes(
       const stream = doc.context.lookup(PDFRef.of(objNum, gen));
       if (stream instanceof PDFRawStream) {
         try {
-          const outcome = await compressImage(doc, stream, placement, plan, codec);
+          const outcome = await compressImage(doc, stream, placement, plan, codec, PDFRef.of(objNum, gen));
           if (outcome === "rewritten" || outcome === "resampled") stats.images++;
           if (outcome === "resampled") stats.resampled++;
         } catch {
@@ -529,7 +735,15 @@ export async function compressPdfBytes(
       }
       onProgress((0.9 * (i + 1)) / targets.length);
     }
-    stats.streams = await deflateRawStreams(doc);
+    // Whole fonts (pdf-lib output, merged files) down to the glyphs the pages draw.
+    if (codec.fontSubsetter && hasWholeFonts(doc)) {
+      const subsetter = await codec.fontSubsetter();
+      if (subsetter) stats.fontBytes = subsetFonts(doc, subsetter);
+    }
+    stats.streams = recompressStreams(doc, written);
+    // Soft masks and images replaced above may have left orphans or new twins.
+    stats.dropped += dropUnreachable(doc);
+    stats.folded += dedupe(doc);
   }
 
   const bytes = await doc.save({ useObjectStreams: true });

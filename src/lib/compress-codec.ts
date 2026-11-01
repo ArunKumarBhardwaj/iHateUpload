@@ -5,6 +5,7 @@ import initResize, {
 } from "@jsquash/resize/lib/resize/pkg/squoosh_resize.js";
 
 import type { ImageCodec, Pixels } from "@/lib/compress-engine";
+import { createSubsetter, type Subsetter } from "@/lib/font-subset";
 
 /**
  * The same WebAssembly the Squoosh app ships: MozJPEG (C) for JPEG in and
@@ -15,6 +16,8 @@ export const CODEC_FILES = {
   decode: "mozjpeg_dec.wasm",
   encode: "mozjpeg_enc.wasm",
   resize: "squoosh_resize_bg.wasm",
+  /** HarfBuzz's font subsetter, loaded only for PDFs that carry whole fonts. */
+  subset: "harfbuzz-subset.wasm",
 } as const;
 
 export type WasmLoader = (file: string) => Promise<WebAssembly.Module>;
@@ -42,7 +45,14 @@ function load(loader: WasmLoader) {
 }
 
 export function createWasmCodec(loader: WasmLoader = fetchWasm): ImageCodec {
+  let subsetter: Promise<Subsetter | null> | null = null;
   return {
+    fontSubsetter() {
+      subsetter ??= loader(CODEC_FILES.subset)
+        .then((m) => createSubsetter(m))
+        .catch(() => null);
+      return subsetter;
+    },
     async decodeJpeg(bytes) {
       await load(loader);
       try {

@@ -85,3 +85,7 @@ internal/benchmarks/summarize/fx/
 internal/benchmarks/smart-split/out/
 internal/benchmarks/smart-split/fx/
 internal/benchmarks/share-target/out/
+
+# compress bench outputs
+internal/benchmarks/compress/out/
+internal/benchmarks/compress/corpus/

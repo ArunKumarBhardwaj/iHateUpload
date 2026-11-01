@@ -132,7 +132,8 @@ test("each level is smaller than the last", async () => {
   }
   expect(sizes[1]).toBeLessThan(sizes[0]);
   expect(sizes[2]).toBeLessThan(sizes[1]);
-});
+  // Three full passes over a 6-megapixel photo: right at 5 s on a slow machine even before this change.
+}, 20_000);
 
 test("flat graphics stay lossless when resampled", async () => {
   const doc = await PDFDocument.create();
@@ -234,7 +235,8 @@ test("raw pixels behind ASCII85 then Flate are compressed", async () => {
   const { bytes, stats } = await compressPdfBytes(input, COMPRESS_PLANS.medium, codec);
   expect(stats.resampled).toBe(1);
   expect(bytes.length).toBeLessThan(input.length * 0.3);
-});
+  // Building the fixture (18 MB of pixels through ASCII85) takes most of the time.
+}, 30_000);
 
 test("target size walks down until the PDF fits", async () => {
   const input = await photoPdf();
