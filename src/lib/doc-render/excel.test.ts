@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import JSZip from "jszip";
+import * as XLSX from "xlsx";
 
 import { quoteLiterals, workbookGrids } from "./excel";
 import { sheetPageSpec, sheetScale, sheetToBlocks } from "./excel-layout";
@@ -106,6 +107,17 @@ describe("excel cell formatting", () => {
     expect(grid.rows[2][1].text).toBe("₹1,234.50");
     // the file's 20-wide column A (19.17 characters) is kept; the merged title doesn't widen it
     expect(grid.colChars?.[0]).toBeCloseTo(19.17, 1);
+  });
+
+  test("column widths don't depend on what was read before", async () => {
+    // A workbook whose odd widths make SheetJS re-guess its shared digit width.
+    const other = XLSX.utils.aoa_to_sheet([["a", "b"]]);
+    other["!cols"] = [{ wch: 12.3 }, { wch: 33.7 }];
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, other, "S");
+    XLSX.read(XLSX.write(book, { type: "array", bookType: "xlsx", cellStyles: true }), { cellStyles: true });
+    const { sheets } = await workbookGrids(await styledWorkbook());
+    expect(sheets[0].grid.colChars?.[0]).toBeCloseTo(19.17, 1);
   });
 
   test("the PDF shows the formatted values, the rupee sign and no hidden data", async () => {

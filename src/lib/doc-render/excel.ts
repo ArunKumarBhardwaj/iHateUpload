@@ -12,6 +12,17 @@ import { applyOdsGeometry, readOds } from "./ods-styles";
 import { readXlsStyles } from "./xls-styles";
 import { looksNumeric, type Grid, type GridCell } from "./tables";
 
+
+/**
+ * Excel column width (characters plus padding) to characters, with the 6-pixel default digit
+ * width SheetJS starts from: the same numbers its wch gives on a fresh read, every time.
+ */
+export function widthToChars(width: number): number {
+  const mdw = 6;
+  const px = Math.floor((width + Math.round(128 / mdw) / 256) * mdw);
+  return Math.floor(((px - 5) / mdw) * 100 + 0.5) / 100;
+}
+
 export interface SheetGrid {
   name: string;
   grid: Grid;
@@ -301,7 +312,10 @@ function sheetToGrid(
     Math.max(0, ...trimmed.map((r) => (r[c] && !r[c].covered && (r[c].colSpan ?? 1) === 1 ? r[c].text.length : 0)));
   const colChars = keepCols.slice(0, width).map((c) => {
     const col = cols[c];
-    return col?.wch ?? (col?.wpx ? col.wpx / 7 : col?.width);
+    // SheetJS's wch rides on a module-wide digit width that every styled read re-guesses, so the
+    // same file came out wider after another workbook had been read. The raw width is stable.
+    if (col?.width !== undefined) return widthToChars(col.width);
+    return col?.wch ?? (col?.wpx ? col.wpx / 7 : undefined);
   });
   const hasWidths = colChars.some((w) => w !== undefined);
   const grid: Grid = { rows: trimmed, header: trimmed.length > 1, styled };
