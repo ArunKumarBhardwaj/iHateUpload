@@ -1,7 +1,7 @@
 /** Table grids to a typed workbook. Pure: no DOM, no pdf.js. */
 import type { PageInput } from "../pdf-to-word/lines";
 import { parseCell, typeAs, type Typed } from "./cells";
-import { joinAcrossPages, readPages, textRows, type Grid, type PageParts, type TextRow } from "./grid";
+import { joinAcrossPages, readPages, splitStatement, textRows, type Grid, type PageParts, type TextRow } from "./grid";
 import type { CellStyle, Merge, Sheet, Workbook, XCell } from "./xlsx-writer";
 
 export type ExcelLayout = "tables" | "pages" | "one";
@@ -62,7 +62,7 @@ export function typeGrid(grid: Grid, typedOn = true): { headers: number; typed: 
     const headerText = headers ? grid.rows[headers - 1][c]?.text : undefined;
     const texts = idx.map((r) => grid.rows[r][c].text);
     const forced = grid.colTypes?.[c] ?? "auto";
-    const result: Typed[] = typedOn || forced !== "auto" ? typeAs(texts, forced, headerText) : texts.map((t) => (t.trim() ? { kind: "text", text: t } : { kind: "blank" }));
+    const result: Typed[] = typedOn || forced !== "auto" ? typeAs(texts, forced, headerText, grid.dateOrder) : texts.map((t) => (t.trim() ? { kind: "text", text: t } : { kind: "blank" }));
     idx.forEach((r, k) => (typed[r][c] = result[k]));
     const count = new Map<ColumnKind, number>();
     for (const t of result) if (t.kind !== "blank") count.set(kindOf(t), (count.get(kindOf(t)) ?? 0) + 1);
@@ -165,6 +165,15 @@ function stack(items: ({ kind: "grid"; grid: Grid; title?: string } | { kind: "t
 export type Prepared = { parts: PageParts[]; grids: Grid[]; pagesOf: Map<Grid, number[]>; options: ExcelOptions; title: string };
 
 export function prepare(parts: PageParts[], options: ExcelOptions, title: string): Prepared {
+  // One sheet per page, or tables kept apart: a statement goes back to one table per page.
+  if (options.layout === "pages" || options.joinPages === false) {
+    for (const part of parts) {
+      const st = part.grids.find((g) => g.statement && g.rowPages);
+      if (!st) continue;
+      part.grids = part.grids.filter((g) => g !== st);
+      for (const piece of splitStatement(st)) parts.find((p) => p.page === piece.page)?.grids.unshift(piece);
+    }
+  }
   let grids: Grid[];
   let pagesOf = new Map<Grid, number[]>();
   if (options.layout === "pages") {
@@ -193,7 +202,7 @@ export function render(prep: Prepared): BuildResult {
     formatting: options.formatting !== false,
     freezeFilter: options.freezeFilter !== false,
   };
-  const notes: string[] = [];
+  const notes: string[] = parts.flatMap((p) => p.notes ?? []);
   const sheets: Sheet[] = [];
   const text: TextRow[] = [];
   const live = prep.grids.filter((g) => !g.skip && g.rows.length && g.xs.length > 1);

@@ -81,14 +81,16 @@ test("invoice: one table sheet named from its heading, amounts as currency numbe
   expect(wb.Sheets.INVOICE.D2.z).toBe('"$"#,##0.00');
 });
 
-test("a table that runs over three pages is one sheet, with loose end rows brought in", async () => {
+test("a statement that runs over three pages is one Transactions sheet, balances checked", async () => {
   const { wb, result } = await convert(corpus("bank-statement"));
   expect(result.tables).toBe(1);
-  const rows = grid(wb, "Statement of Account");
+  expect(wb.SheetNames[0]).toBe("Transactions");
+  const rows = grid(wb, "Transactions");
   expect(rows.length).toBe(65);
   expect(rows[0]).toEqual(["Date", "Description", "Debit", "Credit", "Balance"]);
   // Dates came through as dates (the column settles on month first from 06/29).
-  expect(wb.Sheets["Statement of Account"].A2.v).toBe(46174);
+  expect(wb.Sheets["Transactions"].A2.v).toBe(46174);
+  expect(result.notes.join(" ")).toContain("64 transactions from pages 1–3. Every running balance adds up.");
   expect(rows[rows.length - 1].slice(1)).toEqual(["Oakridge Cafe", 60.61, undefined, 23576.63]);
   // Running header, footer and page numbers are left out of the Text sheet.
   const text = grid(wb, "Text").flat().join(" ");

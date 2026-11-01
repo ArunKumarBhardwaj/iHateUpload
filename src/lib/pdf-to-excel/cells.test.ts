@@ -69,3 +69,48 @@ test("columns named like identifiers stay text", () => {
   expect(typeColumn(["97205", "97301"], "ZIP").every((c) => c.kind === "text")).toBe(true);
   expect(typeColumn(["97205"], "Amount")[0].kind).toBe("number");
 });
+
+test("Indian digit grouping is a number", () => {
+  expect(num("1,23,456.78")).toEqual({ v: 123456.78, f: "#,##0.00" });
+  expect(num("12,34,56,789.00")).toEqual({ v: 123456789, f: "#,##0.00" });
+  expect(num("45,000.00")).toEqual({ v: 45000, f: "#,##0.00" });
+  // Not a grouping: the groups after the first must be pairs, then three at the end.
+  expect(parseCell("1,2,345.00").kind).toBe("text");
+});
+
+test("Cr and Dr mark the sign of an amount", () => {
+  expect(num("12,345.00 Cr")).toEqual({ v: 12345, f: "#,##0.00" });
+  expect(num("12,345.00(Cr)")).toEqual({ v: 12345, f: "#,##0.00" });
+  expect(num("1,500.00 Dr")).toEqual({ v: -1500, f: "#,##0.00" });
+  expect(num("1,500.00DR")).toEqual({ v: -1500, f: "#,##0.00" });
+  expect(num("CR 2,000.00")).toEqual({ v: 2000, f: "#,##0.00" });
+});
+
+test("rupee prefixes become the rupee format", () => {
+  expect(num("Rs. 1,250.00")).toEqual({ v: 1250, f: '"₹"#,##0.00' });
+  expect(num("INR 1,250.00")).toEqual({ v: 1250, f: '"₹"#,##0.00' });
+  expect(num("₹1,23,456")).toEqual({ v: 123456, f: '"₹"#,##0' });
+});
+
+test("dates with dashes, month names and two-digit years", () => {
+  const d = (text: string) => parseCell(text);
+  expect(d("01-Apr-2024")).toEqual({ kind: "date", value: 45383, fmt: "dd-mmm-yyyy" });
+  expect(d("01-Apr-24")).toEqual({ kind: "date", value: 45383, fmt: "dd-mmm-yy" });
+  expect(d("01 Apr 24")).toEqual({ kind: "date", value: 45383, fmt: "dd mmm yy" });
+  expect(d("01/APR/2024")).toEqual({ kind: "date", value: 45383, fmt: "dd/mmm/yyyy" });
+  expect(d("1 Apr 2024")).toEqual({ kind: "date", value: 45383, fmt: "d mmm yyyy" });
+  expect(d("01-04-2024")).toMatchObject({ kind: "slash", a: 1, b: 4, y: 2024 });
+});
+
+test("a column of ambiguous dates takes the order that keeps them in sequence", () => {
+  // Every day is 12 or less, so only the order of the rows can tell.
+  const texts = ["01/04/2024", "03/04/2024", "09/04/2024", "02/05/2024", "11/05/2024"];
+  const typed = typeColumn(texts);
+  expect(typed.every((t) => t.kind === "date")).toBe(true);
+  expect(typed[0]).toEqual({ kind: "date", value: 45383, fmt: "dd/mm/yyyy" });
+});
+
+test("the dash date order follows the column", () => {
+  const typed = typeColumn(["01-04-2024", "15-04-2024"]);
+  expect(typed[1]).toEqual({ kind: "date", value: 45397, fmt: "dd-mm-yyyy" });
+});

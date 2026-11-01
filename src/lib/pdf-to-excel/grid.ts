@@ -7,6 +7,7 @@ import { fixOcrGrid } from "./ocr-fix";
 import { applyDecorations } from "../pdf-to-word/decorations";
 import { buildLines, lineText, type Fill, type Line, type PageInput } from "../pdf-to-word/lines";
 import { detectBorderlessTables, detectRuledTables, type GridCell, type TableEl } from "../pdf-to-word/tables";
+import { detectStatement } from "./statement";
 
 export type Edges = { top?: boolean; bottom?: boolean; left?: boolean; right?: boolean };
 
@@ -39,7 +40,28 @@ export type Grid = {
   headerRows?: number;
   colTypes?: ColType[];
   skip?: boolean;
+  /** How to read 01/04/2024 when the column cannot tell. */
+  dateOrder?: "dmy" | "mdy";
+  /** The transactions of a bank statement, already joined over its pages. */
+  statement?: boolean;
+  /** For a statement: the page each row came from. */
+  rowPages?: number[];
 };
+
+/** A statement cut back into one table per page, each with its own header. */
+export function splitStatement(grid: Grid): Grid[] {
+  const pages = [...new Set(grid.rowPages ?? [])];
+  if (pages.length < 2) return [grid];
+  const head = grid.rows.slice(0, grid.headerRows ?? 1);
+  return pages.map((page) => ({
+    ...grid,
+    page,
+    name: undefined,
+    heading: "Transactions",
+    rows: [...head.map((r) => r.map((c) => ({ ...c }))), ...grid.rows.filter((_, i) => i >= head.length && grid.rowPages![i] === page)],
+    rowPages: undefined,
+  }));
+}
 
 export type TextRow = { page: number; y: number; text: string };
 
@@ -51,7 +73,21 @@ export type PageParts = {
   rest: Line[];
   /** Running headers, footers and page numbers among the loose lines. */
   furniture: Set<Line>;
+  /** What the bank statement reader found, on the part it came from. */
+  notes?: string[];
 };
+
+/** A page with the bank statement's band taken out, so the generic finder reads only the rest. */
+function without(input: PageInput, band: { y0: number; y1: number } | undefined): PageInput {
+  if (!band) return input;
+  const inside = (y0: number, y1: number) => y0 >= band.y0 - 1 && y1 <= band.y1 + 1;
+  return {
+    ...input,
+    items: input.items.filter((i) => !inside(i.y - i.size, i.y)),
+    rules: input.rules.filter((r) => !inside(r.y0, r.y1)),
+    fills: (input.fills ?? []).filter((f) => !inside(f.y0, f.y1)),
+  };
+}
 
 const median = (values: number[]) => {
   const s = [...values].sort((a, b) => a - b);
@@ -175,7 +211,19 @@ function joinNeighbours(grids: Grid[]): Grid[] {
   return out;
 }
 
-export function readPages(inputs: PageInput[], pageNumbers: number[], scanned: number[] = []): PageParts[] {
+export function readPages(original: PageInput[], pageNumbers: number[], scanned: number[] = []): PageParts[] {
+  const statement = detectStatement(original, pageNumbers);
+  const inputs = statement ? original.map((p, i) => without(p, statement.regions.get(pageNumbers[i]))) : original;
+  const parts = readTables(inputs, pageNumbers, scanned);
+  if (statement) {
+    const at = parts.findIndex((p) => p.page === statement.grid.page);
+    parts[at].grids.unshift(statement.grid);
+    parts[at].notes = statement.notes;
+  }
+  return parts;
+}
+
+function readTables(inputs: PageInput[], pageNumbers: number[], scanned: number[]): PageParts[] {
   const lineSets = inputs.map((p) => buildLines(p.items));
   const furnitureByPage = furnitureKeys(lineSets, inputs.map((p) => p.height));
   return inputs.map((input, index) => {
@@ -293,7 +341,7 @@ export function joinAcrossPages(parts: PageParts[], join = true): { grids: Grid[
   let openHeight = 1;
   for (const part of parts) {
     let absorbedTo: number | null = null;
-    if (join && open && part.page === openPage + 1 && openBottom >= openHeight * 0.65) {
+    if (join && open && !open.statement && part.page === openPage + 1 && openBottom >= openHeight * 0.65) {
       const lead = part.grids[0];
       if (lead && lead.y0 <= part.height * 0.3 && sameColumns(open, lead)) {
         const dropHeader =
