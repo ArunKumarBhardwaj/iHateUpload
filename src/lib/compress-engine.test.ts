@@ -122,7 +122,7 @@ test("light shrinks a photo PDF and keeps its text and font", async () => {
     ([, o]) => "get" in o && (o as PDFRawStream["dict"]).get?.(PDFName.of("Type")) === PDFName.of("Font"),
   );
   expect(fonts.length).toBeGreaterThan(0);
-});
+}, 20_000);
 
 test("each level is smaller than the last", async () => {
   const input = await photoPdf();

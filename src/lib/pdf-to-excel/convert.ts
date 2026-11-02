@@ -174,6 +174,13 @@ export function prepare(parts: PageParts[], options: ExcelOptions, title: string
       for (const piece of splitStatement(st)) parts.find((p) => p.page === piece.page)?.grids.unshift(piece);
     }
   }
+  // A statement read as tables is two sheets: the transactions and the account details around
+  // them. Bits of the account block the table finder picked up are already in the details.
+  const statement = options.layout === "tables" && parts.some((p) => p.grids.some((g) => g.statement));
+  for (const part of parts) {
+    part.grids = part.grids.filter((g) => (statement ? g.statement || g.aside === "details" : g.aside !== "details"));
+    if (statement) part.rest = [];
+  }
   let grids: Grid[];
   let pagesOf = new Map<Grid, number[]>();
   if (options.layout === "pages") {
@@ -206,9 +213,13 @@ export function render(prep: Prepared): BuildResult {
   const sheets: Sheet[] = [];
   const text: TextRow[] = [];
   const live = prep.grids.filter((g) => !g.skip && g.rows.length && g.xs.length > 1);
-  let tables = live.length;
+  let tables = live.filter((g) => !g.aside).length;
 
-  if (options.layout !== "pages") {
+  const statement = options.layout === "tables" && live.some((g) => g.statement);
+  if (statement) {
+    // A bank statement: the transactions, then the account details around them.
+    for (const g of live) sheets.push({ name: g.name ?? "Sheet", ...sheetFromGrid(g, flags).sheet });
+  } else if (options.layout !== "pages") {
     if (options.layout === "one") {
       if (live.length) {
         const stacked = stack(live.map((g) => ({ kind: "grid" as const, grid: g, title: g.name })), { ...flags, freezeFilter: false });
@@ -233,7 +244,7 @@ export function render(prep: Prepared): BuildResult {
     }
   }
 
-  if (options.layout !== "pages" && (options.includeText || sheets.length === 0) && text.length) {
+  if (!statement && options.layout !== "pages" && (options.includeText || sheets.length === 0) && text.length) {
     sheets.push({ name: "Text", ...textSheet(text) });
   }
   if (!sheets.length) {

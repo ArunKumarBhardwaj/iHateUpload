@@ -10,11 +10,16 @@
  *  kotak  no rules, one Amount column with Dr/Cr after it, "Cr" after balances, an opening
  *         balance row, header only on the first page, "01-Apr-24" dates
  *  coop   a text dump: one Courier string per row padded with spaces, dd-mm-yyyy dates
+ *  hdfcbox the HDFC layout as it really prints: Times-Roman, the table in one box with no rules
+ *         between rows, address boxes above it, narration cut every 40 characters and then
+ *         word-wrapped inside the cell (the wrapped part starts half a character left, a cut on a
+ *         space starts one space right), 22-character references wrapped onto a second line, the
+ *         column header only on page one, a ruled summary box at the end
  */
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "@cantoo/pdf-lib";
 
-export type BankStyle = "hdfc" | "sbi" | "icici" | "kotak" | "coop";
-export const BANK_STYLES: BankStyle[] = ["hdfc", "sbi", "icici", "kotak", "coop"];
+export type BankStyle = "hdfc" | "sbi" | "icici" | "kotak" | "coop" | "hdfcbox";
+export const BANK_STYLES: BankStyle[] = ["hdfc", "sbi", "icici", "kotak", "coop", "hdfcbox"];
 
 export type TruthTxn = {
   /** y, m, d */
@@ -421,7 +426,193 @@ async function coop(ctx: Ctx, txns: TruthTxn[], opening: number) {
   }
 }
 
-export const STYLE_SEEDS: Record<BankStyle, number> = { hdfc: 11, sbi: 22, icici: 33, kotak: 44, coop: 55 };
+/** Business-account transactions in HDFC's narration formats; every name and number is made up. */
+export function makeBusinessTransactions(seed: number, count: number, opening: number): TruthTxn[] {
+  const rand = rng(seed);
+  const names = ["SUNRISE SURGICAL INDUSTRIES", "MEHTA AND SONS", "BLUEOAK KITCHENWARE LIMITED", "KAVYA TRADERS", "RIVERSIDE PHARMA DISTRIBUTORS", "ANIL KUMAR VERMA", "NORTHSTAR MEDICAL DEVICES PRIVATE LIMITED"];
+  const ifsc = ["DEMB0000204", "TSTB0006284", "SMPL0152200", "FAKE0005942"];
+  const digits = (n: number) => Array.from({ length: n }, () => Math.floor(rand() * 10)).join("");
+  const txns: TruthTxn[] = [];
+  let balance = opening;
+  let day = 1;
+  for (let i = 0; i < count; i++) {
+    if (rand() < 0.4) day = Math.min(28, day + 1);
+    const name = names[Math.floor(rand() * names.length)];
+    const kind = Math.floor(rand() * 6);
+    const utr = `DEMOR5${digits(16)}`;
+    const acct = `5020${digits(10)}`;
+    const credit = kind === 1 || (kind === 2 && rand() < 0.5);
+    const amount = Math.round(1000 + rand() * (rand() < 0.3 ? 2_500_000 : 400_000));
+    let narration: string;
+    let ref: string;
+    if (kind === 0) {
+      narration = `RTGS DR-${ifsc[i % 4]}-${name}-NETBANK, MUM-${utr}-AGST BILL NO ${100 + Math.floor(rand() * 1900)}`;
+      ref = utr;
+    } else if (kind === 1) {
+      narration = `NEFT CR-${ifsc[i % 4]}-${name}-${utr.slice(0, 16)}`;
+      ref = utr.slice(0, 16);
+    } else if (kind === 2) {
+      narration = `IB FUNDS TRANSFER ${credit ? "CR" : "DR"}-${acct}-${name}`;
+      ref = `NB${digits(4)}X${digits(9)}`;
+    } else if (kind === 3) {
+      narration = `FT - DR - ${acct} - ${name}`;
+      ref = `0000000000000${digits(3)}`;
+    } else if (kind === 4) {
+      narration = `CBDT/BANK REFERENCE NO:K${digits(13)}/CIN NO:${digits(14)}DEMO/ONLINE`;
+      ref = `0${digits(15)}`;
+    } else {
+      narration = `${acct}-TPT-AGST BILL-${name}`;
+      ref = `0000000${digits(9)}`;
+    }
+    balance = Math.round(balance + (credit ? amount : -amount));
+    if (balance < 0) {
+      balance += amount * 2;
+      txns.push({ date: [2026, 10, day], narration: narration.replace(" DR", " CR").replace("DR -", "CR -"), ref, debit: 0, credit: amount, balance });
+      continue;
+    }
+    txns.push({ date: [2026, 10, day], narration, ref, debit: credit ? 0 : amount, credit: credit ? amount : 0, balance });
+  }
+  return txns;
+}
+
+/** HDFC's real print: one box per page, no rules between rows, 40-character cuts word-wrapped in the cell. */
+async function hdfcbox(ctx: Ctx, txns: TruthTxn[], opening: number) {
+  const { doc } = ctx;
+  const times = await doc.embedFont(StandardFonts.TimesRoman);
+  const timesBold = await doc.embedFont(StandardFonts.TimesRomanBold);
+  const W = 638;
+  const H = 842;
+  const size = 8;
+  const pitch = 17.2;
+  const at = (page: PDFPage, text: string, x: number, top: number, font = times) => page.drawText(text, { x, y: H - top, size, font });
+  const rightAt = (page: PDFPage, text: string, xr: number, top: number, font = times) => at(page, text, xr - font.widthOfTextAtSize(text, size), top, font);
+  const line = (page: PDFPage, x0: number, y0: number, x1: number, y1: number) =>
+    page.drawLine({ start: { x: x0, y: H - y0 }, end: { x: x1, y: H - y1 }, thickness: 0.5, color: ink });
+  const box = (page: PDFPage, x0: number, y0: number, x1: number, y1: number) => {
+    line(page, x0, y0, x1, y0);
+    line(page, x1, y0, x1, y1);
+    line(page, x0, y1, x1, y1);
+    line(page, x0, y0, x0, y1);
+  };
+  const xs = [28.3, 67.7, 254.8, 356.9, 396.6, 474.5, 552.5, 630.7];
+  const boxTop = 229.4;
+  const boxBottom = 763.1;
+  let pageNo = 0;
+  let page!: PDFPage;
+  let top = 0;
+  const newPage = () => {
+    page = doc.addPage([W, H]);
+    pageNo++;
+    at(page, `Page No .: ${pageNo}`, 292, 25.4);
+    box(page, 28.3, 81.7, 312, 190.6);
+    box(page, 340, 52.6, 624, 200.5);
+    const right = [
+      ["Account Branch", ": RIVERBEND CHOWK"],
+      ["Address", ": DEMO BANK LTD, RIVERBEND CHOWK"],
+      ["City", ": SAMPLEPUR 110001"],
+      ["State", ": EXAMPLE STATE"],
+      ["Phone no.", ": 1800000000"],
+      ["OD Limit", ": 0.00"],
+      ["Currency", ": INR"],
+      ["Cust ID", ": 123456789"],
+      ["Account No", ": 00001234567890 CAGEN"],
+      ["A/C Open Date", ": 01/01/2024"],
+      ["Account Status", ": Regular"],
+      ["Branch Code", ": 0001"],
+    ];
+    right.forEach(([k, v], i) => {
+      at(page, k, 340, 58.8 + i * 10.9);
+      at(page, v, 397, 58.8 + i * 10.9);
+    });
+    ["M/S. EXAMPLE ENTERPRISES", "12 SAMPLE MARKET ROAD", "SAMPLEPUR 110001", "JOINT HOLDERS :"].forEach((t, i) => at(page, t, 34, 97.1 + i * 23));
+    at(page, "Nomination : Not Registered", 34, 198);
+    at(page, "From : 01/10/2026", 34, 221.8);
+    at(page, "To : 31/10/2026", 154, 221.8);
+    at(page, "Statement of account", 340, 221.8);
+    box(page, xs[0], boxTop, xs[7], boxBottom);
+    at(page, "DEMO BANK LIMITED", 34, 790, timesBold);
+    at(page, "*Closing balance includes funds earmarked for hold and uncleared funds", 34, 800);
+    at(page, "Contents of this statement will be considered correct if no error is reported within 30 days of receipt of statement.", 34, 810);
+    top = boxTop;
+    if (pageNo === 1) {
+      const labels = ["Date", "Narration", "Chq./Ref.No.", "Value Dt", "Withdrawal Amt.", "Deposit Amt.", "Closing Balance"];
+      labels.forEach((l, i) => at(page, l, (xs[i] + xs[i + 1]) / 2 - timesBold.widthOfTextAtSize(l, size) / 2, 239.9, timesBold));
+      for (let i = 1; i < 7; i++) line(page, xs[i], boxTop, xs[i], boxTop + 17.4);
+      line(page, xs[0], boxTop + 17.4, xs[7], boxTop + 17.4);
+      top = boxTop + 17.4;
+    }
+    top += 10.7;
+  };
+
+  // The narration as the core system prints it: 40-character pieces, each word-wrapped to the cell.
+  const narrationLines = (text: string) => {
+    const out: { text: string; x: number }[] = [];
+    for (let i = 0; i < text.length; i += 40) {
+      let piece = text.slice(i, i + 40);
+      let x = 72;
+      if (piece.startsWith(" ")) {
+        piece = piece.slice(1);
+        x = 74;
+      }
+      piece = piece.trimEnd();
+      if (!piece) continue;
+      if (times.widthOfTextAtSize(piece, size) <= 181) {
+        out.push({ text: piece, x });
+        continue;
+      }
+      let k = piece.lastIndexOf(" ");
+      while (k > 0 && times.widthOfTextAtSize(piece.slice(0, k), size) > 181) k = piece.lastIndexOf(" ", k - 1);
+      out.push({ text: piece.slice(0, k), x });
+      out.push({ text: piece.slice(k + 1), x: 68 });
+    }
+    return out;
+  };
+
+  newPage();
+  for (const t of txns) {
+    const lines = narrationLines(t.narration);
+    const refs = [t.ref.slice(0, 16), t.ref.slice(16)].filter(Boolean);
+    const height = Math.max(lines.length, refs.length) * pitch;
+    if (top + height > boxBottom - 6) newPage();
+    at(page, ddmmyy(t.date), 34, top);
+    lines.forEach((l, i) => at(page, l.text, l.x, top + i * pitch));
+    refs.forEach((r, i) => rightAt(page, r, 352.6, top + i * pitch));
+    at(page, ddmmyy(t.date), 362, top);
+    if (t.debit) rightAt(page, westernGroup(t.debit), 470, top);
+    if (t.credit) rightAt(page, westernGroup(t.credit), 548, top);
+    rightAt(page, westernGroup(t.balance), 627, top);
+    top += height;
+  }
+
+  // The summary box, ruled, under the last transaction.
+  if (top + 120 > boxBottom) newPage();
+  top += 30;
+  at(page, "STATEMENT SUMMARY :-", 34, top, timesBold);
+  for (const k of [0, 20, 30, 41, 53]) line(page, xs[0], top + 8 + k, xs[7], top + 8 + k);
+  const heads = ["Opening Balance", "Dr Count", "Cr Count", "Debits", "Credits", "Closing Bal"];
+  const debits = txns.reduce((a, t) => a + t.debit, 0);
+  const credits = txns.reduce((a, t) => a + t.credit, 0);
+  const vals = [
+    westernGroup(opening),
+    String(txns.filter((t) => t.debit).length),
+    String(txns.filter((t) => t.credit).length),
+    westernGroup(debits),
+    westernGroup(credits),
+    westernGroup(txns[txns.length - 1].balance),
+  ];
+  heads.forEach((h, i) => {
+    at(page, h, 70 + i * 92, top + 22);
+    at(page, vals[i], 70 + i * 92, top + 34);
+  });
+  at(page, "Generated On: 31-Oct-2026 12:42", 60, top + 66);
+  at(page, "Requesting Branch Code: NET", 420, top + 66);
+  // The last page: the address blocks again and one closing line.
+  newPage();
+  at(page, "This is a computer generated statement and does", 460, 250);
+  at(page, "not require signature.", 460, 262);
+}
+
+export const STYLE_SEEDS: Record<BankStyle, number> = { hdfc: 11, sbi: 22, icici: 33, kotak: 44, coop: 55, hdfcbox: 66 };
 
 export async function makeBankStatement(style: BankStyle, count = 70): Promise<{ bytes: Uint8Array; truth: BankTruth }> {
   const doc = await PDFDocument.create();
@@ -432,7 +623,7 @@ export async function makeBankStatement(style: BankStyle, count = 70): Promise<{
     mono: await doc.embedFont(StandardFonts.Courier),
   };
   const opening = 48250.75;
-  let txns = makeTransactions(STYLE_SEEDS[style], count, opening);
+  let txns = style === "hdfcbox" ? makeBusinessTransactions(STYLE_SEEDS[style], count, 407390) : makeTransactions(STYLE_SEEDS[style], count, opening);
   if (style === "coop") txns = txns.map((t) => ({ ...t, narration: t.narration.slice(0, 40).trimEnd(), ref: t.ref.slice(-6) }));
   if (style === "icici") txns = txns.map((t) => ({ ...t, ref: t.ref ? t.ref.slice(-8) : "-" }));
   if (style === "sbi") txns = txns.map((t) => ({ ...t, narration: t.narration.replace(/\//g, " / "), ref: t.ref ? `TRANSFER FROM ${t.ref}` : "" }));
@@ -441,5 +632,6 @@ export async function makeBankStatement(style: BankStyle, count = 70): Promise<{
   if (style === "icici") await icici(ctx, txns);
   if (style === "kotak") await kotak(ctx, txns, opening);
   if (style === "coop") await coop(ctx, txns, opening);
-  return { bytes: await doc.save(), truth: { style, opening, txns, pages: doc.getPageCount() } };
+  if (style === "hdfcbox") await hdfcbox(ctx, txns, 407390);
+  return { bytes: await doc.save(), truth: { style, opening: style === "hdfcbox" ? 407390 : opening, txns, pages: doc.getPageCount() } };
 }

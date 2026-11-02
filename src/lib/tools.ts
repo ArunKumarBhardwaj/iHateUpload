@@ -339,7 +339,7 @@ export const TOOLS: ToolDefinition[] = [
       "Convert PDF tables to Excel (.xlsx) online free. Numbers, dates and percentages become real cells, tables that run over pages join into one sheet, scanned pages are read with OCR, and nothing is uploaded.",
     seoHowTo: [
       "Drop one or more PDF files into the workspace.",
-      "Choose one sheet per table or per page, and which pages to read, then click Convert to Excel.",
+      "Click Convert to Excel. Bank statements come out as one Transactions sheet; other tables each get a sheet.",
       "Download the .xlsx. Nothing was uploaded.",
     ],
     showInNav: true,

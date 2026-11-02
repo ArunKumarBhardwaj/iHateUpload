@@ -64,7 +64,8 @@ export function createEditor(prep: Prepared) {
     headerRows: (grid: Grid) => typeGrid(grid, typedOn()).headers,
     /** Cells that could not be typed, over every table that is going into the file. */
     warnings: () =>
-      prep.grids.filter((g) => !g.skip).reduce((n, g) => n + typeGrid(g, typedOn()).info.reduce((a, c) => a + c.warnings, 0), 0),
+      // Account details mix labels, codes and amounts by design; only real tables are counted.
+      prep.grids.filter((g) => !g.skip && !g.aside).reduce((n, g) => n + typeGrid(g, typedOn()).info.reduce((a, c) => a + c.warnings, 0), 0),
     async build(): Promise<BuildResult & { bytes: Uint8Array }> {
       const built = render(prep);
       return { ...built, bytes: await writeXlsx(built.book) };

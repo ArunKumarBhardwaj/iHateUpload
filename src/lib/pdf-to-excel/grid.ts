@@ -46,6 +46,8 @@ export type Grid = {
   statement?: boolean;
   /** For a statement: the page each row came from. */
   rowPages?: number[];
+  /** For a statement: what goes beside the transactions, on the details sheet. */
+  aside?: "details" | "summary";
 };
 
 /** A statement cut back into one table per page, each with its own header. */
@@ -219,6 +221,7 @@ export function readPages(original: PageInput[], pageNumbers: number[], scanned:
     const at = parts.findIndex((p) => p.page === statement.grid.page);
     parts[at].grids.unshift(statement.grid);
     parts[at].notes = statement.notes;
+    for (const g of [statement.details, statement.summary]) if (g) parts.find((p) => p.page === g.page)?.grids.push(g);
   }
   return parts;
 }

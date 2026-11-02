@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 import { BANK_STYLES, makeBankStatement } from "./bank-fixtures";
 import { scoreStatement } from "./bank-score";
 import { convertPdfToExcel } from "./index";
-import { amountOf, checkBalances, roleOf } from "./statement";
+import { amountOf, checkBalances, fieldsOf, roleOf } from "./statement";
 
 const FONTS = `${process.cwd()}/node_modules/pdfjs-dist/standard_fonts/`;
 
@@ -120,4 +120,57 @@ test("an invoice with Date, Description and Amount is not read as a statement", 
   const { wb, result } = await convert(await doc.save());
   expect(wb.SheetNames).not.toContain("Transactions");
   expect(result.notes.join(" ")).not.toContain("Bank statement");
+});
+
+test("HDFC's boxed print: 40-character cuts and in-cell wraps joined, wrapped references whole", async () => {
+  const { bytes, truth } = await makeBankStatement("hdfcbox", 24);
+  const { wb } = await convert(bytes);
+  const rows = XLSX.utils.sheet_to_json<string[]>(wb.Sheets.Transactions, { header: 1, raw: false });
+  // The page footer under the box never joins the last transaction of a page.
+  for (const r of rows) expect(String(r[1])).not.toContain("DEMO BANK LIMITED");
+  const long = truth.txns.findIndex((t) => t.ref.length > 16);
+  expect(rows[long + 1][2]).toBe(truth.txns[long].ref);
+  expect(rows[long + 1][1]).toBe(truth.txns[long].narration);
+});
+
+test("the bank's summary box is checked against the transactions", async () => {
+  for (const style of ["hdfc", "hdfcbox"] as const) {
+    const { bytes, truth } = await makeBankStatement(style, 30);
+    const { result } = await convert(bytes);
+    const debits = truth.txns.reduce((a, t) => a + t.debit, 0);
+    expect(result.notes.join(" ")).toContain("The totals match the bank's summary");
+    expect(result.notes.join(" ")).toContain(debits.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","));
+  }
+});
+
+test("account details: label and value pairs from the first page, given once, footers left out", async () => {
+  const { bytes } = await makeBankStatement("hdfcbox", 40);
+  const { wb } = await convert(bytes);
+  expect(wb.SheetNames).toEqual(["Transactions", "Account details"]);
+  const rows = XLSX.utils.sheet_to_json<string[]>(wb.Sheets["Account details"], { header: 1, raw: false, defval: "" });
+  const value = (label: string) => rows.filter((r) => r[0] === label).map((r) => r[1]);
+  expect(value("Account No")).toEqual(["00001234567890 CAGEN"]);
+  expect(value("From")).toEqual(["01/10/2026"]);
+  expect(rows.filter((r) => r[0] === "M/S. EXAMPLE ENTERPRISES")).toHaveLength(1);
+  const flat = rows.flat().join(" ");
+  expect(flat).toContain("Opening Balance");
+  expect(flat).toContain("Requesting Branch Code");
+  expect(flat).not.toContain("Page No");
+  expect(flat).not.toContain("earmarked");
+});
+
+test("fields: colon pairs in one piece or two, wrapped values carried on", () => {
+  const row = (y: number, ...chunks: [number, string][]) => ({
+    y,
+    top: y - 8,
+    bottom: y + 2,
+    size: 8,
+    chunks: chunks.map(([x, text]) => ({ text, x0: x, x1: x + text.length * 4, y, size: 8, bold: false })),
+  });
+  const rows = [
+    row(50, [40, "M/S. EXAMPLE CO"], [340, "Address"], [397, ": 1 MAIN ROAD"]),
+    row(59, [403, "OLD TOWN"]),
+    row(68, [40, "From : 01/10/2026"], [340, "Account No"], [397, ": 0001234"], [465, "CAGEN"]),
+  ];
+  expect(fieldsOf(rows, 600)).toEqual([["M/S. EXAMPLE CO"], ["From", "01/10/2026"], ["Address", "1 MAIN ROAD OLD TOWN"], ["Account No", "0001234 CAGEN"]]);
 });

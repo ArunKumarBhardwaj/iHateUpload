@@ -26,7 +26,17 @@ export type Statement = {
   check: BalanceCheck;
   transactions: number;
   notes: string[];
+  /** The bank's own summary box (opening, counts, totals, closing), as a small table. */
+  summary?: Grid;
+  /**
+   * Everything around the transactions, once: what the first page says above the table (account
+   * holder, account number, period) as label and value, the bank's summary, the lines after it.
+   */
+  details?: Grid;
 };
+
+/** The figures a statement's summary box gives, by what they mean. */
+type Summary = { page: number; y0: number; y1: number; labels: string[]; values: string[] };
 
 const median = (v: number[]) => {
   const s = [...v].sort((a, b) => a - b);
@@ -75,7 +85,11 @@ function splitOnSpaces(c: Chunk, re: RegExp): Chunk[] {
     if (m.index > start) out.push(piece(c, text, start, m.index, per));
     start = m.index + m[0].length;
   }
-  if (start === 0) return [{ ...c, text: text.trim() }];
+  if (start === 0) {
+    // A piece printed with a leading space starts where its first letter does.
+    const lead = text.length - text.trimStart().length;
+    return [{ ...c, text: text.trim(), x0: c.x0 + lead * per }];
+  }
   if (start < text.length) out.push(piece(c, text, start, text.length, per));
   return out;
 }
@@ -116,10 +130,16 @@ function banded(rows: Row[], rules: PageInput["rules"], width: number): Row[] {
     .sort((a, b) => a - b)
     .filter((y, i, all) => i === 0 || y - all[i - 1] > 1.5);
   if (ys.length < 4) return rows;
+  const bandOf = (r: Row) => ys.findIndex((y, i) => i < ys.length - 1 && r.top + r.size * 0.3 > y && r.y < ys[i + 1]);
+  // A box around the whole table (address boxes above it make the page look ruled) holds many
+  // transactions; a band with two rows that start with a date is not one row of a ruled table.
+  const dated = new Map<number, number>();
+  for (const r of rows) if (DATE_START.test(r.chunks[0].text)) dated.set(bandOf(r), (dated.get(bandOf(r)) ?? 0) + 1);
   const out: Row[] = [];
   let open: { band: number; row: Row } | null = null;
   for (const r of rows) {
-    const k = ys.findIndex((y, i) => i < ys.length - 1 && r.top + r.size * 0.3 > y && r.y < ys[i + 1]);
+    const b = bandOf(r);
+    const k = (dated.get(b) ?? 0) >= 2 ? -1 : b;
     if (k >= 0 && open && open.band === k) {
       open.row.chunks.push(...r.chunks);
       open.row.bottom = Math.max(open.row.bottom, r.bottom);
@@ -279,43 +299,74 @@ export function amountOf(text: string): { value: number; side?: "dr" | "cr" } | 
 
 const money = (n: number) => `${n < 0 ? "-" : ""}${Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 
+type Cut = { width: number; left: number };
+type Logical = { text: string; lead: boolean };
+
+/** Where most lines of a column start. */
+function commonLeft(lines: Chunk[][]): number {
+  const counts = new Map<number, number>();
+  for (const l of lines) {
+    const x = Math.round(l[0].x0 * 2) / 2;
+    counts.set(x, (counts.get(x) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 0;
+}
+
+/**
+ * The lines the bank's system wrote, before the PDF wrapped them again to fit the cell. HDFC
+ * cuts narration every 40 characters, then word-wraps a piece too wide for the cell and starts
+ * the wrapped part half a character left of the column; a piece that began with a space starts
+ * one space right.
+ */
+function logicalLines(lines: Chunk[][], left: number): Logical[] {
+  const out: Logical[] = [];
+  for (const line of lines) {
+    const text = lineString(line);
+    const x = line[0].x0;
+    const size = line[0].size;
+    const last = out[out.length - 1];
+    if (last && x < left - 0.25 * size) last.text += ` ${text}`;
+    else out.push({ text, lead: x > left + 0.15 * size && x < left + 1.2 * size });
+  }
+  return out;
+}
+const logicalLength = (l: Logical) => l.text.length + (l.lead ? 1 : 0);
+
 /**
  * Wrapped lines of one column, joined. Core-banking systems that cut every N characters split
  * words, so lines run straight on, unless the cut fell on a space: then the next line starts a
- * character in, or the line before ends a character short.
+ * space in, or the line before ends a character short.
  */
-function joinLines(lines: Chunk[][], cut: { width: number; left: number; char: number } | null): string {
+function joinLines(lines: Chunk[][], cut: Cut | null, role: Role): string {
   let out = "";
-  lines.forEach((line, k) => {
+  if (cut) {
+    logicalLines(lines, cut.left).forEach((l, k, all) => {
+      if (!k) out = l.text;
+      else out += l.lead || logicalLength(all[k - 1]) < cut.width ? ` ${l.text}` : l.text;
+    });
+    return out.replace(/\s+/g, " ").trim();
+  }
+  lines.forEach((line) => {
     const text = lineString(line);
     if (!out) return (out = text);
-    const prev = lines[k - 1];
-    if (cut) {
-      const indented = line[0].x0 - cut.left > cut.char * 0.5;
-      const short = prev[prev.length - 1].x1 < cut.left + (cut.width - 0.5) * cut.char;
-      out += indented || short ? ` ${text}` : text;
-    } else if ((/[/\-@_:]$/.test(out) && !/\s[/\-]$/.test(out)) || /^[/\-@_]/.test(text)) out += text;
+    // A reference too long for its cell carries on below: "HDFCR52026100166" then "282512".
+    if (role === "ref" && /^[A-Za-z0-9]+$/.test(text) && /[A-Za-z0-9]{8}$/.test(out) && !/\s/.test(out)) out += text;
+    else if ((/[/\-@_:]$/.test(out) && !/\s[/\-]$/.test(out)) || /^[/\-@_]/.test(text)) out += text;
     else out += ` ${text}`;
   });
   return out.replace(/\s+/g, " ").trim();
 }
 
 /** Where and how wide the lines of a column are cut, when they are cut by count; else null. */
-function cutOf(recs: Rec[], col: number): { width: number; left: number; char: number } | null {
+function cutOf(recs: Rec[], col: number): Cut | null {
+  const left = commonLeft(recs.flatMap((r) => r.lines[col]));
   const lens: number[] = [];
   const texts = new Set<string>();
-  const lefts: number[] = [];
-  const chars: number[] = [];
   for (const r of recs) {
-    const lines = r.lines[col];
-    for (let k = 0; k < lines.length; k++) {
-      const text = lineString(lines[k]);
-      lefts.push(lines[k][0].x0);
-      if (text.length >= 6) chars.push((lines[k][lines[k].length - 1].x1 - lines[k][0].x0) / text.length);
-      if (k < lines.length - 1) {
-        lens.push(text.length);
-        texts.add(text);
-      }
+    const lines = logicalLines(r.lines[col], left);
+    for (let k = 0; k < lines.length - 1; k++) {
+      lens.push(logicalLength(lines[k]));
+      texts.add(lines[k].text);
     }
   }
   // The same words wrapped the same way every time ("TRANSFER FROM") are not a cut.
@@ -325,7 +376,7 @@ function cutOf(recs: Rec[], col: number): { width: number; left: number; char: n
   const [mode] = [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0];
   const hits = lens.filter((l) => l === mode || l === mode - 1).length;
   if (mode < 12 || hits < lens.length * 0.8 || counts.get(mode)! < lens.length * 0.5) return null;
-  return { width: mode, left: Math.min(...lefts), char: median(chars) };
+  return { width: mode, left };
 }
 
 const lineString = (line: Chunk[]) => line.map((c) => c.text).join(" ");
@@ -356,6 +407,7 @@ export function detectStatement(inputs: PageInput[], pageNumbers: number[]): Sta
   let layout: Layout | null = null;
   let headerLabels: Column[] | null = null;
   let pitch = 0;
+  let summary: Summary | undefined;
 
   for (let p = 0; p < pages.length; p++) {
     const rows = pages[p];
@@ -376,7 +428,16 @@ export function detectStatement(inputs: PageInput[], pageNumbers: number[]): Sta
       // No header on this page: carry the columns over, from the first row with a date in place.
       const dc = dateCol(layout.cols);
       start = rows.findIndex((r) => !isFurniture(r) && place(r, layout!)[dc].some((c) => DATE_START.test(c.text)));
-      if (start < 0) continue;
+      if (start < 0) {
+        // The summary box may sit alone on the page after the last transaction.
+        const found = summary ? null : summaryOf(rows.filter((r) => !isFurniture(r)), pageNumbers[p]);
+        if (found) {
+          summary = found;
+          regions.set(pageNumbers[p], { y0: found.y0, y1: found.y1 });
+          break;
+        }
+        continue;
+      }
       y0 = rows[start].top - 2;
     } else continue;
 
@@ -386,9 +447,14 @@ export function detectStatement(inputs: PageInput[], pageNumbers: number[]): Sta
     const textCol = (i: number) => !isMoney(layout!.cols[i].role) && layout!.cols[i].role !== "drcr";
     let last = rows[start - 1]?.y ?? rows[start]?.y ?? 0;
     let y1 = y0;
+    // When the table is drawn in a box, a line below the box's sides is page footer, not data.
+    const firstY = rows[start]?.y ?? 0;
+    const sides = inputs[p].rules.filter((r) => Math.abs(r.x1 - r.x0) < 1.5 && r.y1 - r.y0 > 40 && r.y0 <= firstY && r.y1 >= firstY);
+    const boxBottom = sides.length ? Math.max(...sides.map((r) => r.y1)) : Infinity;
     let opened = false;
     let here = false;
     const gaps: number[] = [];
+    let stop = rows.length;
     for (let k = start; k < rows.length; k++) {
       const row = rows[k];
       // Running headers sit above the first transaction; below it the same words are data.
@@ -398,7 +464,10 @@ export function detectStatement(inputs: PageInput[], pageNumbers: number[]): Sta
       const dated = cells[dc].some((c) => DATE_START.test(c.text)) || (sc >= 0 && cells[sc].some((c) => /^\d+$/.test(c.text)) && cells[dc].length > 0);
       const gap = row.y - last;
       const limit = Math.max(row.size * 4.5, (pitch || row.size * 1.6) * 3.2);
-      if (!dated && (END.test(text.trim()) || (opened && gap > limit))) break;
+      if (!dated && (END.test(text.trim()) || (opened && gap > limit) || row.top > boxBottom)) {
+        stop = k;
+        break;
+      }
       const amounts = cells.some((cs, i) => isMoney(layout!.cols[i].role) && cs.some((c) => amountOf(c.text)));
       const opening = !dated && OPENING.test(text) && amounts;
       const onlyText = cells.every((cs, i) => !cs.length || textCol(i));
@@ -411,7 +480,10 @@ export function detectStatement(inputs: PageInput[], pageNumbers: number[]): Sta
         cells.forEach((cs, i) => r.lines[i].push(...visualLines(cs)));
       } else if (!opened) {
         continue;
-      } else break;
+      } else {
+        stop = k;
+        break;
+      }
       if (opened && k > start) gaps.push(gap);
       last = row.y;
       y1 = row.bottom + 2;
@@ -419,17 +491,185 @@ export function detectStatement(inputs: PageInput[], pageNumbers: number[]): Sta
     if (gaps.length) pitch = median(gaps);
     if (opened || recs.some((r) => r.page === pageNumbers[p])) regions.set(pageNumbers[p], { y0, y1 });
     if (balanceCol < 0 && dc < 0) break;
+    // The bank's summary box right under the last transaction ends the statement.
+    if (recs.length && stop < rows.length) {
+      const found = summaryOf(rows.slice(stop, stop + 8), pageNumbers[p]);
+      if (found) {
+        summary = found;
+        const band = regions.get(pageNumbers[p]);
+        regions.set(pageNumbers[p], { y0: band?.y0 ?? found.y0, y1: Math.max(band?.y1 ?? 0, found.y1) });
+        break;
+      }
+    }
   }
   if (!layout || !headerLabels || recs.length < 2) return null;
-  return build(recs, layout, regions, pageNumbers);
+  const out = build(recs, layout, regions, pageNumbers, summary);
+  const key = (r: Row) => r.chunks.map((c) => c.text).join(" ").replace(/\s+/g, " ").toLowerCase();
+  const p0 = pageNumbers.indexOf(recs[0].page);
+  const top = regions.get(recs[0].page)?.y0 ?? 0;
+  // Every page repeats the account block, so it reads as page furniture; on the first page it is the point.
+  // Lines as printed: a box round the address must not merge its lines into one.
+  const plain = inputs.map((p) => rowsOf(p.items));
+  const above = plain[p0].filter((r) => r.y < top && !/^page\b/i.test(key(r)) && !(isFurniture(r) && r.y > inputs[p0].height * 0.5));
+  const seen = new Set(above.map(key));
+  const lastPage = recs[recs.length - 1].page;
+  const after: Row[] = [];
+  plain.forEach((rows, p) => {
+    const page = pageNumbers[p];
+    if (page < lastPage) return;
+    const from = summary && summary.page === page ? summary.y1 : page === lastPage ? (regions.get(page)?.y1 ?? 0) : -Infinity;
+    for (const r of rows) if (r.y > from && !isFurniture(r) && !seen.has(key(r))) after.push(r);
+  });
+  out.details = detailsGrid(fieldsOf(above, inputs[p0].width), out.summary, fieldsOf(after, inputs[p0].width), recs[0].page);
+  return out;
 }
 
-function build(recs: Rec[], layout: Layout, regions: Map<number, { y0: number; y1: number }>, pageNumbers: number[]): Statement {
+/**
+ * "Label : value" pairs and plain lines, the left half of the page first, then the right.
+ * A value that wraps carries on in the rows under it, starting where it started.
+ */
+export function fieldsOf(rows: Row[], width: number): string[][] {
+  const out: string[][] = [];
+  for (const left of [true, false]) {
+    let open: { cells: string[]; x: number; y: number } | null = null;
+    for (const r of rows) {
+      const cs = r.chunks.filter((c) => (c.x0 < width * 0.5) === left);
+      let inRow: string[] | null = null;
+      let line: string[] | null = null;
+      for (let i = 0; i < cs.length; i++) {
+        const c = cs[i];
+        const t = c.text.trim();
+        const next = cs[i + 1];
+        const m = /^([^:]{1,40}?)\s*:\s*(.*)$/.exec(t);
+        if (next && /^:/.test(next.text) && !t.includes(":")) {
+          inRow = [t, next.text.replace(/^:\s*/, "").trim()];
+          out.push(inRow);
+          open = { cells: inRow, x: next.x0, y: r.y };
+          line = null;
+          i++;
+        } else if (m && /[A-Za-z]/.test(m[1]) && !/https?$/i.test(m[1])) {
+          inRow = [m[1].trim(), m[2].trim()];
+          out.push(inRow);
+          const per = (c.x1 - c.x0) / Math.max(1, t.length);
+          open = { cells: inRow, x: c.x0 + (t.length - m[2].length) * per, y: r.y };
+          line = null;
+        } else if (inRow) {
+          inRow[1] = `${inRow[1]} ${t}`.trim();
+        } else if (open && !line && Math.abs(c.x0 - open.x) < 1.5 * c.size && r.y - open.y < r.size * 1.7) {
+          open.cells[1] = `${open.cells[1]} ${t}`.trim();
+          open.y = r.y;
+        } else if (line) {
+          line[0] = `${line[0]} ${t}`;
+        } else {
+          line = [t];
+          out.push(line);
+          open = null;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function detailsGrid(before: string[][], summary: Grid | undefined, after: string[][], page: number): Grid | undefined {
+  const rows: GridCellData[][] = [];
+  const cell = (text: string, bold = false): GridCellData => ({ text, bold, borders: {}, rowSpan: 1, colSpan: 1 });
+  const pairs = (list: string[][]) => list.forEach((r) => rows.push(r.length > 1 ? [cell(r[0], true), cell(r[1])] : [cell(r[0])]));
+  pairs(before);
+  if (summary) {
+    if (rows.length) rows.push([]);
+    rows.push([cell(summary.heading ?? "Summary", true)]);
+    summary.rows.forEach((r, k) => rows.push(r.map((c) => ({ ...c, bold: k === 0, borders: {} }))));
+  }
+  if (after.length && rows.length) rows.push([]);
+  pairs(after);
+  if (!rows.length) return undefined;
+  const width = Math.max(2, ...rows.map((r) => r.length));
+  for (const r of rows) while (r.length < width) r.push(cell(""));
+  return {
+    page,
+    y0: 0,
+    y1: 0,
+    xs: Array.from({ length: width + 1 }, (_, i) => i),
+    rows,
+    bordered: false,
+    rowPitch: 12,
+    name: "Account details",
+    headerRows: 0,
+    aside: "details",
+  };
+}
+
+const SUMMARY_WORD = /opening|closing|debit|credit|withdrawal|deposit|count|total|balance|\bdr\b|\bcr\b/i;
+
+/** A row of summary labels with a row of figures under it: "Opening Balance  Dr Count ... Closing Bal". */
+function summaryOf(rows: Row[], page: number): Summary | null {
+  for (let i = 0; i + 1 < rows.length; i++) {
+    const head = rows[i];
+    const under = rows[i + 1];
+    if (head.chunks.length < 3 || head.chunks.filter((c) => SUMMARY_WORD.test(c.text)).length < 3) continue;
+    if (under.y - head.y > head.size * 2.5) continue;
+    const values = head.chunks.map(() => "");
+    for (const v of under.chunks) {
+      const mid = (v.x0 + v.x1) / 2;
+      let best = 0;
+      head.chunks.forEach((h, k) => {
+        if (Math.abs((h.x0 + h.x1) / 2 - mid) < Math.abs((head.chunks[best].x0 + head.chunks[best].x1) / 2 - mid)) best = k;
+      });
+      values[best] = values[best] ? `${values[best]} ${v.text}` : v.text;
+    }
+    if (values.filter((v) => amountOf(v)).length < 3) continue;
+    const title = i > 0 && /summary/i.test(rows[i - 1].chunks.map((c) => c.text).join(" ")) ? rows[i - 1] : head;
+    return { page, y0: title.top - 2, y1: under.bottom + 2, labels: head.chunks.map((c) => c.text), values };
+  }
+  return null;
+}
+
+/** What the summary says, checked against the transactions read. Returns a sentence, or null when it has nothing to check. */
+function checkSummary(s: Summary, rows: { debit: number; credit: number; balance: number | null }[], direction: BalanceCheck["direction"]): { ok: boolean; text: string } | null {
+  const find = (re: RegExp, not?: RegExp) => {
+    const i = s.labels.findIndex((l) => re.test(l) && !(not && not.test(l)));
+    return i >= 0 ? amountOf(s.values[i])?.value : undefined;
+  };
+  const opening = find(/opening|b\/?f|brought/i);
+  const closing = find(/closing|c\/?f|carried/i);
+  const drCount = find(/(dr|debit|withdrawal)s?\s*(count|no)|no\.? of (dr|debit|withdrawal)/i);
+  const crCount = find(/(cr|credit|deposit)s?\s*(count|no)|no\.? of (cr|credit|deposit)/i);
+  const debits = find(/debit|withdrawal|\bdr\b/i, /count|no\.? of/i);
+  const credits = find(/credit|deposit|\bcr\b/i, /count|no\.? of/i);
+  const ours = {
+    drCount: rows.filter((r) => r.debit).length,
+    crCount: rows.filter((r) => r.credit).length,
+    debits: rows.reduce((a, r) => a + r.debit, 0),
+    credits: rows.reduce((a, r) => a + r.credit, 0),
+  };
+  const ordered = direction === "down" ? [...rows].reverse() : rows;
+  const first = ordered[0];
+  const lastBal = ordered[ordered.length - 1]?.balance;
+  const same = (a: number | undefined, b: number | null | undefined) => a === undefined || b === null || b === undefined || Math.abs(a - b) < 0.011;
+  const misses: string[] = [];
+  if (!same(drCount, ours.drCount)) misses.push(`${drCount} debits, we read ${ours.drCount}`);
+  if (!same(crCount, ours.crCount)) misses.push(`${crCount} credits, we read ${ours.crCount}`);
+  if (!same(debits, ours.debits)) misses.push(`debits of ${money(debits!)}, we read ${money(ours.debits)}`);
+  if (!same(credits, ours.credits)) misses.push(`credits of ${money(credits!)}, we read ${money(ours.credits)}`);
+  if (opening !== undefined && first?.balance != null && !same(opening - first.debit + first.credit, first.balance)) misses.push(`an opening balance of ${money(opening)} that the first row does not follow from`);
+  if (!same(closing, lastBal)) misses.push(`a closing balance of ${money(closing!)}, the last row shows ${money(lastBal!)}`);
+  const checked = [drCount, crCount, debits, credits, opening, closing].filter((v) => v !== undefined).length;
+  if (!checked) return null;
+  if (misses.length) return { ok: false, text: `The bank's summary says ${misses.join("; ")}. Check the rows against the PDF.` };
+  const parts: string[] = [];
+  if (debits !== undefined) parts.push(`debits ${money(debits)}`);
+  if (credits !== undefined) parts.push(`credits ${money(credits)}`);
+  if (closing !== undefined) parts.push(`closing balance ${money(closing)}`);
+  return { ok: true, text: `The totals match the bank's summary${parts.length ? ` (${parts.join(", ")})` : ""}.` };
+}
+
+function build(recs: Rec[], layout: Layout, regions: Map<number, { y0: number; y1: number }>, pageNumbers: number[], summary?: Summary): Statement {
   const cols = layout.cols;
   const cuts = cols.map((_, i) => cutOf(recs, i));
   for (const r of recs) {
     r.cells = r.lines.map((lines, i) => {
-      return [isMoney(cols[i].role) || cols[i].role === "drcr" ? lines.map(lineString).join(" ").trim() : joinLines(lines, cuts[i])];
+      return [isMoney(cols[i].role) || cols[i].role === "drcr" ? lines.map(lineString).join(" ").trim() : joinLines(lines, cuts[i], cols[i].role)];
     });
   }
 
@@ -538,7 +778,26 @@ function build(recs: Rec[], layout: Layout, regions: Map<number, { y0: number; y
     );
   } else notes.push(`Bank statement: ${n} transactions from ${span}.`);
   void pageNumbers;
-  return { grid, regions, check, transactions: n, notes };
+  let summaryGrid: Grid | undefined;
+  if (summary) {
+    const verdict = checkSummary(summary, parsed, check.direction);
+    if (verdict) notes[0] = `${notes[0]} ${verdict.text}`;
+    const cell = (text: string, bold: boolean): GridCellData => ({ text, bold, borders: bold ? { bottom: true } : {}, rowSpan: 1, colSpan: 1 });
+    summaryGrid = {
+      page: summary.page,
+      y0: summary.y0,
+      y1: summary.y1,
+      xs: Array.from({ length: summary.labels.length + 1 }, (_, i) => i),
+      rows: [summary.labels.map((l) => cell(l, true)), summary.values.map((v) => cell(v, false))],
+      bordered: false,
+      rowPitch: 12,
+      name: "Summary",
+      heading: "Statement summary",
+      headerRows: 1,
+      aside: "summary",
+    };
+  }
+  return { grid, regions, check, transactions: n, notes, summary: summaryGrid };
 }
 
 /** Each balance should be the one before it, less debits, plus credits. Statements may run newest first. */

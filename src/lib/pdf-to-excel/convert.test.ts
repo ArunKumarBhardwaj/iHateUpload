@@ -92,8 +92,10 @@ test("a statement that runs over three pages is one Transactions sheet, balances
   expect(wb.Sheets["Transactions"].A2.v).toBe(46174);
   expect(result.notes.join(" ")).toContain("64 transactions from pages 1–3. Every running balance adds up.");
   expect(rows[rows.length - 1].slice(1)).toEqual(["Oakridge Cafe", 60.61, undefined, 23576.63]);
-  // Running header, footer and page numbers are left out of the Text sheet.
-  const text = grid(wb, "Text").flat().join(" ");
+  // What the pages say around the table, once: running footer and page numbers are left out.
+  expect(wb.SheetNames).toEqual(["Transactions", "Account details"]);
+  const text = grid(wb, "Account details").flat().join(" ");
+  expect(text).toContain("Marguerite Ellison");
   expect(text).not.toContain("Page 2 of 3");
   expect(text).not.toContain("Account ending");
   expect(text).toContain("Closing balance");

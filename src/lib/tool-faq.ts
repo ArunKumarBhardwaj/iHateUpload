@@ -211,7 +211,7 @@ export const TOOL_FAQ: Record<ToolId, FaqItem[]> = {
     },
     {
       q: "How are sheets arranged?",
-      a: "Choose one sheet per table, one per page, or everything on one sheet. By default a table that runs over several pages is joined into one table.",
+      a: "By default each table gets its own sheet, and a table that runs over several pages is joined into one. A bank statement becomes a Transactions sheet, with every running balance and the bank's own totals checked, plus an Account details sheet. Under More options you can pick one sheet per page or everything on one sheet.",
     },
     {
       q: "Can I get CSV instead of XLSX, or limit the pages?",
