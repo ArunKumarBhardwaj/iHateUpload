@@ -105,7 +105,7 @@ export function FileList({
         </div>
       </div>
 
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:flex lg:flex-wrap lg:justify-center lg:gap-5 lg:pt-6">
         {files.map((file, index) => {
           const preview =
             previews.get(file.id) ??
@@ -119,13 +119,13 @@ export function FileList({
           return (
           <li
             key={file.id}
-            className="flex flex-col gap-2 rounded-xl border border-ink/10 bg-background p-2.5"
+            className="flex flex-col gap-2 rounded-xl border border-ink/10 bg-background p-2.5 lg:w-52 lg:border-ink/5 lg:bg-card lg:shadow-[0_12px_30px_-18px_rgba(17,18,20,0.35)]"
           >
             <Thumbnail
               state={preview.thumbnail}
               alt={`Preview of ${file.name}`}
               icon={<Icon className="size-5" />}
-              className="h-36 w-full bg-muted/40 sm:h-40"
+              className="h-36 w-full bg-muted/40 sm:h-40 lg:h-60"
             />
             <div className="min-w-0">
               <p

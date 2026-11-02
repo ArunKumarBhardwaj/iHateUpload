@@ -231,6 +231,19 @@ export function ToolWorkspace({
   const busy = job.status === "processing";
   const settled = job.status === "ready" || job.status === "error";
   const locked = busy || job.status === "done";
+
+  /**
+   * Once files arrive the hero has done its job: bring the workbench up under
+   * the header so the settings and the action button are on screen together.
+   */
+  const cardRef = useRef<HTMLDivElement>(null);
+  const hasFiles = job.status !== "idle";
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!hasFiles || !card || card.getBoundingClientRect().top < 120) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    card.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+  }, [hasFiles]);
   const reorderable = tool.ordered && tool.multiple;
   const needsPair =
     tool.id === "merge-pdf" ||
@@ -343,13 +356,30 @@ export function ToolWorkspace({
   );
 
   const SourceIcon = tool.kind === "pdf" ? FileText : FileImage;
+  /** Files are in and not yet done: the card becomes a canvas and a sidebar. */
+  const panes = (settled || busy) && options.kind !== "ask";
+
+  const actionBar = (fill: boolean) => (
+    <ActionBar
+      tool={tool}
+      job={job}
+      busy={busy}
+      canProcess={canProcess}
+      options={options}
+      onReset={reset}
+      onProcess={process}
+      fill={fill}
+    />
+  );
 
   return (
     <div className="w-full">
       <div
+        ref={cardRef}
         className={cn(
           // No `overflow-hidden` here: it would stop the action bar sticking.
-          "relative rounded-[1.75rem] border bg-card p-5 transition-[transform,border-color,box-shadow] duration-300 ease-out sm:p-8",
+          "relative scroll-mt-32 rounded-[1.75rem] border bg-card p-5 md:scroll-mt-20 transition-[transform,border-color,box-shadow] duration-300 ease-out sm:p-8",
+          panes && "lg:p-0",
           // Before any file, the whole card is the drop zone: one dashed
           // surface instead of a dashed box inside a card.
           job.status === "idle"
@@ -377,7 +407,8 @@ export function ToolWorkspace({
           addFiles(e.dataTransfer.files, settled ? "append" : "replace");
         }}
       >
-        <div className="mb-5">
+        {/* The sidebar title says what comes next, so the canvas drops the steps. */}
+        <div className={cn("mb-5", panes && "lg:hidden")}>
           <Stepper job={job} options={options} />
         </div>
         <p className="sr-only" aria-live="polite" aria-atomic="true">
@@ -444,8 +475,8 @@ export function ToolWorkspace({
         )}
 
         {(settled || busy) && options.kind !== "ask" && (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-            <div className="min-w-0 space-y-5">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-0 xl:grid-cols-[minmax(0,1fr)_24rem]">
+            <div className="min-w-0 space-y-5 lg:min-h-[calc(100dvh-6rem)] lg:rounded-l-[1.75rem] lg:bg-secondary lg:p-8">
               {options.kind === "scan" ? (
                 <ScanStudio
                   files={files}
@@ -588,44 +619,54 @@ export function ToolWorkspace({
               {optionsInCanvas && options.kind !== "edit" && options.kind !== "sign" && options.kind !== "fill-form" && optionsPanel}
             </div>
 
-            <aside className="space-y-4 lg:border-l lg:border-ink/10 lg:pl-6">
-              <div>
-                <h2 className="text-lg font-semibold text-ink">
-                  {options.kind === "none" ? "Ready to run" : "Settings"}
-                </h2>
-                <div className="mt-2 space-y-2 rounded-lg border border-ink/10 bg-secondary px-3 py-2.5 text-sm text-muted-foreground">
-                  <p>{optionsHint(options, tool.actionLabel)}</p>
-                  {batchHint(options, files.length) ? (
-                    <p className="font-medium text-ink">{batchHint(options, files.length)}</p>
-                  ) : null}
-                  {largeJob && (
-                    <p className="font-medium text-ink">
-                      This file is large for this device. Stay on Light, or
-                      expect a wait.
-                    </p>
-                  )}
-                  {reorderable && files.length > 1 && (
-                    <p>Output follows the order of the cards.</p>
-                  )}
-                  {(tool.id === "merge-pdf" || tool.id === "alternate-mix") &&
-                    files.length < 2 && (
-                    <p className="font-medium text-ink">
-                      Add at least two PDFs to {tool.id === "merge-pdf" ? "merge" : "mix"}.
-                    </p>
-                  )}
+            {/*
+              Wide screens: the panel sticks under the header, its settings
+              scroll inside it and the action stays pinned at its foot, so
+              the button never covers a setting.
+            */}
+            <aside className="lg:sticky lg:top-20 lg:flex lg:h-[calc(100dvh-6rem)] lg:flex-col lg:self-start lg:border-l lg:border-ink/10 lg:p-6">
+              <div className="space-y-4 lg:-mx-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:px-1 lg:pb-1">
+                <div>
+                  <h2 className="font-display text-2xl leading-tight font-semibold tracking-[-0.02em] text-ink">
+                    {tool.title}
+                  </h2>
+                  <div className="mt-2 space-y-2 text-sm leading-relaxed text-muted-foreground">
+                    <p>{optionsHint(options, tool.actionLabel)}</p>
+                    {batchHint(options, files.length) ? (
+                      <p className="font-medium text-ink">{batchHint(options, files.length)}</p>
+                    ) : null}
+                    {largeJob && (
+                      <p className="font-medium text-ink">
+                        This file is large for this device. Stay on Light, or
+                        expect a wait.
+                      </p>
+                    )}
+                    {reorderable && files.length > 1 && (
+                      <p>Output follows the order of the cards.</p>
+                    )}
+                    {(tool.id === "merge-pdf" || tool.id === "alternate-mix") &&
+                      files.length < 2 && (
+                      <p className="font-medium text-ink">
+                        Add at least two PDFs to {tool.id === "merge-pdf" ? "merge" : "mix"}.
+                      </p>
+                    )}
+                  </div>
                 </div>
+
+                {(!optionsInCanvas || options.kind === "fill-form") && optionsPanel}
+
+                {job.status === "error" && (
+                  <div
+                    role="alert"
+                    className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                  >
+                    {job.message}
+                  </div>
+                )}
               </div>
-
-              {(!optionsInCanvas || options.kind === "fill-form") && optionsPanel}
-
-              {job.status === "error" && (
-                <div
-                  role="alert"
-                  className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-                >
-                  {job.message}
-                </div>
-              )}
+              <div className="mt-4 hidden border-t border-ink/10 pt-4 lg:block">
+                {actionBar(true)}
+              </div>
             </aside>
           </div>
         )}
@@ -655,74 +696,109 @@ export function ToolWorkspace({
         )}
 
         {job.status !== "idle" && options.kind !== "ask" && (
-          <div className="sticky bottom-0 -mx-5 -mb-5 mt-6 rounded-b-2xl border-t border-ink/10 bg-card/95 px-5 pb-5 pt-4 backdrop-blur sm:-mx-8 sm:-mb-8 sm:px-8 sm:pb-8">
-            {job.status === "processing" && (
-              <div className="mb-3 space-y-1.5">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="inline-flex items-center gap-2 font-medium text-ink">
-                    <Loader2 className="size-4 animate-spin text-signal" />
-                    Working locally…
-                  </span>
-                  <span className="text-muted-foreground">{job.progress}%</span>
-                </div>
-                <Progress
-                  value={job.progress}
-                  aria-label="Processing"
-                  aria-valuetext={`${job.progress} percent`}
-                />
-              </div>
+          // On wide screens the settings panel carries these buttons, so this
+          // bar is only for narrow screens and the result view.
+          <div
+            className={cn(
+              "sticky bottom-0 -mx-5 -mb-5 mt-6 rounded-b-2xl border-t border-ink/10 bg-card/95 px-5 pb-5 pt-4 backdrop-blur sm:-mx-8 sm:-mb-8 sm:px-8 sm:pb-8",
+              job.status !== "done" && "lg:hidden",
             )}
-            <p className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Lock className="size-3" />
-              {tool.ui === "ask"
-                ? "The PDFs stay in this tab. Their text and your chat go to Google Gemini."
-                : tool.ui === "translate"
-                  ? "The PDFs stay in this tab. Only their text goes to Google Gemini to be translated."
-                  : tool.ui === "summarize"
-                    ? "The PDFs stay in this tab. Only their text goes to Google Gemini to be summarized."
-                    : "Runs in this tab. Nothing is uploaded."}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-12"
-                disabled={busy}
-                onClick={reset}
-              >
-                Start over
-              </Button>
-              {job.status === "done" ? (
-                <Button
-                  size="lg"
-                  className="h-12 flex-1 px-6 text-base sm:flex-none"
-                  onClick={() => {
-                    if (job.results.length === 1) {
-                      downloadBlob(job.results[0].blob, job.results[0].name);
-                      return;
-                    }
-                    void downloadAllResults(job.results);
-                  }}
-                >
-                  <Download />
-                  {downloadLabel(job.results)}
-                </Button>
-              ) : (
-                <Button
-                  size="lg"
-                  className="h-12 flex-1 px-6 text-base sm:flex-none"
-                  disabled={!canProcess}
-                  onClick={process}
-                >
-                  {options.kind === "unlock" && options.lock === "restricted"
-                    ? "Remove restrictions"
-                    : tool.actionLabel}
-                </Button>
-              )}
-            </div>
+          >
+            {actionBar(false)}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+function ActionBar({
+  tool,
+  job,
+  busy,
+  canProcess,
+  options,
+  onReset,
+  onProcess,
+  fill = false,
+}: {
+  tool: ToolDefinition;
+  job: JobState;
+  busy: boolean;
+  canProcess: boolean;
+  options: ToolOptions;
+  onReset: () => void;
+  onProcess: () => void;
+  /** The primary button takes the remaining width at every size. */
+  fill?: boolean;
+}) {
+  const primary = cn("h-12 flex-1 px-6 text-base", !fill && "sm:flex-none");
+  return (
+    <>
+      {job.status === "processing" && (
+        <div className="mb-3 space-y-1.5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="inline-flex items-center gap-2 font-medium text-ink">
+              <Loader2 className="size-4 animate-spin text-signal" />
+              Working locally…
+            </span>
+            <span className="text-muted-foreground">{job.progress}%</span>
+          </div>
+          <Progress
+            value={job.progress}
+            aria-label="Processing"
+            aria-valuetext={`${job.progress} percent`}
+          />
+        </div>
+      )}
+      <p className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Lock className="size-3" />
+        {tool.ui === "ask"
+          ? "The PDFs stay in this tab. Their text and your chat go to Google Gemini."
+          : tool.ui === "translate"
+            ? "The PDFs stay in this tab. Only their text goes to Google Gemini to be translated."
+            : tool.ui === "summarize"
+              ? "The PDFs stay in this tab. Only their text goes to Google Gemini to be summarized."
+              : "Runs in this tab. Nothing is uploaded."}
+      </p>
+      <div className="flex items-center gap-2">
+        <Button
+          size="lg"
+          variant="outline"
+          className="h-12"
+          disabled={busy}
+          onClick={onReset}
+        >
+          Start over
+        </Button>
+        {job.status === "done" ? (
+          <Button
+            size="lg"
+            className={primary}
+            onClick={() => {
+              if (job.results.length === 1) {
+                downloadBlob(job.results[0].blob, job.results[0].name);
+                return;
+              }
+              void downloadAllResults(job.results);
+            }}
+          >
+            <Download />
+            {downloadLabel(job.results)}
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            className={primary}
+            disabled={!canProcess}
+            onClick={onProcess}
+          >
+            {options.kind === "unlock" && options.lock === "restricted"
+              ? "Remove restrictions"
+              : tool.actionLabel}
+          </Button>
+        )}
+      </div>
+    </>
   );
 }
